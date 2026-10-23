@@ -189,4 +189,15 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=data_schema)
+        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        history_md = (
+            manager.get_history_markdown()
+            if manager
+            else "_Noch keine Dialoge aufgezeichnet._"
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+            description_placeholders={"history": history_md},
+        )

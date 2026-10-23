@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CODEWORD_UNVERSTAENDLICH,
@@ -99,6 +100,33 @@ class SchlaueAntwortenManager:
         self._unsub_state: Any = None
         self._last_questions: dict[str, Any] = {}
         self._retry_counts: dict[str, int] = {}
+        self._history: list[dict[str, str]] = []
+
+    def add_history_entry(self, device: str, query: str, output: str) -> None:
+        """Add a compact log entry for user view in options (max 100 chars output)."""
+        clean_dev = device.replace("media_player.", "").replace("_", " ").title()
+        now_str = dt_util.now().strftime("%H:%M")
+        preview = output[:100] + ("..." if len(output) > 100 else "")
+        entry = {
+            "time": now_str,
+            "device": clean_dev,
+            "query": query,
+            "output": preview,
+        }
+        self._history.insert(0, entry)
+        if len(self._history) > 10:
+            self._history = self._history[:10]
+
+    def get_history_markdown(self) -> str:
+        """Return compact markdown string of last interactions."""
+        if not self._history:
+            return "_Noch keine Dialoge aufgezeichnet._"
+        lines = []
+        for item in self._history:
+            lines.append(
+                f"- `{item['time']}` **{item['device']}** | *In:* {item['query']} ➔ *Out:* {item['output']}"
+            )
+        return "\n".join(lines)
 
     async def async_setup(self) -> None:
         """Register listeners and services."""
@@ -231,6 +259,9 @@ class SchlaueAntwortenManager:
                 "Query unclear on %s; prompting user to repeat (retry 1)",
                 reply_device,
             )
+            self.add_history_entry(
+                reply_device, "Unverständliche Spracheingabe", retry_prompt
+            )
             if self.hass.services.has_service(
                 "script", "activate_alexa_actionable_notification"
             ):
@@ -264,6 +295,9 @@ class SchlaueAntwortenManager:
             _LOGGER.info(
                 "Query unclear again on %s; ending dialog with abort message",
                 reply_device,
+            )
+            self.add_history_entry(
+                reply_device, "Unverständliche Spracheingabe (Fehlversuch 2)", abort_prompt
             )
             try:
                 await self.hass.services.async_call(
@@ -388,6 +422,9 @@ class SchlaueAntwortenManager:
                     CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT
                 )
                 if goodbye_text:
+                    self.add_history_entry(
+                        reply_device, "[Follow-up] Nein", goodbye_text
+                    )
                     try:
                         await self.hass.services.async_call(
                             "notify",
@@ -551,6 +588,7 @@ class SchlaueAntwortenManager:
                 "Die KI ist im Moment leider überlastet. "
                 "Bitte versuche es in einem Moment noch einmal."
             )
+            self.add_history_entry(reply_device, question, final_speech)
             try:
                 await self.hass.services.async_call(
                     "notify",
@@ -589,6 +627,13 @@ class SchlaueAntwortenManager:
             final_speech = f"{cleaned} Beantwortet von {agent_name}."
         else:
             final_speech = cleaned
+
+        # Log interaction (max 100 chars output)
+        self.add_history_entry(
+            device=reply_device,
+            query=f"[Vertiefung] {question}" if is_followup else question,
+            output=final_speech,
+        )
 
         # 7. Actionable Notification with follow-up question if enabled
         if not is_followup and enable_followup:

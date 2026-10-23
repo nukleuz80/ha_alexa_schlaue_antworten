@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Schlaue Antworten Konfiguration",
-        "description": "Passe die Einstellungen für KI-Agenten, Prompts und Sprachausgabe an. Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter {question} muss erhalten bleiben.",
+        "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n### 📜 Dialog-Log (letzte Interaktionen):\n{history}\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter {question} muss erhalten bleiben.*",
         "data": {
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",

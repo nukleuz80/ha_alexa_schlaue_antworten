@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Smart Answers Configuration",
-        "description": "Configure AI conversation agents, prompts, and voice output settings. Note: Custom prompts provided as-is without warranty - placeholder {question} must remain present.",
+        "description": "Configure AI conversation agents, prompts, and settings.\n\n### 📜 Dialog Log (recent interactions):\n{history}\n\n*Note: Custom prompts provided as-is without warranty - placeholder {question} must remain present.*",
         "data": {
           "primary_agent": "Primary AI Agent",
           "fallback_agent": "Fallback AI Agent (on 503/error)",
