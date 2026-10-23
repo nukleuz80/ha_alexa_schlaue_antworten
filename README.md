@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.2-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.3-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -14,7 +14,17 @@
 
 **Schlaue Antworten** verbindet deine Amazon Echo-Lautsprecher nahtlos mit modernen KI-Sprachmodellen (z. B. Google Gemini, Anthropic Claude oder lokalen LLMs) in Home Assistant.
 
-Per Sprachbefehl **„Alexa, öffne Schlaue Antworten“** meldet sich Alexa mit einem geöffneten Mikrofon (blauer Leuchtring) auf genau dem Echo, vor dem du gerade stehst, nimmt deine freie Wissens- oder Alltagsfrage entgegen und liest dir die Antwort des KI-Modells sekundenschnell und bereinigt vor.
+Per Sprachbefehl **„Alexa, öffne Schlaue Antworten“** meldet sich Alexa mit einem geöffneten Mikrofon (blauer Leuchtring) auf genau dem Echo, vor dem du gerade stehst, nimmt deine freie Wissens- oder Alltagsfrage entgegen und liest dir die Antwort des KI-Modells sekundenschnell und sauber formuliert vor.
+
+---
+
+## 🔒 100 % Privat & Lokal – Kein AWS Lambda oder Entwicklerkonto nötig!
+
+Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
+- ❌ **Kein** Amazon Developer Account erforderlich
+- ❌ **Keine** AWS-Lambda-Funktionen oder Cloud-Proxies
+- ❌ **Keine** sensiblen URLs, Tokens oder Zugangsdaten, die irgendwo extern eingetragen werden müssen
+- ✅ **100 % isoliert:** Alle Dialoge, KI-Abfragen und Antworten verbleiben vollständig in deiner eigenen Home-Assistant-Instanz.
 
 ---
 
@@ -32,15 +42,15 @@ Per Sprachbefehl **„Alexa, öffne Schlaue Antworten“** meldet sich Alexa mit
 
 ## 📋 Voraussetzungen in Home Assistant
 
-Damit die Integration auf deinen Echo-Geräten funktioniert, müssen die folgenden Komponenten in deinem Home Assistant vorhanden sein:
+Damit die Integration auf deinen Echo-Geräten funktioniert, müssen die folgenden 5 Bausteine in deinem Home Assistant vorhanden sein:
 
 ### 1. Alexa Media Player (HACS)
-Wird für die Sprachausgabe (`notify.alexa_media`) und das Senden von Befehlen an die Echo-Geräte benötigt.
-- **Integration:** [Alexa Media Player](https://github.com/alandtse/alexa_media_player) via HACS.
+Wird für die Sprachausgabe (`notify.alexa_media`) und das Stoppen laufender Medien benötigt.
+- **Installation:** Über HACS nach *Alexa Media Player* suchen und installieren.
 
-### 2. Alexa Actionable Notifications
+### 2. Alexa Actionable Notifications (Dialog-Pipeline)
 Ermöglicht es dem Echo, eine Frage zu stellen und das Mikrofon mit dem blauen Leuchtring für deine Antwort offen zu halten.
-- **Skill:** Der offizielle Community-Skill `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40` muss in deinem Amazon-Konto aktiviert sein.
+- **Skill:** Der offizielle, kostenlose Community-Skill `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40` muss in deinem Amazon-Konto aktiviert sein.
 - **Helfer in `configuration.yaml`:**
   ```yaml
   input_text:
@@ -64,7 +74,7 @@ Ermöglicht es dem Echo, eine Frage zu stellen und das Mikrofon mit dem blauen L
   ```
 
 ### 3. Sensor für das aktive Echo-Gerät (`sensor.last_alexa`)
-Ermittelt automatisch das Echo-Gerät, das den letzten Sprachbefehl erhalten hat:
+Ermittelt automatisch das Echo-Gerät, das den letzten Sprachbefehl empfangen hat:
 ```yaml
 template:
   - sensor:
@@ -77,7 +87,7 @@ template:
 ```
 
 ### 4. Trigger-Helfer & Szene für die Alexa-Routine
-Wird von der Alexa-Routine ausgelöst:
+Verbindet den Sprachbefehl mit Home Assistant:
 - **Helfer (`configuration.yaml`):**
   ```yaml
   input_boolean:
@@ -94,13 +104,13 @@ Wird von der Alexa-Routine ausgelöst:
       input_boolean.alexa_ki_trigger:
         state: 'on'
   ```
-- **Alexa Smartphone-App Routine:**
+- **Routine in der Alexa-Smartphone-App:**
   - **Wenn Folgendes passiert (Stimme):** `öffne schlaue antworten`
-  - **Aktion hinzufügen (Smart Home -> Szenen):** `Schlaue Antworten`
+  - **Aktion hinzufügen (Smart Home ➔ Szenen):** `Schlaue Antworten`
 
-### 5. Mindestens ein Conversation Agent
+### 5. Mindestens ein aktiver KI-Agent (Conversation Entity)
 Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
-- **Google Generative AI (Gemini):** z. B. `conversation.google_ai_conversation_2` *(empfohlen für Wissensfragen)*.
+- **Google Generative AI (Gemini):** z. B. eine reine Text-Instanz ohne Smart-Home-Entitätssteuerung für maximale Geschwindigkeit (~1,2s Antwortzeit).
 - **Anthropic Claude / OpenRouter:** z. B. `conversation.anthropic_claude_sonnet_4`.
 - **OpenAI / Local LLM / Ollama:** Beliebige `conversation.*`-Entität.
 
@@ -118,22 +128,39 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
 
 ### Manuelle Installation
 1. Lade das Repository herunter.
-2. Kopiere den Ordner `custom_components/schlaue_antworten/` in dein Home Assistant Verzeichnis `/config/custom_components/`.
-3. Starte Home Assistant neu.
+2. Kopiere den Ordner `custom_components/schlaue_antworten/` in dein Verzeichnis `/config/custom_components/`.
+3. Kopiere den Ordner `www/schlaue_antworten/` in dein Verzeichnis `/config/www/`.
+4. Starte Home Assistant neu.
 
 ---
 
-## ⚙️ Konfiguration
+## ⚙️ Konfiguration (UI Options Flow)
 
 1. Gehe in Home Assistant auf **Einstellungen ➔ Geräte & Dienste**.
 2. Klicke auf **+ Integration hinzufügen** und wähle **Schlaue Antworten**.
-3. Nach der Installation klickst du auf **Konfigurieren**:
-   - **Primärer KI-Agent:** Hauptmodell für Antworten.
-   - **Ausweich-Agent (Fallback):** Modell, das bei 503-Fehlern oder Ausfällen automatisch einspringt.
-   - **Standard-Echo:** Fallback-Gerät, falls `sensor.last_alexa` nicht ermittelt werden kann.
+3. Klicke nach der Installation auf **Konfigurieren**:
+   - **Primärer KI-Agent:** Hauptmodell für Antworten (z. B. Google Gemini 2).
+   - **Ausweich-Agent (Fallback):** Modell, das bei 503-Überlastung automatisch einspringt (z. B. Claude Sonnet).
+   - **Standard-Echo:** Fallback-Gerät, falls `sensor.last_alexa` einmal nicht gesetzt sein sollte.
    - **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
-   - **Modellname am Ende der Antwort ansagen:** An/Aus.
-   - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 Sätze.
+   - **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an.
+   - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
+
+---
+
+## 🗣️ Ablauf im Alltag
+
+1. **Du sagst:**  
+   > *„Alexa, öffne Schlaue Antworten“*
+2. **Dein Echo leuchtet blau und fragt:**  
+   > *„Schlaue Antworten: Was möchtest du wissen?“*
+3. **Du stellst frei heraus deine Frage:**  
+   - *„Wie weit ist der Mond entfernt?“*
+   - *„Warum ist der Himmel blau?“*
+   - *„Was kann ich heute mit Kartoffeln und Spinat kochen?“*
+   - *„Erkläre mir die Relativitätstheorie in zwei Sätzen.“*
+4. **Alexa liest dir die Antwort vor:**  
+   Prägnant in 1–2 Sätzen, bereinigt um Markdown-Formatierungen und optional mit Nennung des Modells.
 
 ---
 
@@ -152,6 +179,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.3** | 23.10.2026 | Umfassende Dokumentationsüberarbeitung: Klarstellung der privaten Architektur (kein AWS Lambda / kein Entwicklerkonto nötig), Schritt-für-Schritt-Anleitung und Alltags-Beispiele. |
 | **v1.0.2** | 23.10.2026 | Bild-Assets in dedizierten Ordner `www/schlaue_antworten/` verschoben und Pfade/Skripte bereinigt. |
 | **v1.0.1** | 23.10.2026 | Offizielles Logo hinzugefügt (SVG- und PNG-Assets) und Dokumentations-Update. |
 | **v1.0.0** | 23.10.2026 | Erstveröffentlichung als native Custom Integration mit vollständigem Options Flow, dynamischer Raum-Erkennung via `sensor.last_alexa`, 503-Ausweich-Logik (Fallback) und nahtloser Alexa Actionable Notifications Anbindung. |
@@ -159,4 +187,4 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 ---
 
 ## 📄 Lizenz
-MIT License. Siehe `LICENSE` für Details.
+MIT License. Siehe [`LICENSE`](LICENSE) für Details.
