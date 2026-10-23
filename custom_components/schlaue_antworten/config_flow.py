@@ -91,12 +91,20 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage the options."""
+        """Show main options menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["settings", "history"],
+        )
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage configuration and prompts."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        entry = self.config_entry
-        opts = entry.options if entry else {}
+        opts = self.config_entry.options
 
         data_schema = vol.Schema(
             {
@@ -186,20 +194,30 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
             }
         )
 
-        entry_id = entry.entry_id if entry else getattr(self, "handler", "")
+        return self.async_show_form(
+            step_id="settings",
+            data_schema=data_schema,
+        )
+
+    async def async_step_history(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Display dialog log in a dedicated dialog step."""
+        if user_input is not None:
+            return await self.async_step_init()
+
+        entry_id = self.config_entry.entry_id
         manager = self.hass.data.get(DOMAIN, {}).get(entry_id)
         history_md = (
             manager.get_history_markdown()
             if manager
             else "_Noch keine Dialoge aufgezeichnet._"
         )
+        # Sanitize any curly braces in user queries/output to avoid FormatJS parsing
+        clean_history = history_md.replace("{", "[").replace("}", "]")
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=data_schema,
-            description_placeholders={
-                "history": history_md,
-                "question": "{question}",
-                "previous_answer": "{previous_answer}",
-            },
+            step_id="history",
+            data_schema=vol.Schema({}),
+            description_placeholders={"log_content": clean_history},
         )

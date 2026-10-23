@@ -2,50 +2,62 @@
   "config": {
     "step": {
       "user": {
-        "title": "Smart Answers",
-        "description": "Do you want to set up Smart Answers?"
+        "title": "Schlaue Antworten",
+        "description": "Do you want to set up Schlaue Antworten?"
       }
     },
     "abort": {
-      "single_instance_allowed": "Smart Answers is already configured."
+      "single_instance_allowed": "Schlaue Antworten is already set up."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Smart Answers Configuration",
-        "description": "Configure AI conversation agents, prompts, and settings.\n\n### 📜 Dialog Log (recent interactions):\n{history}\n\n*Note: Custom prompts provided as-is without warranty - placeholder for question must remain present.*",
+        "title": "Schlaue Antworten",
+        "description": "Choose a section:",
+        "menu_options": {
+          "settings": "⚙️ Settings & Prompts",
+          "history": "📜 Dialog Log (Recent Interactions)"
+        }
+      },
+      "settings": {
+        "title": "Settings & Prompts",
+        "description": "Configure AI conversation agents, prompts, and settings.\n\n*Note: Custom prompts provided as-is without warranty - placeholder for question must remain present.*",
         "data": {
-          "primary_agent": "Primary AI Agent",
-          "fallback_agent": "Fallback AI Agent (on 503/error)",
-          "default_echo": "Default Echo (Fallback)",
-          "dialog_prompt": "Dialog Greeting Prompt",
-          "announce_model": "Announce model name at the end of the answer",
-          "short_answers": "Enforce short answers for speech (1-2 sentences)",
-          "enable_detailed_followup": "Offer follow-up for a more detailed explanation",
+          "primary_agent": "Primary AI agent",
+          "fallback_agent": "Fallback AI agent (used during outage/high demand)",
+          "default_echo": "Default Echo media player (fallback)",
+          "dialog_prompt": "Greeting voice prompt",
+          "announce_model": "Announce model name at the end of answers",
+          "short_answers": "Force concise spoken answers (1-2 sentences)",
+          "enable_detailed_followup": "Offer follow-up question for deeper explanations",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
-          "goodbye_text": "Farewell text on decline ('No')",
-          "retry_prompt": "Reprompt message when query is unclear/nonsense",
-          "abort_prompt": "Final exit message after second failed attempt",
+          "goodbye_text": "Farewell text on rejection ('No')",
+          "retry_prompt": "Prompt when question was not understood",
+          "abort_prompt": "Abort announcement after second failed attempt",
           "prompt_short": "AI prompt for short answer (as-is, must include [question])",
           "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders [question] and [previous_answer])"
         }
+      },
+      "history": {
+        "title": "📜 Dialog Log",
+        "description": "### Recent Interactions:\n\n{log_content}"
       }
     }
   },
   "services": {
     "start_dialog": {
-      "name": "Start Dialog",
+      "name": "Start dialogue",
       "description": "Opens the AI voice question dialog on an Echo speaker.",
       "fields": {
         "echo_device": {
-          "name": "Target Echo Device",
-          "description": "Echo device (optional, defaults to last called Echo)."
+          "name": "Target Echo device",
+          "description": "Echo media player (optional, defaults to last active Echo)."
         }
       }
     },
     "ask_question": {
-      "name": "Ask Question",
+      "name": "Ask question",
       "description": "Sends a question directly to the AI and speaks the answer on the Echo.",
       "fields": {
         "question": {
@@ -53,11 +65,10 @@
           "description": "The question to ask the AI."
         },
         "echo_device": {
-          "name": "Target Echo Device",
-          "description": "Echo device (optional, defaults to last called Echo)."
+          "name": "Target Echo device",
+          "description": "Echo media player (optional, defaults to last active Echo)."
         }
       }
     }
   }
 }
-

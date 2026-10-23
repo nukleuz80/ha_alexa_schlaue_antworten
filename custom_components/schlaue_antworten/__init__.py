@@ -66,6 +66,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Schlaue Antworten from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    # Evict cached translations for this domain so that changes take effect immediately
+    for key in list(hass.data.keys()):
+        if "translation" in str(key).lower():
+            val = hass.data[key]
+            if isinstance(val, dict):
+                for subk in list(val.keys()):
+                    if DOMAIN in str(subk) or "schlaue" in str(subk):
+                        val.pop(subk, None)
+
     manager = SchlaueAntwortenManager(hass, entry)
     await manager.async_setup()
     hass.data[DOMAIN][entry.entry_id] = manager

@@ -13,8 +13,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Schlaue Antworten Konfiguration",
-        "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n### 📜 Dialog-Log (letzte Interaktionen):\n{history}\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter für die Frage muss erhalten bleiben.*",
+        "title": "Schlaue Antworten",
+        "description": "Wähle einen Bereich aus:",
+        "menu_options": {
+          "settings": "⚙️ Einstellungen & Prompts",
+          "history": "📜 Dialog-Log (letzte Interaktionen)"
+        }
+      },
+      "settings": {
+        "title": "Einstellungen & Prompts",
+        "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter für die Frage muss erhalten bleiben.*",
         "data": {
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
@@ -30,6 +38,10 @@
           "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss [question] enthalten)",
           "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter [question] und [previous_answer] nutzen)"
         }
+      },
+      "history": {
+        "title": "📜 Dialog-Log",
+        "description": "### Letzte Interaktionen:\n\n{log_content}"
       }
     }
   },
@@ -50,7 +62,7 @@
       "fields": {
         "question": {
           "name": "Frage",
-          "description": "Der Fragetext an die KI."
+          "description": "Die an die KI zu stellende Frage."
         },
         "echo_device": {
           "name": "Ziel-Echo-Gerät",
@@ -60,4 +72,3 @@
     }
   }
 }
-
