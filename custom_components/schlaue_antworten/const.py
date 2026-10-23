@@ -32,9 +32,11 @@ DEFAULT_PROMPT_SHORT = (
     "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}"
 )
 DEFAULT_PROMPT_DETAILED = (
-    "Erkläre folgende Fragestellung ausführlich, interessant und verständlich in etwa 3 bis 5 Sätzen auf Deutsch "
-    "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-    "ohne Formatierungen und ohne Sonderzeichen: {question}"
+    "Ergänze die bisherige Antwort zur Fragestellung '{question}' um weitere wichtige Informationen, "
+    "interessante Hintergründe und Details in etwa 3 bis 5 Sätzen auf Deutsch für eine direkte Sprachausgabe "
+    "ohne Aufzählungen, ohne Listen und ohne Sonderzeichen. "
+    "Wiederhole den bereits genannten Inhalt nicht noch einmal, sondern liefere neue wichtige Aspekte. "
+    "Bereits gegebene Kurzantwort: {previous_answer}"
 )
 
 # Events & Services

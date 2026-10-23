@@ -26,7 +26,7 @@
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on decline ('No')",
           "prompt_short": "AI prompt for short answer (as-is, must include {question})",
-          "prompt_detailed": "AI prompt for detailed explanation (as-is, must include {question})"
+          "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders {question} and {previous_answer})"
         }
       }
     }

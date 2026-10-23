@@ -91,7 +91,7 @@ class SchlaueAntwortenManager:
         self.entry = entry
         self._unsub_event: Any = None
         self._unsub_state: Any = None
-        self._last_questions: dict[str, str] = {}
+        self._last_questions: dict[str, Any] = {}
 
     async def async_setup(self) -> None:
         """Register listeners and services."""
@@ -238,12 +238,19 @@ class SchlaueAntwortenManager:
 
         # Handle follow-up response (user answers yes/no to "Möchtest du mehr darüber erfahren?")
         if event_id == EVENT_ID_FOLLOWUP:
-            stored_question = self._last_questions.pop(reply_device, None)
-            if not stored_question:
+            stored_data = self._last_questions.pop(reply_device, None)
+            if not stored_data:
                 _LOGGER.debug(
                     "No stored question found for follow-up on %s", reply_device
                 )
                 return
+
+            if isinstance(stored_data, dict):
+                stored_question = str(stored_data.get("question", ""))
+                previous_answer = str(stored_data.get("short_answer", ""))
+            else:
+                stored_question = str(stored_data)
+                previous_answer = ""
 
             positive_phrases = (
                 "ja",
@@ -286,7 +293,10 @@ class SchlaueAntwortenManager:
                     "User requested detailed explanation for: %s", stored_question
                 )
                 await self.async_process_and_speak(
-                    stored_question, reply_device, is_followup=True
+                    stored_question,
+                    reply_device,
+                    is_followup=True,
+                    previous_answer=previous_answer,
                 )
             elif is_negative:
                 _LOGGER.debug(
@@ -341,7 +351,11 @@ class SchlaueAntwortenManager:
         )
 
     async def async_process_and_speak(
-        self, question: str, reply_device: str, is_followup: bool = False
+        self,
+        question: str,
+        reply_device: str,
+        is_followup: bool = False,
+        previous_answer: str = "",
     ) -> None:
         """Query LLM and output answer via Alexa."""
         opts = self.entry.options
@@ -361,10 +375,21 @@ class SchlaueAntwortenManager:
         )
 
         if is_followup:
-            if "{question}" in prompt_detailed_tmpl:
-                prompt = prompt_detailed_tmpl.replace("{question}", question)
+            prompt = prompt_detailed_tmpl
+            if "{question}" in prompt:
+                prompt = prompt.replace("{question}", question)
             else:
-                prompt = f"{prompt_detailed_tmpl.strip()}: {question}"
+                prompt = f"{prompt.strip()}: {question}"
+
+            if "{previous_answer}" in prompt:
+                if previous_answer:
+                    prompt = prompt.replace("{previous_answer}", previous_answer)
+                else:
+                    prompt = prompt.replace("{previous_answer}", "Keine Vorabinformation")
+            elif previous_answer:
+                prompt = (
+                    f"{prompt} Bereits gegebene Kurzantwort (nicht wiederholen, sondern neue Aspekte und wichtige Infos ergänzen): {previous_answer}"
+                )
         elif short_answers:
             if "{question}" in prompt_short_tmpl:
                 prompt = prompt_short_tmpl.replace("{question}", question)
@@ -465,7 +490,10 @@ class SchlaueAntwortenManager:
 
         # 6. Actionable Notification with follow-up question if enabled
         if not is_followup and enable_followup:
-            self._last_questions[reply_device] = question
+            self._last_questions[reply_device] = {
+                "question": question,
+                "short_answer": cleaned,
+            }
             combined_message = f"{final_speech} {followup_prompt}"
 
             if self.hass.services.has_service(

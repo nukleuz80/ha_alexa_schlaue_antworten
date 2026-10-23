@@ -26,7 +26,7 @@
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
           "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss {question} enthalten)",
-          "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, muss {question} enthalten)"
+          "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter {question} und {previous_answer} nutzen)"
         }
       }
     }
