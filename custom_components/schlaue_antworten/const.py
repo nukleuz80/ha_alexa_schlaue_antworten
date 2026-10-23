@@ -12,6 +12,7 @@ CONF_ANNOUNCE_MODEL = "announce_model"
 CONF_SHORT_ANSWERS = "short_answers"
 CONF_ENABLE_DETAILED_FOLLOWUP = "enable_detailed_followup"
 CONF_FOLLOWUP_PROMPT = "followup_prompt"
+CONF_GOODBYE_TEXT = "goodbye_text"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
@@ -21,7 +22,8 @@ DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"
 DEFAULT_ANNOUNCE_MODEL = True
 DEFAULT_SHORT_ANSWERS = True
 DEFAULT_ENABLE_DETAILED_FOLLOWUP = False
-DEFAULT_FOLLOWUP_PROMPT = "Möchtest du mehr darüber erfahren?"
+DEFAULT_FOLLOWUP_PROMPT = "Möchtest du eine ausführlichere Erklärung? Ja oder Nein?"
+DEFAULT_GOODBYE_TEXT = "Alles klar."
 
 # Events & Services
 EVENT_ACTIONABLE_NOTIFICATION = "alexa_actionable_notification"

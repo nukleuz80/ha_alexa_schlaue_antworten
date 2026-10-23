@@ -16,6 +16,7 @@ from .const import (
     CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
+    CONF_GOODBYE_TEXT,
     CONF_PRIMARY_AGENT,
     CONF_SHORT_ANSWERS,
     DEFAULT_ANNOUNCE_MODEL,
@@ -24,6 +25,7 @@ from .const import (
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
+    DEFAULT_GOODBYE_TEXT,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
@@ -255,6 +257,26 @@ class SchlaueAntwortenManager:
                 p in resp_lower for p in positive_phrases
             )
 
+            negative_phrases = (
+                "nein",
+                "ne",
+                "nö",
+                "nicht",
+                "danke",
+                "stop",
+                "stopp",
+                "abbrechen",
+                "ende",
+                "schluss",
+                "reicht",
+                "kein",
+                "keine",
+                "lass",
+            )
+            is_negative = response_type == "ResponseNo" or any(
+                p in resp_lower for p in negative_phrases
+            )
+
             if is_positive:
                 _LOGGER.info(
                     "User requested detailed explanation for: %s", stored_question
@@ -262,9 +284,32 @@ class SchlaueAntwortenManager:
                 await self.async_process_and_speak(
                     stored_question, reply_device, is_followup=True
                 )
-            else:
+            elif is_negative:
                 _LOGGER.debug(
                     "User declined detailed explanation on %s: %s",
+                    reply_device,
+                    raw_response,
+                )
+                goodbye_text = self.entry.options.get(
+                    CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT
+                )
+                if goodbye_text:
+                    try:
+                        await self.hass.services.async_call(
+                            "notify",
+                            "alexa_media",
+                            {
+                                "target": [reply_device],
+                                "data": {"type": "tts"},
+                                "message": goodbye_text,
+                            },
+                            blocking=False,
+                        )
+                    except Exception as err:
+                        _LOGGER.error("Failed to speak goodbye text: %s", err)
+            else:
+                _LOGGER.debug(
+                    "Follow-up ignored or timed out on %s (response: %s)",
                     reply_device,
                     raw_response,
                 )

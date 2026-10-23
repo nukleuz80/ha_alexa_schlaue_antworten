@@ -23,7 +23,8 @@
           "announce_model": "Announce model name at the end of the answer",
           "short_answers": "Enforce short answers for speech (1-2 sentences)",
           "enable_detailed_followup": "Offer follow-up for a more detailed explanation",
-          "followup_prompt": "Follow-up question prompt text"
+          "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
+          "goodbye_text": "Farewell text on decline ('No')"
         }
       }
     }

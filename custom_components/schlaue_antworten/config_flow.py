@@ -17,6 +17,7 @@ from .const import (
     CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
+    CONF_GOODBYE_TEXT,
     CONF_PRIMARY_AGENT,
     CONF_SHORT_ANSWERS,
     DEFAULT_ANNOUNCE_MODEL,
@@ -25,6 +26,7 @@ from .const import (
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
+    DEFAULT_GOODBYE_TEXT,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
@@ -56,6 +58,7 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_SHORT_ANSWERS: DEFAULT_SHORT_ANSWERS,
                     CONF_ENABLE_DETAILED_FOLLOWUP: DEFAULT_ENABLE_DETAILED_FOLLOWUP,
                     CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
+                    CONF_GOODBYE_TEXT: DEFAULT_GOODBYE_TEXT,
                 },
             )
 
@@ -130,6 +133,13 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     default=opts.get(
                         CONF_FOLLOWUP_PROMPT,
                         DEFAULT_FOLLOWUP_PROMPT,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_GOODBYE_TEXT,
+                    default=opts.get(
+                        CONF_GOODBYE_TEXT,
+                        DEFAULT_GOODBYE_TEXT,
                     ),
                 ): selector.TextSelector(),
             }
