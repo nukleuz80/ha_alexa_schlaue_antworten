@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -102,14 +103,34 @@ class SchlaueAntwortenManager:
         self._retry_counts: dict[str, int] = {}
         self._history: list[dict[str, str]] = []
 
-    def add_history_entry(self, device: str, query: str, output: str) -> None:
+    def add_history_entry(
+        self,
+        device: str,
+        query: str,
+        output: str,
+        duration: float | None = None,
+        char_count: int | None = None,
+        mode: str | None = None,
+    ) -> None:
         """Add a compact log entry for user view in options (max 100 chars output)."""
         clean_dev = device.replace("media_player.", "").replace("_", " ").title()
         now_str = dt_util.now().strftime("%H:%M")
         preview = output[:100] + ("..." if len(output) > 100 else "")
+
+        meta_parts: list[str] = []
+        if mode:
+            meta_parts.append(mode)
+        if char_count is not None:
+            meta_parts.append(f"{char_count} Z.")
+        if duration is not None:
+            meta_parts.append(f"{duration:.1f}s")
+
+        meta_str = f" ({' • '.join(meta_parts)})" if meta_parts else ""
+
         entry = {
             "time": now_str,
             "device": clean_dev,
+            "meta": meta_str,
             "query": query,
             "output": preview,
         }
@@ -124,7 +145,7 @@ class SchlaueAntwortenManager:
         lines = []
         for item in self._history:
             lines.append(
-                f"- `{item['time']}` **{item['device']}** | *In:* {item['query']} ➔ *Out:* {item['output']}"
+                f"- `{item['time']}` **{item['device']}**{item.get('meta', '')} | *In:* {item['query']} ➔ *Out:* {item['output']}"
             )
         return "\n".join(lines)
 
@@ -247,8 +268,11 @@ class SchlaueAntwortenManager:
             return True
         return False
 
-    async def _async_handle_unclear_query(self, reply_device: str) -> None:
+    async def _async_handle_unclear_query(
+        self, reply_device: str, start_time: float | None = None
+    ) -> None:
         """Handle an unclear or nonsensical question with loop protection."""
+        duration = time.monotonic() - start_time if start_time else None
         current_retries = self._retry_counts.get(reply_device, 0)
         if current_retries < 1:
             self._retry_counts[reply_device] = current_retries + 1
@@ -260,7 +284,12 @@ class SchlaueAntwortenManager:
                 reply_device,
             )
             self.add_history_entry(
-                reply_device, "Unverständliche Spracheingabe", retry_prompt
+                reply_device,
+                "Unverständliche Spracheingabe",
+                retry_prompt,
+                duration=duration,
+                char_count=len(retry_prompt),
+                mode="Wiederholung",
             )
             if self.hass.services.has_service(
                 "script", "activate_alexa_actionable_notification"
@@ -297,7 +326,12 @@ class SchlaueAntwortenManager:
                 reply_device,
             )
             self.add_history_entry(
-                reply_device, "Unverständliche Spracheingabe (Fehlversuch 2)", abort_prompt
+                reply_device,
+                "Unverständliche Spracheingabe (Fehlversuch 2)",
+                abort_prompt,
+                duration=duration,
+                char_count=len(abort_prompt),
+                mode="Abbruch",
             )
             try:
                 await self.hass.services.async_call(
@@ -334,6 +368,7 @@ class SchlaueAntwortenManager:
 
     async def _async_handle_notification_event(self, event: Event) -> None:
         """Process user's spoken answer from Actionable Notifications."""
+        start_time = time.monotonic()
         data = event.data
         event_id = data.get("event_id")
         if event_id not in (EVENT_ID_QUERY, EVENT_ID_FOLLOWUP):
@@ -411,6 +446,7 @@ class SchlaueAntwortenManager:
                     reply_device,
                     is_followup=True,
                     previous_answer=previous_answer,
+                    start_time=start_time,
                 )
             elif is_negative:
                 _LOGGER.debug(
@@ -423,7 +459,12 @@ class SchlaueAntwortenManager:
                 )
                 if goodbye_text:
                     self.add_history_entry(
-                        reply_device, "[Follow-up] Nein", goodbye_text
+                        reply_device,
+                        "[Follow-up] Nein",
+                        goodbye_text,
+                        duration=time.monotonic() - start_time,
+                        char_count=len(goodbye_text),
+                        mode="Ende",
                     )
                     try:
                         await self.hass.services.async_call(
@@ -466,11 +507,13 @@ class SchlaueAntwortenManager:
 
         # Check for local nonsense, filler words, or too short input
         if self._is_local_nonsense(raw_response):
-            await self._async_handle_unclear_query(reply_device)
+            await self._async_handle_unclear_query(
+                reply_device, start_time=start_time
+            )
             return
 
         await self.async_process_and_speak(
-            raw_response, reply_device, is_followup=False
+            raw_response, reply_device, is_followup=False, start_time=start_time
         )
 
     async def async_process_and_speak(
@@ -479,8 +522,12 @@ class SchlaueAntwortenManager:
         reply_device: str,
         is_followup: bool = False,
         previous_answer: str = "",
+        start_time: float | None = None,
     ) -> None:
         """Query LLM and output answer via Alexa."""
+        if start_time is None:
+            start_time = time.monotonic()
+
         opts = self.entry.options
         primary_agent = opts.get(CONF_PRIMARY_AGENT, DEFAULT_PRIMARY_AGENT)
         fallback_agent = opts.get(CONF_FALLBACK_AGENT, DEFAULT_FALLBACK_AGENT)
@@ -588,7 +635,15 @@ class SchlaueAntwortenManager:
                 "Die KI ist im Moment leider überlastet. "
                 "Bitte versuche es in einem Moment noch einmal."
             )
-            self.add_history_entry(reply_device, question, final_speech)
+            duration = time.monotonic() - start_time
+            self.add_history_entry(
+                reply_device,
+                question,
+                final_speech,
+                duration=duration,
+                char_count=len(final_speech),
+                mode="Fehler",
+            )
             try:
                 await self.hass.services.async_call(
                     "notify",
@@ -614,7 +669,9 @@ class SchlaueAntwortenManager:
             or "ich habe die frage leider nicht verstanden" in speech_lower
             or "das ergibt leider keinen sinn" in speech_lower
         ):
-            await self._async_handle_unclear_query(reply_device)
+            await self._async_handle_unclear_query(
+                reply_device, start_time=start_time
+            )
             return
 
         # Query was successful and understood -> clear retry counter
@@ -628,11 +685,16 @@ class SchlaueAntwortenManager:
         else:
             final_speech = cleaned
 
-        # Log interaction (max 100 chars output)
+        # Log interaction (with latency and character count)
+        duration = time.monotonic() - start_time
+        mode_label = "Lang" if is_followup else "Kurz"
         self.add_history_entry(
             device=reply_device,
             query=f"[Vertiefung] {question}" if is_followup else question,
             output=final_speech,
+            duration=duration,
+            char_count=len(final_speech),
+            mode=mode_label,
         )
 
         # 7. Actionable Notification with follow-up question if enabled

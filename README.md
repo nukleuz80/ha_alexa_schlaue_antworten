@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.9-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.10-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -196,6 +196,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.10** | 23.10.2026 | Log-Erweiterung: Messung der Latenz / Antwortdauer (vom Ende der Spracheingabe bis zum Start der Sprachausgabe) sowie Anzeige der genauen Zeichenanzahl bei kurzen und langen Antworten (z. B. `Kurz • 142 Z. • 1.3s`). |
 | **v1.0.9** | 23.10.2026 | Kompaktes Dialog-Log direkt in den Integration-Optionen: Protokolliert die letzten Interaktionen mit Uhrzeit, angesprochenem Echo-Lautsprecher, Eingabe und Ausgabe (auf max. 100 Zeichen begrenzt). |
 | **v1.0.8** | 23.10.2026 | 2-Stufen-Erkennung für unverständliche Fragen (lokaler Filter + KI-Semantikprüfung) mit Schleifenschutz (Loop Protection): Bittet beim ersten Mal höflich um Wiederholung mit erneut geöffnetem Mikrofon und beendet nach dem zweiten Fehlversuch sauber den Dialog. Vollständig konfigurierbar. |
 | **v1.0.7** | 23.10.2026 | Kontextbewusste Vertiefung: Übergabe der bereits gesprochenen Kurzantwort an die KI via `{previous_answer}`-Platzhalter. Verhindert 1:1-Wiederholungen und priorisiert neue, weiterführende Informationen zur Frage. |
