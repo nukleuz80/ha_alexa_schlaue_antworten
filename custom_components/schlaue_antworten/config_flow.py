@@ -14,13 +14,17 @@ from .const import (
     CONF_ANNOUNCE_MODEL,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
+    CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_FALLBACK_AGENT,
+    CONF_FOLLOWUP_PROMPT,
     CONF_PRIMARY_AGENT,
     CONF_SHORT_ANSWERS,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
+    DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_FALLBACK_AGENT,
+    DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
@@ -50,6 +54,8 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_DIALOG_PROMPT: DEFAULT_DIALOG_PROMPT,
                     CONF_ANNOUNCE_MODEL: DEFAULT_ANNOUNCE_MODEL,
                     CONF_SHORT_ANSWERS: DEFAULT_SHORT_ANSWERS,
+                    CONF_ENABLE_DETAILED_FOLLOWUP: DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+                    CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
                 },
             )
 
@@ -112,6 +118,20 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     CONF_SHORT_ANSWERS,
                     default=opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS),
                 ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_ENABLE_DETAILED_FOLLOWUP,
+                    default=opts.get(
+                        CONF_ENABLE_DETAILED_FOLLOWUP,
+                        DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_FOLLOWUP_PROMPT,
+                    default=opts.get(
+                        CONF_FOLLOWUP_PROMPT,
+                        DEFAULT_FOLLOWUP_PROMPT,
+                    ),
+                ): selector.TextSelector(),
             }
         )
 

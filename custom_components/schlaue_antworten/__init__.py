@@ -13,17 +13,22 @@ from .const import (
     CONF_ANNOUNCE_MODEL,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
+    CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_FALLBACK_AGENT,
+    CONF_FOLLOWUP_PROMPT,
     CONF_PRIMARY_AGENT,
     CONF_SHORT_ANSWERS,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
+    DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_FALLBACK_AGENT,
+    DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
     EVENT_ACTIONABLE_NOTIFICATION,
+    EVENT_ID_FOLLOWUP,
     EVENT_ID_QUERY,
     SERVICE_ASK_QUESTION,
     SERVICE_START_DIALOG,
@@ -80,6 +85,7 @@ class SchlaueAntwortenManager:
         self.entry = entry
         self._unsub_event: Any = None
         self._unsub_state: Any = None
+        self._last_questions: dict[str, str] = {}
 
     async def async_setup(self) -> None:
         """Register listeners and services."""
@@ -209,13 +215,62 @@ class SchlaueAntwortenManager:
     async def _async_handle_notification_event(self, event: Event) -> None:
         """Process user's spoken answer from Actionable Notifications."""
         data = event.data
-        if data.get("event_id") != EVENT_ID_QUERY:
+        event_id = data.get("event_id")
+        if event_id not in (EVENT_ID_QUERY, EVENT_ID_FOLLOWUP):
             return
 
         raw_response = str(data.get("event_response", "")).strip()
         resp_lower = raw_response.lower()
+        response_type = str(data.get("event_response_type", "")).strip()
 
-        # Check for cancel or empty
+        # Identify reply Echo
+        reply_device = str(
+            data.get("entity_id")
+            or data.get("device")
+            or self._get_target_echo()
+        )
+
+        # Handle follow-up response (user answers yes/no to "Möchtest du mehr darüber erfahren?")
+        if event_id == EVENT_ID_FOLLOWUP:
+            stored_question = self._last_questions.pop(reply_device, None)
+            if not stored_question:
+                _LOGGER.debug(
+                    "No stored question found for follow-up on %s", reply_device
+                )
+                return
+
+            positive_phrases = (
+                "ja",
+                "gerne",
+                "sicher",
+                "bitte",
+                "mehr",
+                "ausführlich",
+                "erzähl",
+                "mach",
+                "yes",
+                "klar",
+            )
+            is_positive = response_type == "ResponseYes" or any(
+                p in resp_lower for p in positive_phrases
+            )
+
+            if is_positive:
+                _LOGGER.info(
+                    "User requested detailed explanation for: %s", stored_question
+                )
+                await self.async_process_and_speak(
+                    stored_question, reply_device, is_followup=True
+                )
+            else:
+                _LOGGER.debug(
+                    "User declined detailed explanation on %s: %s",
+                    reply_device,
+                    raw_response,
+                )
+            return
+
+        # Check for cancel or empty in initial query
         cancel_phrases = {
             "none",
             "responsenone",
@@ -232,24 +287,33 @@ class SchlaueAntwortenManager:
             _LOGGER.debug("Dialog cancelled or response empty: %s", raw_response)
             return
 
-        # Identify reply Echo
-        reply_device = (
-            data.get("entity_id")
-            or data.get("device")
-            or self._get_target_echo()
+        await self.async_process_and_speak(
+            raw_response, reply_device, is_followup=False
         )
 
-        await self.async_process_and_speak(raw_response, str(reply_device))
-
-    async def async_process_and_speak(self, question: str, reply_device: str) -> None:
-        """Query LLM and output answer via Alexa Media Player."""
+    async def async_process_and_speak(
+        self, question: str, reply_device: str, is_followup: bool = False
+    ) -> None:
+        """Query LLM and output answer via Alexa."""
         opts = self.entry.options
         primary_agent = opts.get(CONF_PRIMARY_AGENT, DEFAULT_PRIMARY_AGENT)
         fallback_agent = opts.get(CONF_FALLBACK_AGENT, DEFAULT_FALLBACK_AGENT)
         short_answers = opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS)
         announce_model = opts.get(CONF_ANNOUNCE_MODEL, DEFAULT_ANNOUNCE_MODEL)
+        enable_followup = opts.get(
+            CONF_ENABLE_DETAILED_FOLLOWUP, DEFAULT_ENABLE_DETAILED_FOLLOWUP
+        )
+        followup_prompt = opts.get(
+            CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT
+        )
 
-        if short_answers:
+        if is_followup:
+            prompt = (
+                "Erkläre folgende Fragestellung ausführlich, interessant und verständlich in etwa 3 bis 5 Sätzen auf Deutsch "
+                "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
+                f"ohne Formatierungen und ohne Sonderzeichen: {question}"
+            )
+        elif short_answers:
             prompt = (
                 "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
                 "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
@@ -319,22 +383,57 @@ class SchlaueAntwortenManager:
             except Exception as err:
                 _LOGGER.error("Fallback agent %s also failed: %s", fallback_agent, err)
 
-        # 4. Final speech assembly
+        # 4. Error response
         if is_error or not raw_speech:
             final_speech = (
                 "Die KI ist im Moment leider überlastet. "
                 "Bitte versuche es in einem Moment noch einmal."
             )
-        else:
-            # Clean markdown formatting (*, #, `, _, ~)
-            cleaned = re.sub(r"[*#`_~]", "", raw_speech).strip()
-            if announce_model:
-                agent_name = self._get_agent_display_name(used_agent)
-                final_speech = f"{cleaned} Beantwortet von {agent_name}."
-            else:
-                final_speech = cleaned
+            try:
+                await self.hass.services.async_call(
+                    "notify",
+                    "alexa_media",
+                    {
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": final_speech,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to speak error via notify.alexa_media: %s", err)
+            return
 
-        # 5. Output via notify.alexa_media
+        # 5. Clean markdown formatting (*, #, `, _, ~)
+        cleaned = re.sub(r"[*#`_~]", "", raw_speech).strip()
+        if announce_model:
+            agent_name = self._get_agent_display_name(used_agent)
+            final_speech = f"{cleaned} Beantwortet von {agent_name}."
+        else:
+            final_speech = cleaned
+
+        # 6. Actionable Notification with follow-up question if enabled
+        if not is_followup and enable_followup:
+            self._last_questions[reply_device] = question
+            combined_message = f"{final_speech} {followup_prompt}"
+
+            if self.hass.services.has_service(
+                "script", "activate_alexa_actionable_notification"
+            ):
+                await self.hass.services.async_call(
+                    "script",
+                    "activate_alexa_actionable_notification",
+                    {
+                        "text": combined_message,
+                        "event_id": EVENT_ID_FOLLOWUP,
+                        "alexa_device": reply_device,
+                        "suppress_confirmation": "true",
+                    },
+                    blocking=False,
+                )
+                return
+
+        # 7. Standard TTS output
         try:
             await self.hass.services.async_call(
                 "notify",

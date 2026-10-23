@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.3-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.4-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -31,6 +31,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 ## ✨ Features
 
 - 🗣️ **Interaktiver Sprachdialog:** Startet mit *„Schlaue Antworten: Was möchtest du wissen?“* und lässt das Mikrofon offen für deine Frage.
+- 💬 **Optionale Vertiefung (Follow-up):** Fragt auf Wunsch nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze).
 - 🎯 **Dynamische Raum-Erkennung:** Antwortet dank `sensor.last_alexa` automatisch auf dem Echo-Gerät, mit dem du gerade gesprochen hast.
 - ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
 - 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen konfigurierten Ausweich-Agenten (z. B. Claude Sonnet).
@@ -145,6 +146,8 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
    - **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an.
    - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
+   - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *deaktiviert*).
+   - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du mehr darüber erfahren?“*).
 
 ---
 
@@ -159,8 +162,12 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - *„Warum ist der Himmel blau?“*
    - *„Was kann ich heute mit Kartoffeln und Spinat kochen?“*
    - *„Erkläre mir die Relativitätstheorie in zwei Sätzen.“*
-4. **Alexa liest dir die Antwort vor:**  
-   Prägnant in 1–2 Sätzen, bereinigt um Markdown-Formatierungen und optional mit Nennung des Modells.
+4. **Alexa liest dir die prägnante Antwort vor:**  
+   *(Optional mit Modellnennung am Ende)*
+5. **Vertiefungs-Modus (falls aktiviert):**  
+   Alexa fragt direkt im Anschluss: *„Möchtest du mehr darüber erfahren?“* und hält das Mikrofon offen.  
+   - Sagst du **„Ja“** (oder *„gerne“*, *„erzähl mir mehr“*), liefert die KI eine ausführlichere 3–5-Satz-Erklärung.  
+   - Sagst du **„Nein“** oder schweigst, beendet Alexa den Dialog sofort.
 
 ---
 
@@ -179,6 +186,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.4** | 23.10.2026 | Neues Feature: Optionale interaktive Vertiefungsfrage (Follow-up) nach jeder Antwort (*„Möchtest du mehr darüber erfahren?“*). Antwortet der Nutzer positiv, liefert die KI eine vertiefende 3–5-Satz-Erklärung. Vollständig über die UI konfigurierbar (Standard: deaktiviert). |
 | **v1.0.3** | 23.10.2026 | Umfassende Dokumentationsüberarbeitung: Klarstellung der privaten Architektur (kein AWS Lambda / kein Entwicklerkonto nötig), Schritt-für-Schritt-Anleitung und Alltags-Beispiele. |
 | **v1.0.2** | 23.10.2026 | Bild-Assets in dedizierten Ordner `www/schlaue_antworten/` verschoben und Pfade/Skripte bereinigt. |
 | **v1.0.1** | 23.10.2026 | Offizielles Logo hinzugefügt (SVG- und PNG-Assets) und Dokumentations-Update. |
