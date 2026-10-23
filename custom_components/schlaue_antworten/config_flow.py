@@ -88,9 +88,9 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Schlaue Antworten."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry_backup = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -99,7 +99,8 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        opts = self.config_entry.options
+        entry = self.config_entry or self._config_entry_backup
+        opts = entry.options if entry else {}
 
         data_schema = vol.Schema(
             {
@@ -189,7 +190,8 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
             }
         )
 
-        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        entry_id = entry.entry_id if entry else getattr(self, "handler", "")
+        manager = self.hass.data.get(DOMAIN, {}).get(entry_id)
         history_md = (
             manager.get_history_markdown()
             if manager
