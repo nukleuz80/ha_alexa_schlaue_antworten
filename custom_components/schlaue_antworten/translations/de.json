@@ -1,0 +1,56 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Schlaue Antworten",
+        "description": "Möchtest du Schlaue Antworten einrichten?"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Schlaue Antworten ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Schlaue Antworten Konfiguration",
+        "description": "Passe die Einstellungen für KI-Agenten und Sprachausgabe an.",
+        "data": {
+          "primary_agent": "Primärer KI-Agent",
+          "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
+          "default_echo": "Standard-Echo (Fallback)",
+          "dialog_prompt": "Begrüßungsansage",
+          "announce_model": "Modellname am Ende der Antwort ansagen",
+          "short_answers": "Kurze Antworten für Sprache erzwingen (1-2 Sätze)"
+        }
+      }
+    }
+  },
+  "services": {
+    "start_dialog": {
+      "name": "Dialog starten",
+      "description": "Öffnet den KI-Fragedialog auf einem Echo-Lautsprecher.",
+      "fields": {
+        "echo_device": {
+          "name": "Ziel-Echo-Gerät",
+          "description": "Echo-Gerät (optional, Standard ist der zuletzt genutzte Echo)."
+        }
+      }
+    },
+    "ask_question": {
+      "name": "Frage stellen",
+      "description": "Sendet eine Frage direkt an die KI und gibt die Antwort auf dem Echo aus.",
+      "fields": {
+        "question": {
+          "name": "Frage",
+          "description": "Der Fragetext an die KI."
+        },
+        "echo_device": {
+          "name": "Ziel-Echo-Gerät",
+          "description": "Echo-Gerät (optional, Standard ist der zuletzt genutzte Echo)."
+        }
+      }
+    }
+  }
+}
+

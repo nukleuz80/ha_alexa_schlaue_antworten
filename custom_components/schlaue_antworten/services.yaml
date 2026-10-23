@@ -1,0 +1,21 @@
+start_dialog:
+  fields:
+    echo_device:
+      example: media_player.wohnzimmer_echo_dot
+      selector:
+        entity:
+          domain: media_player
+
+ask_question:
+  fields:
+    question:
+      example: "Wie weit ist der Mond entfernt?"
+      required: true
+      selector:
+        text:
+    echo_device:
+      example: media_player.wohnzimmer_echo_dot
+      selector:
+        entity:
+          domain: media_player
+

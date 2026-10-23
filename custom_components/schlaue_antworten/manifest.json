@@ -1,0 +1,13 @@
+{
+  "domain": "schlaue_antworten",
+  "name": "Schlaue Antworten",
+  "codeowners": ["@nukleuz"],
+  "config_flow": true,
+  "documentation": "https://github.com/nukleuz/schlaue_antworten",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/nukleuz/schlaue_antworten/issues",
+  "single_config_entry": true,
+  "version": "1.0.0"
+}
+
