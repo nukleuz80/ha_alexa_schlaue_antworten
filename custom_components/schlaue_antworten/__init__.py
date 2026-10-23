@@ -18,6 +18,7 @@ from .const import (
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_ENABLE_LOGGING,
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
@@ -31,6 +32,7 @@ from .const import (
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_ENABLE_LOGGING,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
@@ -122,6 +124,9 @@ class SchlaueAntwortenManager:
         mode: str | None = None,
     ) -> None:
         """Add a compact log entry for user view in options (max 100 chars output)."""
+        if not self.entry.options.get(CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING):
+            return
+
         clean_dev = device.replace("media_player.", "").replace("_", " ").title()
         now_str = dt_util.now().strftime("%H:%M")
         preview = output[:100] + ("..." if len(output) > 100 else "")
@@ -149,6 +154,8 @@ class SchlaueAntwortenManager:
 
     def get_history_markdown(self) -> str:
         """Return compact markdown string of last interactions."""
+        if not self.entry.options.get(CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING):
+            return "_Die Protokollierung (Dialog-Log) ist in den Einstellungen deaktiviert._"
         if not self._history:
             return "_Noch keine Dialoge aufgezeichnet._"
         lines = []
@@ -267,7 +274,15 @@ class SchlaueAntwortenManager:
 
     def _is_local_nonsense(self, text: str) -> bool:
         """Check if input text is obviously unclear, too short, or pure filler."""
+        # Numbers, math operations, and calculations are always valid
+        if any(c.isdigit() for c in text):
+            return False
+
+        math_terms = {"plus", "minus", "mal", "geteilt", "durch", "dividiert", "multipliziert", "wurzel", "summe", "rechen"}
         cleaned = re.sub(r"[^\w\s]", "", text).strip().lower()
+        if any(term in cleaned.split() for term in math_terms):
+            return False
+
         if not cleaned or len(cleaned) < 3:
             return True
         words = cleaned.split()

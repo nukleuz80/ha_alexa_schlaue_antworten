@@ -30,6 +30,7 @@
           "dialog_prompt": "Begrüßungsansage",
           "announce_model": "Modellname am Ende der Antwort ansagen",
           "short_answers": "Kurze Antworten für Sprache erzwingen (1-2 Sätze)",
+          "enable_logging": "Dialog-Log aktivieren (Protokollierung der letzten Dialoge)",
           "enable_detailed_followup": "Nachfrage für ausführlichere Erklärung anbieten",
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",

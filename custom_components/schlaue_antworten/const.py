@@ -10,6 +10,7 @@ CONF_DEFAULT_ECHO = "default_echo"
 CONF_DIALOG_PROMPT = "dialog_prompt"
 CONF_ANNOUNCE_MODEL = "announce_model"
 CONF_SHORT_ANSWERS = "short_answers"
+CONF_ENABLE_LOGGING = "enable_logging"
 CONF_ENABLE_DETAILED_FOLLOWUP = "enable_detailed_followup"
 CONF_FOLLOWUP_PROMPT = "followup_prompt"
 CONF_GOODBYE_TEXT = "goodbye_text"
@@ -25,6 +26,7 @@ DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"
 DEFAULT_ANNOUNCE_MODEL = True
 DEFAULT_SHORT_ANSWERS = True
+DEFAULT_ENABLE_LOGGING = True
 DEFAULT_ENABLE_DETAILED_FOLLOWUP = False
 DEFAULT_FOLLOWUP_PROMPT = "Möchtest du eine ausführlichere Erklärung? Ja oder Nein?"
 DEFAULT_GOODBYE_TEXT = "Alles klar."
@@ -55,8 +57,9 @@ FILLER_PHRASES = {
 DEFAULT_PROMPT_SHORT = (
     "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
     "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}. "
-    "Sollte die Frage unvollständig, abgehackt, unverständlich oder semantisch sinnlos sein, "
+    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage oder Rechenaufgabe: {question}. "
+    "Mathematische Berechnungen (z. B. 33/11 = 3), Definitionen, Wissensfragen oder Stichwörter sind ausdrücklich gültig und direkt zu berechnen bzw. zu beantworten! "
+    "Nur wenn die Eingabe reines Kauderwelsch, unvollständiges Gemurmel oder völlig unzusammenhängend ist, "
     "antworte ausschließlich mit: [UNVERSTAENDLICH]"
 )
 DEFAULT_PROMPT_DETAILED = (
