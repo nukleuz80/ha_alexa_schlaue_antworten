@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.7-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.8-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -31,6 +31,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 ## ✨ Features
 
 - 🗣️ **Interaktiver Sprachdialog:** Startet mit *„Schlaue Antworten: Was möchtest du wissen?“* und lässt das Mikrofon offen für deine Frage.
+- 🔄 **2-Stufen-Fehlererkennung mit Schleifenschutz:** Fängt Gemurmel, Füllwörter oder unverständliche Fragen ab, bittet einmalig höflich um Wiederholung und beendet bei erneutem Fehlschlag geräuschlos den Dialog.
 - 💬 **Optionale Vertiefung (Follow-up):** Fragt auf Wunsch nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze).
 - 🎯 **Dynamische Raum-Erkennung:** Antwortet dank `sensor.last_alexa` automatisch auf dem Echo-Gerät, mit dem du gerade gesprochen hast.
 - ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
@@ -149,6 +150,8 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *deaktiviert*).
    - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
    - **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung, falls du ablehnst (Standard: *„Alles klar.“*).
+   - **Wiederholungsansage bei unverständlicher Frage:** Text für den ersten Fehlversuch (Standard: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“*).
+   - **Abbruchansage nach zweitem Fehlversuch:** Beendet den Dialog bei wiederholt unverständlicher Eingabe (Standard: *„Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal.“*).
    - **KI-Prompt für Kurzantwort (ohne Gewähr):** Mehrzeiliges Eingabefeld für den System-Prompt der Erstantwort. Der Platzhalter `{question}` wird automatisch mit der Frage belegt.
    - **KI-Prompt für Vertiefung (ohne Gewähr):** Mehrzeiliges Eingabefeld für die ausführlichere Erklärung. Unterstützt `{question}` sowie `{previous_answer}` – verhindert Wiederholungen der Kurzantwort und priorisiert gezielt neue Hintergrundinformationen.
 
@@ -165,9 +168,11 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - *„Warum ist der Himmel blau?“*
    - *„Was kann ich heute mit Kartoffeln und Spinat kochen?“*
    - *„Erkläre mir die Relativitätstheorie in zwei Sätzen.“*
-4. **Alexa liest dir die prägnante Antwort vor:**  
+4. **Bei unverständlicher Spracheingabe (Schleifenschutz):**  
+   Versteht Alexa nur Füllwörter oder Gemurmel, antwortet sie: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“* und öffnet das Mikrofon erneut. Bei einem zweiten Fehlversuch verabschiedet sie sich sauber und beendet den Dialog.
+5. **Alexa liest dir die prägnante Antwort vor:**  
    *(Optional mit Modellnennung am Ende)*
-5. **Vertiefungs-Modus (falls aktiviert):**  
+6. **Vertiefungs-Modus (falls aktiviert):**  
    Alexa fragt direkt im Anschluss: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“* und hält das Mikrofon offen.  
    - Sagst du **„Ja“** (oder *„gerne“*, *„erzähl mir mehr“*), liefert die KI eine weiterführende 3–5-Satz-Erklärung – **ohne die bereits gehörte Kurzantwort zu wiederholen**, sondern mit neuen wichtigen Aspekten und Hintergründen.  
    - Sagst du **„Nein“** (oder *„nein danke“*, *„stopp“*), antwortet Alexa mit einem minimalen Abschiedstext (*„Alles klar.“*) und beendet den Dialog sofort.  
@@ -190,6 +195,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.8** | 23.10.2026 | 2-Stufen-Erkennung für unverständliche Fragen (lokaler Filter + KI-Semantikprüfung) mit Schleifenschutz (Loop Protection): Bittet beim ersten Mal höflich um Wiederholung mit erneut geöffnetem Mikrofon und beendet nach dem zweiten Fehlversuch sauber den Dialog. Vollständig konfigurierbar. |
 | **v1.0.7** | 23.10.2026 | Kontextbewusste Vertiefung: Übergabe der bereits gesprochenen Kurzantwort an die KI via `{previous_answer}`-Platzhalter. Verhindert 1:1-Wiederholungen und priorisiert neue, weiterführende Informationen zur Frage. |
 | **v1.0.6** | 23.10.2026 | Frei konfigurierbare KI-System-Prompts für kurze und ausführliche Antworten direkt in den Integration-Optionen (mit `{question}`-Platzhalter, Hinweistext „ohne Gewähr“ und mehrzeiligen Texteingabefeldern). |
 | **v1.0.5** | 23.10.2026 | Ja/Nein-Entscheidungsführung für Vertiefungsfragen (*„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*). Bei „Nein“ beendet Alexa den Dialog sofort mit einem konfigurierbaren, minimalen Abschiedstext (Standard: *„Alles klar.“*). |

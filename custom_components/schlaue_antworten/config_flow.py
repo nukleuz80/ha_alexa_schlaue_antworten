@@ -11,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
@@ -21,7 +22,9 @@ from .const import (
     CONF_PRIMARY_AGENT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
+    CONF_RETRY_PROMPT,
     CONF_SHORT_ANSWERS,
+    DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
@@ -32,6 +35,7 @@ from .const import (
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
+    DEFAULT_RETRY_PROMPT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
 )
@@ -63,6 +67,8 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ENABLE_DETAILED_FOLLOWUP: DEFAULT_ENABLE_DETAILED_FOLLOWUP,
                     CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
                     CONF_GOODBYE_TEXT: DEFAULT_GOODBYE_TEXT,
+                    CONF_RETRY_PROMPT: DEFAULT_RETRY_PROMPT,
+                    CONF_ABORT_PROMPT: DEFAULT_ABORT_PROMPT,
                     CONF_PROMPT_SHORT: DEFAULT_PROMPT_SHORT,
                     CONF_PROMPT_DETAILED: DEFAULT_PROMPT_DETAILED,
                 },
@@ -146,6 +152,20 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     default=opts.get(
                         CONF_GOODBYE_TEXT,
                         DEFAULT_GOODBYE_TEXT,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_RETRY_PROMPT,
+                    default=opts.get(
+                        CONF_RETRY_PROMPT,
+                        DEFAULT_RETRY_PROMPT,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_ABORT_PROMPT,
+                    default=opts.get(
+                        CONF_ABORT_PROMPT,
+                        DEFAULT_ABORT_PROMPT,
                     ),
                 ): selector.TextSelector(),
                 vol.Required(

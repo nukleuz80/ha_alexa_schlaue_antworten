@@ -25,6 +25,8 @@
           "enable_detailed_followup": "Offer follow-up for a more detailed explanation",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on decline ('No')",
+          "retry_prompt": "Reprompt message when query is unclear/nonsense",
+          "abort_prompt": "Final exit message after second failed attempt",
           "prompt_short": "AI prompt for short answer (as-is, must include {question})",
           "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders {question} and {previous_answer})"
         }

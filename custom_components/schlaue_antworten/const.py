@@ -13,6 +13,8 @@ CONF_SHORT_ANSWERS = "short_answers"
 CONF_ENABLE_DETAILED_FOLLOWUP = "enable_detailed_followup"
 CONF_FOLLOWUP_PROMPT = "followup_prompt"
 CONF_GOODBYE_TEXT = "goodbye_text"
+CONF_RETRY_PROMPT = "retry_prompt"
+CONF_ABORT_PROMPT = "abort_prompt"
 CONF_PROMPT_SHORT = "prompt_short"
 CONF_PROMPT_DETAILED = "prompt_detailed"
 
@@ -26,10 +28,36 @@ DEFAULT_SHORT_ANSWERS = True
 DEFAULT_ENABLE_DETAILED_FOLLOWUP = False
 DEFAULT_FOLLOWUP_PROMPT = "Möchtest du eine ausführlichere Erklärung? Ja oder Nein?"
 DEFAULT_GOODBYE_TEXT = "Alles klar."
+DEFAULT_RETRY_PROMPT = "Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage."
+DEFAULT_ABORT_PROMPT = "Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal."
+CODEWORD_UNVERSTAENDLICH = "[UNVERSTAENDLICH]"
+
+FILLER_PHRASES = {
+    "ähm",
+    "äh",
+    "öhm",
+    "öh",
+    "hm",
+    "hmm",
+    "hallo",
+    "test",
+    "warte",
+    "warte mal",
+    "keine ahnung",
+    "was",
+    "wer",
+    "wie",
+    "warum",
+    "blabla",
+    "blablabla",
+}
+
 DEFAULT_PROMPT_SHORT = (
     "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
     "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}"
+    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}. "
+    "Sollte die Frage unvollständig, abgehackt, unverständlich oder semantisch sinnlos sein, "
+    "antworte ausschließlich mit: [UNVERSTAENDLICH]"
 )
 DEFAULT_PROMPT_DETAILED = (
     "Ergänze die bisherige Antwort zur Fragestellung '{question}' um weitere wichtige Informationen, "

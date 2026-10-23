@@ -10,6 +10,8 @@ from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
+    CODEWORD_UNVERSTAENDLICH,
+    CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
@@ -20,7 +22,9 @@ from .const import (
     CONF_PRIMARY_AGENT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
+    CONF_RETRY_PROMPT,
     CONF_SHORT_ANSWERS,
+    DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
@@ -31,11 +35,13 @@ from .const import (
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
+    DEFAULT_RETRY_PROMPT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
     EVENT_ACTIONABLE_NOTIFICATION,
     EVENT_ID_FOLLOWUP,
     EVENT_ID_QUERY,
+    FILLER_PHRASES,
     SERVICE_ASK_QUESTION,
     SERVICE_START_DIALOG,
     TRIGGER_BOOLEAN_ENTITY,
@@ -92,6 +98,7 @@ class SchlaueAntwortenManager:
         self._unsub_event: Any = None
         self._unsub_state: Any = None
         self._last_questions: dict[str, Any] = {}
+        self._retry_counts: dict[str, int] = {}
 
     async def async_setup(self) -> None:
         """Register listeners and services."""
@@ -166,6 +173,7 @@ class SchlaueAntwortenManager:
 
     async def async_start_dialog(self, target_device: str) -> None:
         """Start the Actionable Notification dialog on the target Echo."""
+        self._retry_counts.pop(target_device, None)
         prompt = self.entry.options.get(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
 
         # Stop any active media playback first
@@ -198,6 +206,78 @@ class SchlaueAntwortenManager:
             _LOGGER.warning(
                 "script.activate_alexa_actionable_notification not found"
             )
+
+    def _is_local_nonsense(self, text: str) -> bool:
+        """Check if input text is obviously unclear, too short, or pure filler."""
+        cleaned = re.sub(r"[^\w\s]", "", text).strip().lower()
+        if not cleaned or len(cleaned) < 3:
+            return True
+        words = cleaned.split()
+        if len(words) == 1 and (words[0] in FILLER_PHRASES or len(words[0]) < 3):
+            return True
+        if cleaned in FILLER_PHRASES:
+            return True
+        return False
+
+    async def _async_handle_unclear_query(self, reply_device: str) -> None:
+        """Handle an unclear or nonsensical question with loop protection."""
+        current_retries = self._retry_counts.get(reply_device, 0)
+        if current_retries < 1:
+            self._retry_counts[reply_device] = current_retries + 1
+            retry_prompt = self.entry.options.get(
+                CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT
+            )
+            _LOGGER.info(
+                "Query unclear on %s; prompting user to repeat (retry 1)",
+                reply_device,
+            )
+            if self.hass.services.has_service(
+                "script", "activate_alexa_actionable_notification"
+            ):
+                await self.hass.services.async_call(
+                    "script",
+                    "activate_alexa_actionable_notification",
+                    {
+                        "text": retry_prompt,
+                        "event_id": EVENT_ID_QUERY,
+                        "alexa_device": reply_device,
+                        "suppress_confirmation": "true",
+                    },
+                    blocking=False,
+                )
+            else:
+                await self.hass.services.async_call(
+                    "notify",
+                    "alexa_media",
+                    {
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": retry_prompt,
+                    },
+                    blocking=False,
+                )
+        else:
+            self._retry_counts.pop(reply_device, None)
+            abort_prompt = self.entry.options.get(
+                CONF_ABORT_PROMPT, DEFAULT_ABORT_PROMPT
+            )
+            _LOGGER.info(
+                "Query unclear again on %s; ending dialog with abort message",
+                reply_device,
+            )
+            try:
+                await self.hass.services.async_call(
+                    "notify",
+                    "alexa_media",
+                    {
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": abort_prompt,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to speak abort prompt: %s", err)
 
     @callback
     def _async_handle_boolean_trigger(self, event: Event) -> None:
@@ -342,8 +422,14 @@ class SchlaueAntwortenManager:
             "nein",
             "nichts",
         }
-        if not raw_response or resp_lower in cancel_phrases or len(raw_response) <= 1:
+        if not raw_response or resp_lower in cancel_phrases:
+            self._retry_counts.pop(reply_device, None)
             _LOGGER.debug("Dialog cancelled or response empty: %s", raw_response)
+            return
+
+        # Check for local nonsense, filler words, or too short input
+        if self._is_local_nonsense(raw_response):
+            await self._async_handle_unclear_query(reply_device)
             return
 
         await self.async_process_and_speak(
@@ -480,7 +566,23 @@ class SchlaueAntwortenManager:
                 _LOGGER.error("Failed to speak error via notify.alexa_media: %s", err)
             return
 
-        # 5. Clean markdown formatting (*, #, `, _, ~)
+        # 5. Check if AI deemed the query unclear or nonsensical
+        speech_stripped = raw_speech.strip()
+        speech_lower = speech_stripped.lower()
+        if not is_followup and (
+            CODEWORD_UNVERSTAENDLICH in speech_stripped
+            or speech_lower.startswith("unverständlich")
+            or "[unverständlich]" in speech_lower
+            or "ich habe die frage leider nicht verstanden" in speech_lower
+            or "das ergibt leider keinen sinn" in speech_lower
+        ):
+            await self._async_handle_unclear_query(reply_device)
+            return
+
+        # Query was successful and understood -> clear retry counter
+        self._retry_counts.pop(reply_device, None)
+
+        # 6. Clean markdown formatting (*, #, `, _, ~)
         cleaned = re.sub(r"[*#`_~]", "", raw_speech).strip()
         if announce_model:
             agent_name = self._get_agent_display_name(used_agent)
@@ -488,7 +590,7 @@ class SchlaueAntwortenManager:
         else:
             final_speech = cleaned
 
-        # 6. Actionable Notification with follow-up question if enabled
+        # 7. Actionable Notification with follow-up question if enabled
         if not is_followup and enable_followup:
             self._last_questions[reply_device] = {
                 "question": question,
@@ -512,7 +614,7 @@ class SchlaueAntwortenManager:
                 )
                 return
 
-        # 7. Standard TTS output
+        # 8. Standard TTS output
         try:
             await self.hass.services.async_call(
                 "notify",
