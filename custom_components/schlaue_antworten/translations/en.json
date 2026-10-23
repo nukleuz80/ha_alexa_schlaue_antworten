@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Smart Answers Configuration",
-        "description": "Configure AI conversation agents and voice output settings.",
+        "description": "Configure AI conversation agents, prompts, and voice output settings. Note: Custom prompts provided as-is without warranty - placeholder {question} must remain present.",
         "data": {
           "primary_agent": "Primary AI Agent",
           "fallback_agent": "Fallback AI Agent (on 503/error)",
@@ -24,7 +24,9 @@
           "short_answers": "Enforce short answers for speech (1-2 sentences)",
           "enable_detailed_followup": "Offer follow-up for a more detailed explanation",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
-          "goodbye_text": "Farewell text on decline ('No')"
+          "goodbye_text": "Farewell text on decline ('No')",
+          "prompt_short": "AI prompt for short answer (as-is, must include {question})",
+          "prompt_detailed": "AI prompt for detailed explanation (as-is, must include {question})"
         }
       }
     }

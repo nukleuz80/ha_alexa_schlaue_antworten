@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.5-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.6-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -149,6 +149,8 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *deaktiviert*).
    - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
    - **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung, falls du ablehnst (Standard: *„Alles klar.“*).
+   - **KI-Prompt für Kurzantwort (ohne Gewähr):** Mehrzeiliges Eingabefeld für den System-Prompt der Erstantwort. Der Platzhalter `{question}` wird automatisch mit der Frage belegt.
+   - **KI-Prompt für Vertiefung (ohne Gewähr):** Mehrzeiliges Eingabefeld für den Prompt der ausführlicheren Erklärung.
 
 ---
 
@@ -188,6 +190,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.6** | 23.10.2026 | Frei konfigurierbare KI-System-Prompts für kurze und ausführliche Antworten direkt in den Integration-Optionen (mit `{question}`-Platzhalter, Hinweistext „ohne Gewähr“ und mehrzeiligen Texteingabefeldern). |
 | **v1.0.5** | 23.10.2026 | Ja/Nein-Entscheidungsführung für Vertiefungsfragen (*„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*). Bei „Nein“ beendet Alexa den Dialog sofort mit einem konfigurierbaren, minimalen Abschiedstext (Standard: *„Alles klar.“*). |
 | **v1.0.4** | 23.10.2026 | Neues Feature: Optionale interaktive Vertiefungsfrage (Follow-up) nach jeder Antwort (*„Möchtest du mehr darüber erfahren?“*). Antwortet der Nutzer positiv, liefert die KI eine vertiefende 3–5-Satz-Erklärung. Vollständig über die UI konfigurierbar (Standard: deaktiviert). |
 | **v1.0.3** | 23.10.2026 | Umfassende Dokumentationsüberarbeitung: Klarstellung der privaten Architektur (kein AWS Lambda / kein Entwicklerkonto nötig), Schritt-für-Schritt-Anleitung und Alltags-Beispiele. |

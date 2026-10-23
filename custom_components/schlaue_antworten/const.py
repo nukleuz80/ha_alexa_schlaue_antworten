@@ -13,6 +13,8 @@ CONF_SHORT_ANSWERS = "short_answers"
 CONF_ENABLE_DETAILED_FOLLOWUP = "enable_detailed_followup"
 CONF_FOLLOWUP_PROMPT = "followup_prompt"
 CONF_GOODBYE_TEXT = "goodbye_text"
+CONF_PROMPT_SHORT = "prompt_short"
+CONF_PROMPT_DETAILED = "prompt_detailed"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
@@ -24,6 +26,16 @@ DEFAULT_SHORT_ANSWERS = True
 DEFAULT_ENABLE_DETAILED_FOLLOWUP = False
 DEFAULT_FOLLOWUP_PROMPT = "Möchtest du eine ausführlichere Erklärung? Ja oder Nein?"
 DEFAULT_GOODBYE_TEXT = "Alles klar."
+DEFAULT_PROMPT_SHORT = (
+    "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
+    "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
+    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}"
+)
+DEFAULT_PROMPT_DETAILED = (
+    "Erkläre folgende Fragestellung ausführlich, interessant und verständlich in etwa 3 bis 5 Sätzen auf Deutsch "
+    "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
+    "ohne Formatierungen und ohne Sonderzeichen: {question}"
+)
 
 # Events & Services
 EVENT_ACTIONABLE_NOTIFICATION = "alexa_actionable_notification"

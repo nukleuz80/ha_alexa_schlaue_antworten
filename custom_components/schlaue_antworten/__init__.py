@@ -18,6 +18,8 @@ from .const import (
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_PRIMARY_AGENT,
+    CONF_PROMPT_DETAILED,
+    CONF_PROMPT_SHORT,
     CONF_SHORT_ANSWERS,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_DIALOG_PROMPT,
@@ -27,6 +29,8 @@ from .const import (
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_PRIMARY_AGENT,
+    DEFAULT_PROMPT_DETAILED,
+    DEFAULT_PROMPT_SHORT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
     EVENT_ACTIONABLE_NOTIFICATION,
@@ -351,19 +355,21 @@ class SchlaueAntwortenManager:
         followup_prompt = opts.get(
             CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT
         )
+        prompt_short_tmpl = opts.get(CONF_PROMPT_SHORT, DEFAULT_PROMPT_SHORT)
+        prompt_detailed_tmpl = opts.get(
+            CONF_PROMPT_DETAILED, DEFAULT_PROMPT_DETAILED
+        )
 
         if is_followup:
-            prompt = (
-                "Erkläre folgende Fragestellung ausführlich, interessant und verständlich in etwa 3 bis 5 Sätzen auf Deutsch "
-                "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-                f"ohne Formatierungen und ohne Sonderzeichen: {question}"
-            )
+            if "{question}" in prompt_detailed_tmpl:
+                prompt = prompt_detailed_tmpl.replace("{question}", question)
+            else:
+                prompt = f"{prompt_detailed_tmpl.strip()}: {question}"
         elif short_answers:
-            prompt = (
-                "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
-                "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-                f"ohne Formatierungen und ohne Sonderzeichen auf folgende Frage: {question}"
-            )
+            if "{question}" in prompt_short_tmpl:
+                prompt = prompt_short_tmpl.replace("{question}", question)
+            else:
+                prompt = f"{prompt_short_tmpl.strip()}: {question}"
         else:
             prompt = question
 

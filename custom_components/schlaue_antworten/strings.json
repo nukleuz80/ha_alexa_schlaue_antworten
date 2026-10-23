@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Schlaue Antworten Konfiguration",
-        "description": "Passe die Einstellungen für KI-Agenten und Sprachausgabe an.",
+        "description": "Passe die Einstellungen für KI-Agenten, Prompts und Sprachausgabe an. Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter {question} muss erhalten bleiben.",
         "data": {
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
@@ -24,7 +24,9 @@
           "short_answers": "Kurze Antworten für Sprache erzwingen (1-2 Sätze)",
           "enable_detailed_followup": "Nachfrage für ausführlichere Erklärung anbieten",
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
-          "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')"
+          "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
+          "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss {question} enthalten)",
+          "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, muss {question} enthalten)"
         }
       }
     }
