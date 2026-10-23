@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Smart Answers Configuration",
-        "description": "Configure AI conversation agents, prompts, and settings.\n\n### 📜 Dialog Log (recent interactions):\n{history}\n\n*Note: Custom prompts provided as-is without warranty - placeholder {question} must remain present.*",
+        "description": "Configure AI conversation agents, prompts, and settings.\n\n### 📜 Dialog Log (recent interactions):\n{history}\n\n*Note: Custom prompts provided as-is without warranty - placeholder for question must remain present.*",
         "data": {
           "primary_agent": "Primary AI Agent",
           "fallback_agent": "Fallback AI Agent (on 503/error)",
@@ -27,8 +27,8 @@
           "goodbye_text": "Farewell text on decline ('No')",
           "retry_prompt": "Reprompt message when query is unclear/nonsense",
           "abort_prompt": "Final exit message after second failed attempt",
-          "prompt_short": "AI prompt for short answer (as-is, must include {question})",
-          "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders {question} and {previous_answer})"
+          "prompt_short": "AI prompt for short answer (as-is, must include [question])",
+          "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders [question] and [previous_answer])"
         }
       }
     }

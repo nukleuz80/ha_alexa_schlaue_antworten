@@ -548,14 +548,16 @@ class SchlaueAntwortenManager:
             prompt = prompt_detailed_tmpl
             if "{question}" in prompt:
                 prompt = prompt.replace("{question}", question)
+            elif "[question]" in prompt:
+                prompt = prompt.replace("[question]", question)
             else:
                 prompt = f"{prompt.strip()}: {question}"
 
+            prev_text = previous_answer if previous_answer else "Keine Vorabinformation"
             if "{previous_answer}" in prompt:
-                if previous_answer:
-                    prompt = prompt.replace("{previous_answer}", previous_answer)
-                else:
-                    prompt = prompt.replace("{previous_answer}", "Keine Vorabinformation")
+                prompt = prompt.replace("{previous_answer}", prev_text)
+            elif "[previous_answer]" in prompt:
+                prompt = prompt.replace("[previous_answer]", prev_text)
             elif previous_answer:
                 prompt = (
                     f"{prompt} Bereits gegebene Kurzantwort (nicht wiederholen, sondern neue Aspekte und wichtige Infos ergänzen): {previous_answer}"
@@ -563,6 +565,8 @@ class SchlaueAntwortenManager:
         elif short_answers:
             if "{question}" in prompt_short_tmpl:
                 prompt = prompt_short_tmpl.replace("{question}", question)
+            elif "[question]" in prompt_short_tmpl:
+                prompt = prompt_short_tmpl.replace("[question]", question)
             else:
                 prompt = f"{prompt_short_tmpl.strip()}: {question}"
         else:

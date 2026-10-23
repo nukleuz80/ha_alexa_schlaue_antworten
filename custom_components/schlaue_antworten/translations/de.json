@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Schlaue Antworten Konfiguration",
-        "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n### 📜 Dialog-Log (letzte Interaktionen):\n{history}\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter {question} muss erhalten bleiben.*",
+        "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n### 📜 Dialog-Log (letzte Interaktionen):\n{history}\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter für die Frage muss erhalten bleiben.*",
         "data": {
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
@@ -27,8 +27,8 @@
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
           "retry_prompt": "Wiederholungsansage bei unverständlicher Frage",
           "abort_prompt": "Abbruchansage nach zweitem Fehlversuch",
-          "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss {question} enthalten)",
-          "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter {question} und {previous_answer} nutzen)"
+          "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss [question] enthalten)",
+          "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter [question] und [previous_answer] nutzen)"
         }
       }
     }

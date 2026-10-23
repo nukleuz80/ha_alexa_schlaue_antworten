@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.11-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.12-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -196,6 +196,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.12** | 24.10.2026 | FormatJS-Bugfix & OptionsFlow-Standardisierung: Frontend-Fehler 'MISSING_VALUE: question' behoben (Platzhalter in Übersetzungstexten klammerneutral als `[question]` und `[previous_answer]` formatiert); `OptionsFlow`-Klasse auf modernen parameterlosen Standard refaktoriert (verhindert 500 Server Error beim Aufruf); Brand-Icons als valide PNG-Dateien neu generiert. |
 | **v1.0.11** | 23.10.2026 | Bugfix & Brand-Assets: 500-Fehler beim Laden des Options Flows behoben (Property-Konflikt in `config_flow.py` gelöst); offizielle Brand-Icons (`icon.png`, `logo.png` und `brand/`-Ordner) direkt im Integrationsverzeichnis hinterlegt, sodass Home Assistant das Logo in „Geräte & Dienste“ anzeigt. |
 | **v1.0.10** | 23.10.2026 | Log-Erweiterung: Messung der Latenz / Antwortdauer (vom Ende der Spracheingabe bis zum Start der Sprachausgabe) sowie Anzeige der genauen Zeichenanzahl bei kurzen und langen Antworten (z. B. `Kurz • 142 Z. • 1.3s`). |
 | **v1.0.9** | 23.10.2026 | Kompaktes Dialog-Log direkt in den Integration-Optionen: Protokolliert die letzten Interaktionen mit Uhrzeit, angesprochenem Echo-Lautsprecher, Eingabe und Ausgabe (auf max. 100 Zeichen begrenzt). |

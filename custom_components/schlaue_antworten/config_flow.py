@@ -82,15 +82,11 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return SchlaueAntwortenOptionsFlow(config_entry)
+        return SchlaueAntwortenOptionsFlow()
 
 
 class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Schlaue Antworten."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
-        """Initialize options flow."""
-        self._config_entry_backup = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -99,7 +95,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        entry = self.config_entry or self._config_entry_backup
+        entry = self.config_entry
         opts = entry.options if entry else {}
 
         data_schema = vol.Schema(
@@ -201,5 +197,9 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=data_schema,
-            description_placeholders={"history": history_md},
+            description_placeholders={
+                "history": history_md,
+                "question": "{question}",
+                "previous_answer": "{previous_answer}",
+            },
         )
