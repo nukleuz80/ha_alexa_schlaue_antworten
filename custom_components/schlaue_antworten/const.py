@@ -55,19 +55,15 @@ FILLER_PHRASES = {
 }
 
 DEFAULT_PROMPT_SHORT = (
-    "Bitte antworte kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
-    "für eine direkte Sprachausgabe ohne Aufzählungen, ohne Listen, "
-    "ohne Formatierungen und ohne Sonderzeichen auf folgende Frage oder Rechenaufgabe: {question}. "
-    "Mathematische Berechnungen (z. B. 33/11 = 3), Definitionen, Wissensfragen oder Stichwörter sind ausdrücklich gültig und direkt zu berechnen bzw. zu beantworten! "
-    "Nur wenn die Eingabe reines Kauderwelsch, unvollständiges Gemurmel oder völlig unzusammenhängend ist, "
-    "antworte ausschließlich mit: [UNVERSTAENDLICH]"
+    "Antworte extrem kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
+    "für direkte Sprachausgabe (ohne Aufzählungen, Formatierungen oder Sonderzeichen). "
+    "Berechne Rechenaufgaben direkt. Frage: {question}. "
+    "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]"
 )
 DEFAULT_PROMPT_DETAILED = (
-    "Ergänze die bisherige Antwort zur Fragestellung '{question}' um weitere wichtige Informationen, "
-    "interessante Hintergründe und Details in etwa 3 bis 5 Sätzen auf Deutsch für eine direkte Sprachausgabe "
-    "ohne Aufzählungen, ohne Listen und ohne Sonderzeichen. "
-    "Wiederhole den bereits genannten Inhalt nicht noch einmal, sondern liefere neue wichtige Aspekte. "
-    "Bereits gegebene Kurzantwort: {previous_answer}"
+    "Ergänze die bisherige Antwort zur Fragestellung '{question}' um weitere wichtige Informationen "
+    "in 3 bis 4 prägnanten Sätzen auf Deutsch für direkte Sprachausgabe (keine Aufzählungen oder Sonderzeichen). "
+    "Wiederhole den Inhalt nicht. Bereits gegebene Kurzantwort: {previous_answer}"
 )
 
 # Events & Services

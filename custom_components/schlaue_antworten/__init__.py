@@ -54,7 +54,10 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-ERROR_PATTERNS = [
+RE_MARKDOWN = re.compile(r"[*#`_~]")
+RE_NON_WORDS = re.compile(r"[^\w\s]")
+
+ERROR_PATTERNS = (
     "503",
     "service unavailable",
     "servererror",
@@ -62,7 +65,63 @@ ERROR_PATTERNS = [
     "error talking",
     "api error",
     "rate limit",
-]
+)
+
+CANCEL_PHRASES = frozenset({
+    "none",
+    "responsenone",
+    "responseno",
+    "null",
+    "undefined",
+    "abbrechen",
+    "stop",
+    "stopp",
+    "nein",
+    "nichts",
+})
+
+MATH_TERMS = frozenset({
+    "plus",
+    "minus",
+    "mal",
+    "geteilt",
+    "durch",
+    "dividiert",
+    "multipliziert",
+    "wurzel",
+    "summe",
+    "rechen",
+})
+
+POSITIVE_PHRASES = (
+    "ja",
+    "gerne",
+    "sicher",
+    "bitte",
+    "mehr",
+    "ausführlich",
+    "erzähl",
+    "mach",
+    "yes",
+    "klar",
+)
+
+NEGATIVE_PHRASES = (
+    "nein",
+    "ne",
+    "nö",
+    "nicht",
+    "danke",
+    "stop",
+    "stopp",
+    "abbrechen",
+    "ende",
+    "schluss",
+    "reicht",
+    "kein",
+    "keine",
+    "lass",
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -232,18 +291,23 @@ class SchlaueAntwortenManager:
         self._retry_counts.pop(target_device, None)
         prompt = self.entry.options.get(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
 
-        # Stop any active media playback first
-        try:
-            await self.hass.services.async_call(
-                "media_player",
-                "media_stop",
-                {"entity_id": target_device},
-                blocking=True,
-            )
-        except Exception:
-            pass
+        # Stop active media playback only if the device is currently playing
+        # This saves 1-2 seconds of cloud roundtrip latency when the device is idle
+        dev_state = self.hass.states.get(target_device)
+        if dev_state and dev_state.state == "playing":
+            try:
+                self.hass.async_create_task(
+                    self.hass.services.async_call(
+                        "media_player",
+                        "media_stop",
+                        {"entity_id": target_device},
+                        blocking=False,
+                    )
+                )
+            except Exception as err:
+                _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
 
-        # Trigger actionable notification script or fallback
+        # Trigger actionable notification script (non-blocking for immediate execution)
         if self.hass.services.has_service(
             "script", "activate_alexa_actionable_notification"
         ):
@@ -256,7 +320,7 @@ class SchlaueAntwortenManager:
                     "alexa_device": target_device,
                     "suppress_confirmation": "true",
                 },
-                blocking=True,
+                blocking=False,
             )
         else:
             _LOGGER.warning(
@@ -269,9 +333,8 @@ class SchlaueAntwortenManager:
         if any(c.isdigit() for c in text):
             return False
 
-        math_terms = {"plus", "minus", "mal", "geteilt", "durch", "dividiert", "multipliziert", "wurzel", "summe", "rechen"}
-        cleaned = re.sub(r"[^\w\s]", "", text).strip().lower()
-        if any(term in cleaned.split() for term in math_terms):
+        cleaned = RE_NON_WORDS.sub("", text).strip().lower()
+        if any(term in cleaned.split() for term in MATH_TERMS):
             return False
 
         if not cleaned or len(cleaned) < 3:
@@ -416,40 +479,12 @@ class SchlaueAntwortenManager:
                 stored_question = str(stored_data)
                 previous_answer = ""
 
-            positive_phrases = (
-                "ja",
-                "gerne",
-                "sicher",
-                "bitte",
-                "mehr",
-                "ausführlich",
-                "erzähl",
-                "mach",
-                "yes",
-                "klar",
-            )
             is_positive = response_type == "ResponseYes" or any(
-                p in resp_lower for p in positive_phrases
+                p in resp_lower for p in POSITIVE_PHRASES
             )
 
-            negative_phrases = (
-                "nein",
-                "ne",
-                "nö",
-                "nicht",
-                "danke",
-                "stop",
-                "stopp",
-                "abbrechen",
-                "ende",
-                "schluss",
-                "reicht",
-                "kein",
-                "keine",
-                "lass",
-            )
             is_negative = response_type == "ResponseNo" or any(
-                p in resp_lower for p in negative_phrases
+                p in resp_lower for p in NEGATIVE_PHRASES
             )
 
             if is_positive:
@@ -503,19 +538,7 @@ class SchlaueAntwortenManager:
             return
 
         # Check for cancel or empty in initial query
-        cancel_phrases = {
-            "none",
-            "responsenone",
-            "responseno",
-            "null",
-            "undefined",
-            "abbrechen",
-            "stop",
-            "stopp",
-            "nein",
-            "nichts",
-        }
-        if not raw_response or resp_lower in cancel_phrases:
+        if not raw_response or resp_lower in CANCEL_PHRASES:
             self._retry_counts.pop(reply_device, None)
             _LOGGER.debug("Dialog cancelled or response empty: %s", raw_response)
             return
@@ -697,7 +720,7 @@ class SchlaueAntwortenManager:
         self._retry_counts.pop(reply_device, None)
 
         # 6. Clean markdown formatting (*, #, `, _, ~)
-        cleaned = re.sub(r"[*#`_~]", "", raw_speech).strip()
+        cleaned = RE_MARKDOWN.sub("", raw_speech).strip()
         if announce_model:
             agent_name = self._get_agent_display_name(used_agent)
             final_speech = f"{cleaned} Beantwortet von {agent_name}."
@@ -753,13 +776,13 @@ class SchlaueAntwortenManager:
                             "data": {"type": "tts"},
                             "message": final_speech,
                         },
-                        blocking=True,
+                        blocking=False,
                     )
                 except Exception as err:
                     _LOGGER.warning("TTS error on %s: %s", reply_device, err)
 
-                # Wait for TTS to finish (approx 13 chars per second + 0.8s pause)
-                wait_duration = max(3.0, (len(final_speech) / 13.0) + 0.8)
+                # Wait for TTS to finish (approx 13 chars per second + 0.5s pause)
+                wait_duration = max(2.5, (len(final_speech) / 13.0) + 0.5)
                 await asyncio.sleep(wait_duration)
 
                 # Now trigger the follow-up question with open microphone

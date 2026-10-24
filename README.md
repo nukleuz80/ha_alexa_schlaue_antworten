@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.18-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.19-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -185,6 +185,23 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
 
 ---
 
+## ⚡ Performance- & Latenz-Optimierung (Jede Sekunde sparen)
+
+Um die Verzögerung zwischen deiner Frage und Alexas Antwort auf ein absolutes Minimum zu reduzieren, beachte folgende Tipps und Neuerungen:
+
+1. 🔇 **Modellansage deaktivieren (Spart ca. 1,5 Sekunden reine Sprechzeit!):**  
+   In den Einstellungen der Integration findest du die Option **„Modellname am Ende der Antwort ansagen“**.  
+   *Ist diese Option deaktiviert*, liest Alexa ausschließlich die Antwort vor – der Zusatz *„Beantwortet von Google Gemini.“* entfällt. Das spart bei jedem Dialog sofort ca. 1,5 Sekunden Sprechzeit und hält die Gesamtlänge kompakt genug, sodass die Antwort und eine eventuelle Nachfrage nahtlos in einem Rutsch gesprochen werden können.
+2. 🏎️ **Smarte Musik-Vorprüfung (ab v1.0.19):**  
+   Vor dem Start des Dialogs prüft die Integration im lokalen Zustandscache, ob der Echo überhaupt Medien abspielt. Läuft keine Musik, wird kein blockierender Stop-Befehl an die Amazon-Cloud gesendet. Das spart sofort **1 bis 2 Sekunden Wartezeit** beim Öffnen des Mikrofons.
+3. 🧠 **Kurzer, optimierter Standard-Prompt (ab v1.0.19):**  
+   Der interne Prompt für Kurzantworten wurde auf maximale Prägnanz komprimiert. Dadurch generiert das KI-Modell deutlich weniger Füllwörter und antwortet in Bruchteilen einer Sekunde (schnellere *Time-To-First-Token*).
+4. 🤖 **Wahl des schnellsten KI-Agenten:**  
+   - Modelle wie **Google Gemini 2.0 Flash** oder schnelle OpenRouter-Modelle (wie **Llama 3.3 70B Instruct Free**) liefern Antworten in der Regel innerhalb von 1 bis 1,5 Sekunden.  
+   - Für maximale Geschwindigkeit empfiehlt sich ein KI-Agent **ohne** Smart-Home-Entitätssteuerung (`assist`), damit kein unnötiger Geräte-Kontext geladen werden muss.
+
+---
+
 ## 🛠️ Dienste (Services)
 
 Die Integration stellt zwei native Home Assistant Dienste bereit:
@@ -200,6 +217,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.19** | 24.10.2026 | Performance- & Latenz-Update: 1-2 Sekunden Zeitersparnis beim Dialogstart durch smarte Zustandsprüfung (kein unnötiger Cloud-Stop-Call bei inaktiver Musikwiedergabe; nicht-blockierende Ausführung); gestraffter Kurzantwort-Prompt für schnellere Time-To-First-Token; vorab kompilierte Regex-Muster und $O(1)$-Set-Lookups; Non-Blocking-TTS; Dokumentationsabschnitt zu Performance- und Latenztipps (u. a. Einsparung von 1,5s durch Deaktivieren der Modellansage). |
 | **v1.0.18** | 24.10.2026 | Dokumentations-Erweiterung: Detaillierte Empfehlung für OpenRouter mit kostenlosen Modellen (z. B. Llama 3.3 70B Free / Gemini Flash Free) für einen schnellen, risikofreien Einstieg ohne monatliche Fixkosten oder Kreditkarte aufgenommen. |
 | **v1.0.17** | 24.10.2026 | Critical Bugfix: Endlosschleife beim Speichern der Einstellungen (`update_listener`) behoben; anstelle rekursiver manueller Reload-Aufrufe nutzt die Integration nun das native `hass.config_entries.async_reload`, wodurch das 4096-Websocket-Nachrichtenlimit, Browser-Abbrüche („disconnected“) und Endlos-Spinner beim Speichern dauerhaft beseitigt wurden. |
 | **v1.0.16** | 24.10.2026 | Follow-up-Erweiterung & Puffer-Handling: 255-Zeichen-Limitierung von `input_text.alexa_actionable_notification` behoben (längere Antworten werden zuerst über TTS ausgegeben, gefolgt von der Nachfrage mit geöffnetem Mikrofon); Standardwert für Vertiefungs-Nachfrage auf `Aktiviert` geändert. |
