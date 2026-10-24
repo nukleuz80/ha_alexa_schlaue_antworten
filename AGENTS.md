@@ -22,6 +22,10 @@ This project strictly adheres to the official Home Assistant developer documenta
 - **Data Storage & State Management**:
   - Persist integration state through `homeassistant.helpers.storage.Store`.
   - Never modify files inside `custom_components/` at runtime. User data lives strictly in `/config/` or `.storage/`.
+- **ConfigEntry Lifecycle & Reload Safety**:
+  - Never invoke `async_setup_entry` manually inside an `entry.add_update_listener` callback. Always use `await hass.config_entries.async_reload(entry.entry_id)` to let Home Assistant Core manage cleanup and rebuild.
+  - Every service registered in `async_setup_entry` or entity added must have a clean teardown in `async_unload_entry`.
+  - Guard strictly against recursive reload loops, listener duplication, or event floods (e.g. WebSocket 4096 pending messages) that freeze the event loop or drop client connections.
 - **Exception Handling & Logging**:
   - Use `_LOGGER = logging.getLogger(__name__)`.
   - Raise standard exceptions (`HomeAssistantError`, `ConfigEntryNotReady`, `ServiceValidationError`) from `homeassistant.exceptions`.

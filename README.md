@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.17-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.18-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -113,9 +113,13 @@ Verbindet den Sprachbefehl mit Home Assistant:
 
 ### 5. Mindestens ein aktiver KI-Agent (Conversation Entity)
 Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
+- 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
+  Wir empfehlen für einen einfachen und unkomplizierten Einstieg **OpenRouter** mit einem der **kostenlosen Modelle** (wie z. B. `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free` o. ä.).  
+  - **Vorteil:** Du kannst *Schlaue Antworten* sofort unverbindlich ausprobieren – **ohne Kreditkarte, ohne Vorabkosten und ohne feste Monatsgebühren**.  
+  - **Einbindung in Home Assistant:** Über die integrierte *OpenAI Conversation*-Integration (als Basis-URL `https://openrouter.ai/api/v1` und deinen kostenlosen OpenRouter-API-Key angeben) oder die HACS OpenRouter-Integration. Schnelle Reaktionszeiten und hervorragende Antwortqualität garantiert!
 - **Google Generative AI (Gemini):** z. B. eine reine Text-Instanz ohne Smart-Home-Entitätssteuerung für maximale Geschwindigkeit (~1,2s Antwortzeit).
-- **Anthropic Claude / OpenRouter:** z. B. `conversation.anthropic_claude_sonnet_4`.
-- **OpenAI / Local LLM / Ollama:** Beliebige `conversation.*`-Entität.
+- **Anthropic Claude:** z. B. `conversation.anthropic_claude_sonnet_4` für höchste sprachliche Präzision.
+- **OpenAI / Local LLM / Ollama:** Beliebige `conversation.*`-Entität oder lokale LLMs für 100 % lokalen Offline-Betrieb.
 
 ---
 
@@ -196,6 +200,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.18** | 24.10.2026 | Dokumentations-Erweiterung: Detaillierte Empfehlung für OpenRouter mit kostenlosen Modellen (z. B. Llama 3.3 70B Free / Gemini Flash Free) für einen schnellen, risikofreien Einstieg ohne monatliche Fixkosten oder Kreditkarte aufgenommen. |
 | **v1.0.17** | 24.10.2026 | Critical Bugfix: Endlosschleife beim Speichern der Einstellungen (`update_listener`) behoben; anstelle rekursiver manueller Reload-Aufrufe nutzt die Integration nun das native `hass.config_entries.async_reload`, wodurch das 4096-Websocket-Nachrichtenlimit, Browser-Abbrüche („disconnected“) und Endlos-Spinner beim Speichern dauerhaft beseitigt wurden. |
 | **v1.0.16** | 24.10.2026 | Follow-up-Erweiterung & Puffer-Handling: 255-Zeichen-Limitierung von `input_text.alexa_actionable_notification` behoben (längere Antworten werden zuerst über TTS ausgegeben, gefolgt von der Nachfrage mit geöffnetem Mikrofon); Standardwert für Vertiefungs-Nachfrage auf `Aktiviert` geändert. |
 | **v1.0.15** | 24.10.2026 | Rechenaufgaben-Erkennung & Logging-Option: Mathematische Berechnungen (z. B. `33/11`, `5*8`, `100-25`) werden nun explizit als gültig erkannt und nicht mehr fälschlicherweise als unvollständige Eingabe abgewiesen; neue Einstellung `Dialog-Log aktivieren` (An/Aus-Schalter) zur flexiblen Aktivierung/Deaktivierung der Protokollierung hinzugefügt. |
