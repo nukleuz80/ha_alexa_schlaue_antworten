@@ -69,20 +69,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Schlaue Antworten from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Evict cached translations for this domain so that changes take effect immediately
-    for key in list(hass.data.keys()):
-        if "translation" in str(key).lower():
-            val = hass.data[key]
-            if isinstance(val, dict):
-                for subk in list(val.keys()):
-                    if DOMAIN in str(subk) or "schlaue" in str(subk):
-                        val.pop(subk, None)
-
     manager = SchlaueAntwortenManager(hass, entry)
     await manager.async_setup()
     hass.data[DOMAIN][entry.entry_id] = manager
 
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
     return True
 
 
@@ -96,10 +87,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    return await async_setup_entry(hass, entry)
+async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update options by reloading cleanly through Home Assistant's entry manager."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 class SchlaueAntwortenManager:
