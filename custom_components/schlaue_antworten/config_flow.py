@@ -22,6 +22,9 @@ from .const import (
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
+    CONF_INTERACTIVE_CONFIRM_PROMPT,
+    CONF_MOBILE_CONFIRMATION,
+    CONF_NOTIFY_TARGET,
     CONF_PRIMARY_AGENT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
@@ -38,6 +41,9 @@ from .const import (
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
+    DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+    DEFAULT_MOBILE_CONFIRMATION,
+    DEFAULT_NOTIFY_TARGET,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
@@ -76,6 +82,9 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ENABLE_DETAILED_FOLLOWUP: DEFAULT_ENABLE_DETAILED_FOLLOWUP,
                     CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
                     CONF_GOODBYE_TEXT: DEFAULT_GOODBYE_TEXT,
+                    CONF_INTERACTIVE_CONFIRM_PROMPT: DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+                    CONF_NOTIFY_TARGET: DEFAULT_NOTIFY_TARGET,
+                    CONF_MOBILE_CONFIRMATION: DEFAULT_MOBILE_CONFIRMATION,
                     CONF_RETRY_PROMPT: DEFAULT_RETRY_PROMPT,
                     CONF_ABORT_PROMPT: DEFAULT_ABORT_PROMPT,
                     CONF_PROMPT_SHORT: DEFAULT_PROMPT_SHORT,
@@ -180,6 +189,27 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     default=opts.get(
                         CONF_GOODBYE_TEXT,
                         DEFAULT_GOODBYE_TEXT,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_INTERACTIVE_CONFIRM_PROMPT,
+                    default=opts.get(
+                        CONF_INTERACTIVE_CONFIRM_PROMPT,
+                        DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_NOTIFY_TARGET,
+                    default=opts.get(
+                        CONF_NOTIFY_TARGET,
+                        DEFAULT_NOTIFY_TARGET,
+                    ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_MOBILE_CONFIRMATION,
+                    default=opts.get(
+                        CONF_MOBILE_CONFIRMATION,
+                        DEFAULT_MOBILE_CONFIRMATION,
                     ),
                 ): selector.TextSelector(),
                 vol.Required(

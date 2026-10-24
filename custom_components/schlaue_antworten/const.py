@@ -16,6 +16,9 @@ CONF_CUSTOM_KNOWLEDGE = "custom_knowledge"
 CONF_ENABLE_DETAILED_FOLLOWUP = "enable_detailed_followup"
 CONF_FOLLOWUP_PROMPT = "followup_prompt"
 CONF_GOODBYE_TEXT = "goodbye_text"
+CONF_INTERACTIVE_CONFIRM_PROMPT = "interactive_confirm_prompt"
+CONF_NOTIFY_TARGET = "notify_target"
+CONF_MOBILE_CONFIRMATION = "mobile_confirmation"
 CONF_RETRY_PROMPT = "retry_prompt"
 CONF_ABORT_PROMPT = "abort_prompt"
 CONF_PROMPT_SHORT = "prompt_short"
@@ -34,6 +37,9 @@ DEFAULT_CUSTOM_KNOWLEDGE = ""
 DEFAULT_ENABLE_DETAILED_FOLLOWUP = True
 DEFAULT_FOLLOWUP_PROMPT = "Möchtest du eine ausführlichere Erklärung? Ja oder Nein?"
 DEFAULT_GOODBYE_TEXT = "Alles klar."
+DEFAULT_INTERACTIVE_CONFIRM_PROMPT = "Wird erledigt."
+DEFAULT_NOTIFY_TARGET = "notify.notify"
+DEFAULT_MOBILE_CONFIRMATION = "Ich habe dir die Antwort aufs Handy geschickt."
 DEFAULT_RETRY_PROMPT = "Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage."
 DEFAULT_ABORT_PROMPT = "Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal."
 CODEWORD_UNVERSTAENDLICH = "[UNVERSTAENDLICH]"
@@ -74,8 +80,27 @@ DEFAULT_PROMPT_DETAILED = (
 EVENT_ACTIONABLE_NOTIFICATION = "alexa_actionable_notification"
 EVENT_ID_QUERY = "alexa_ki_query"
 EVENT_ID_FOLLOWUP = "alexa_ki_followup"
+EVENT_ID_INTERACTIVE = "alexa_interactive_question"
+EVENT_ACTION_CONFIRMED = "schlaue_antworten_action_confirmed"
+EVENT_ACTION_DECLINED = "schlaue_antworten_action_declined"
 SERVICE_START_DIALOG = "start_dialog"
 SERVICE_ASK_QUESTION = "ask_question"
+SERVICE_INTERACTIVE_QUESTION = "interactive_question"
+
+MOBILE_TRIGGER_PHRASES = (
+    "handy",
+    "smartphone",
+    "telefon",
+    "nachricht",
+    "aufs handy",
+    "aufs smartphone",
+    "auf mein handy",
+    "schick mir",
+    "schicken",
+    "senden",
+    "aufs telefon",
+    "push",
+)
 
 # Helper entity to listen for existing scene/routine triggers
 TRIGGER_BOOLEAN_ENTITY = "input_boolean.alexa_ki_trigger"

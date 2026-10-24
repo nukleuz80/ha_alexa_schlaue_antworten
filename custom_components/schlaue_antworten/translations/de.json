@@ -36,6 +36,9 @@
           "enable_detailed_followup": "Nachfrage für ausführlichere Erklärung anbieten",
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
+          "interactive_confirm_prompt": "Bestätigungsansage bei Automatisierungs-Freigabe ('Ja')",
+          "notify_target": "Ziel-Gerät für Smartphone-Push (z. B. notify.notify oder dein Handy)",
+          "mobile_confirmation": "Sprachbestätigung beim Senden aufs Smartphone",
           "retry_prompt": "Wiederholungsansage bei unverständlicher Frage",
           "abort_prompt": "Abbruchansage nach zweitem Fehlversuch",
           "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss [question] enthalten)",
@@ -70,6 +73,24 @@
         "echo_device": {
           "name": "Ziel-Echo-Gerät",
           "description": "Echo-Gerät (optional, Standard ist der zuletzt genutzte Echo)."
+        }
+      }
+    },
+    "interactive_question": {
+      "name": "Interaktive Frage stellen",
+      "description": "Stellt eine Frage über Alexa und feuert ein Bestätigungs-Event bei 'Ja' oder 'Nein'.",
+      "fields": {
+        "question": {
+          "name": "Frage",
+          "description": "Die zu stellende Frage."
+        },
+        "echo_device": {
+          "name": "Ziel-Echo-Gerät",
+          "description": "Echo-Gerät (optional, Standard ist der zuletzt genutzte Echo)."
+        },
+        "event_id": {
+          "name": "Event-Kennung",
+          "description": "Eindeutige ID für das ausgelöste Event in Automatisierungen."
         }
       }
     }

@@ -19,3 +19,19 @@ ask_question:
         entity:
           domain: media_player
 
+interactive_question:
+  fields:
+    question:
+      example: "Die Waschmaschine ist fertig. Soll ich die Steckdose ausschalten?"
+      required: true
+      selector:
+        text:
+    echo_device:
+      example: media_player.wohnzimmer_echo_dot
+      selector:
+        entity:
+          domain: media_player
+    event_id:
+      example: "waschmaschine_fertig"
+      selector:
+        text:

@@ -36,6 +36,9 @@
           "enable_detailed_followup": "Offer follow-up question for deeper explanations",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on rejection ('No')",
+          "interactive_confirm_prompt": "Confirmation prompt on automation approval ('Yes')",
+          "notify_target": "Target device for mobile push (e.g. notify.notify or phone)",
+          "mobile_confirmation": "Spoken confirmation when sending to smartphone",
           "retry_prompt": "Prompt when question was not understood",
           "abort_prompt": "Abort announcement after second failed attempt",
           "prompt_short": "AI prompt for short answer (as-is, must include [question])",
@@ -70,6 +73,24 @@
         "echo_device": {
           "name": "Target Echo device",
           "description": "Echo media player (optional, defaults to last active Echo)."
+        }
+      }
+    },
+    "interactive_question": {
+      "name": "Ask interactive question",
+      "description": "Asks an interactive question on Alexa and fires confirmation event on 'Yes' or 'No'.",
+      "fields": {
+        "question": {
+          "name": "Question",
+          "description": "The question to ask."
+        },
+        "echo_device": {
+          "name": "Target Echo device",
+          "description": "Echo media player (optional, defaults to last active Echo)."
+        },
+        "event_id": {
+          "name": "Event ID",
+          "description": "Unique ID for the fired event in automations."
         }
       }
     }

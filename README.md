@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.21-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.22-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -39,6 +39,8 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 - 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen konfigurierten Ausweich-Agenten (z. B. Claude Sonnet).
 - 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI. Fragen wie *„Brauche ich heute einen Schirm?“*, *„Wie spät ist es?“* oder *„Ist jemand zu Hause?“* werden dadurch sofort situativ beantwortet.
 - 📖 **Haus-Wiki & Familien-Fakten:** Erlaubt es, in den Einstellungen individuelle Notizen und Fakten zu hinterlegen (z. B. WLAN-Gastpasswort, Müllabfuhr-Tage, Haustiernamen, Notfallnummern). Die KI greift nahtlos darauf zu und beantwortet persönliche Haushaltsfragen blitzschnell.
+- 🚨 **Proaktive Fragen für Automatisierungen:** Dienst `schlaue_antworten.interactive_question` stellt bei Ereignissen (z. B. Waschmaschine fertig, Regenmeldung) eine Frage über Alexa und feuert bei *„Ja“* oder *„Nein“* entsprechende Events für deine Folge-Automatisierungen.
+- 📱 **Auf mein Handy senden:** Sage im Dialog einfach *„Aufs Handy senden“* oder frage direkt *„... und schick es mir aufs Smartphone“*, um die vollständige Antwort als saubere Push-Mitteilung an deine Home Assistant Companion App zu erhalten.
 - 🧹 **Perfekt für die Sprachausgabe aufbereitet:** Bereinigt automatisch störende Markdown-Sterne (`*`), Rauten (`#`) und Sonderzeichen.
 - 🏷️ **Transparente Modellnennung:** Nennt auf Wunsch am Ende der Antwort automatisch das Modell (*„Beantwortet von Google Gemini.“*).
 - ⚙️ **Vollständige UI-Konfiguration:** Alle Modelle, Prompts und Standardwerte können direkt in der Home Assistant Benutzeroberfläche ohne YAML konfiguriert werden.
@@ -157,6 +159,9 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - **Dialog-Log aktivieren:** Schaltet die Aufzeichnung der letzten Dialoge an/aus.
    - **Smart-Home-Kontext an KI übergeben:** Schaltet die diskrete Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus (Standard: *aktiviert*).
    - **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
+   - **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy (z. B. `notify.notify` oder dein Smartphone wie `notify.mobile_app_...`).
+   - **Sprachbestätigung beim Senden aufs Smartphone:** Was Alexa sagen soll (Standard: *„Ich habe dir die Antwort aufs Handy geschickt.“*).
+   - **Bestätigungsansage bei Automatisierungs-Freigabe ('Ja'):** Text, wenn eine interaktive Automatisierungsfrage mit *„Ja“* beantwortet wird (Standard: *„Wird erledigt.“*).
    - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
    - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
    - **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung, falls du ablehnst (Standard: *„Alles klar.“*).
@@ -209,12 +214,34 @@ Um die Verzögerung zwischen deiner Frage und Alexas Antwort auf ein absolutes M
 
 ## 🛠️ Dienste (Services)
 
-Die Integration stellt zwei native Home Assistant Dienste bereit:
+Die Integration stellt drei native Home Assistant Dienste bereit:
 
 | Dienst | Beschreibung | Parameter |
 | :--- | :--- | :--- |
 | `schlaue_antworten.start_dialog` | Startet den interaktiven Frage-Dialog auf einem Echo. | `echo_device` *(optional)* |
 | `schlaue_antworten.ask_question` | Sendet eine Frage direkt an die KI und gibt das Ergebnis aus. | `question` *(erforderlich)*, `echo_device` *(optional)* |
+| `schlaue_antworten.interactive_question` | Stellt eine Ja/Nein-Rückfrage über Alexa und feuert Events für Folge-Automatisierungen. | `question` *(erforderlich)*, `echo_device` *(optional)*, `event_id` *(optional)* |
+
+### 💡 Beispiel: Proaktive Automatisierungs-Rückfrage
+
+```yaml
+# 1. Automatisierung: Alexa stellt die Frage mit geöffnetem Mikrofon
+action: schlaue_antworten.interactive_question
+data:
+  question: "Die Waschmaschine ist fertig. Soll ich die Steckdose ausschalten?"
+  event_id: waschmaschine_fertig
+
+# 2. Folge-Automatisierung: Reagiert auf "Ja"
+trigger:
+  - trigger: event
+    event_type: schlaue_antworten_action_confirmed
+    event_data:
+      event_id: waschmaschine_fertig
+action:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.steckdose_waschmaschine
+```
 
 ---
 
@@ -222,6 +249,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.22** | 24.10.2026 | Neue Features: 1) Proaktiver Dialog-Dienst `schlaue_antworten.interactive_question` für Automatisierungen (Alexa stellt bei Ereignissen eine Ja/Nein-Rückfrage und feuert `schlaue_antworten_action_confirmed` bzw. `declined` Events); 2) Push-Notification aufs Smartphone ('Auf mein Handy senden') per Sprachbefehl im Dialog oder direkt in der Frage. |
 | **v1.0.21** | 24.10.2026 | Neues Feature: Haus-Wiki & Familien-Fakten (mehrzeiliges Eingabefeld in den Einstellungen für individuelles Haushaltswissen wie WLAN-Gastpasswörter, Müllabfuhr-Termine oder Haustiernamen; wird als Teil des Smart-Home-Kontexts an die KI übergeben und ermöglicht präzise Auskünfte zu persönlichen Haushaltsfragen). |
 | **v1.0.20** | 24.10.2026 | Neues Feature: Smart-Home-Kontext im Prompt (Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, Echo-Standort/Raum und Anwesenheit werden als kompakter Kontextblock diskret an das KI-Modell übergeben – ermöglicht orts- und wetterbezogene Fragen wie 'Brauche ich einen Schirm?', 'Wie spät ist es?' oder 'Wer ist zu Hause?'); ein-/ausschaltbar in den Einstellungen. |
 | **v1.0.19** | 24.10.2026 | Performance- & Latenz-Update: 1-2 Sekunden Zeitersparnis beim Dialogstart durch smarte Zustandsprüfung (kein unnötiger Cloud-Stop-Call bei inaktiver Musikwiedergabe; nicht-blockierende Ausführung); gestraffter Kurzantwort-Prompt für schnellere Time-To-First-Token; vorab kompilierte Regex-Muster und $O(1)$-Set-Lookups; Non-Blocking-TTS; Dokumentationsabschnitt zu Performance- und Latenztipps (u. a. Einsparung von 1,5s durch Deaktivieren der Modellansage). |

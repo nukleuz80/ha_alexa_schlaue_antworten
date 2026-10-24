@@ -25,6 +25,9 @@ from .const import (
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
+    CONF_INTERACTIVE_CONFIRM_PROMPT,
+    CONF_MOBILE_CONFIRMATION,
+    CONF_NOTIFY_TARGET,
     CONF_PRIMARY_AGENT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
@@ -41,6 +44,9 @@ from .const import (
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
+    DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+    DEFAULT_MOBILE_CONFIRMATION,
+    DEFAULT_NOTIFY_TARGET,
     DEFAULT_PRIMARY_AGENT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
@@ -48,10 +54,15 @@ from .const import (
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
     EVENT_ACTIONABLE_NOTIFICATION,
+    EVENT_ACTION_CONFIRMED,
+    EVENT_ACTION_DECLINED,
     EVENT_ID_FOLLOWUP,
+    EVENT_ID_INTERACTIVE,
     EVENT_ID_QUERY,
     FILLER_PHRASES,
+    MOBILE_TRIGGER_PHRASES,
     SERVICE_ASK_QUESTION,
+    SERVICE_INTERACTIVE_QUESTION,
     SERVICE_START_DIALOG,
     TRIGGER_BOOLEAN_ENTITY,
 )
@@ -187,6 +198,7 @@ class SchlaueAntwortenManager:
         self._unsub_state: Any = None
         self._last_questions: dict[str, Any] = {}
         self._retry_counts: dict[str, int] = {}
+        self._active_interactive: dict[str, dict[str, Any]] = {}
         self._history: list[dict[str, str]] = []
 
     def add_history_entry(
@@ -265,6 +277,11 @@ class SchlaueAntwortenManager:
             SERVICE_ASK_QUESTION,
             self.async_service_ask_question,
         )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_INTERACTIVE_QUESTION,
+            self.async_service_interactive_question,
+        )
 
         _LOGGER.info("Schlaue Antworten integration successfully set up")
 
@@ -280,6 +297,7 @@ class SchlaueAntwortenManager:
 
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
+        self.hass.services.async_remove(DOMAIN, SERVICE_INTERACTIVE_QUESTION)
 
     def _get_target_echo(self, preferred_device: str | None = None) -> str:
         """Determine the active Echo media_player."""
@@ -310,6 +328,119 @@ class SchlaueAntwortenManager:
 
         target_device = self._get_target_echo(call.data.get("echo_device"))
         await self.async_process_and_speak(question, target_device)
+
+    async def async_service_interactive_question(self, call: ServiceCall) -> None:
+        """Service handler to ask a proactive interactive question for automations."""
+        question = call.data.get("question", "").strip()
+        if not question:
+            return
+
+        target_device = self._get_target_echo(call.data.get("echo_device"))
+        event_id = str(call.data.get("event_id", "interactive_question") or "interactive_question").strip()
+        await self.async_interactive_question(question, target_device, event_id)
+
+    async def async_interactive_question(
+        self, question: str, target_device: str, custom_event_id: str
+    ) -> None:
+        """Ask a proactive interactive question on an Echo device."""
+        self._active_interactive[target_device] = {
+            "question": question,
+            "event_id": custom_event_id,
+        }
+
+        # Stop active media playback if currently playing
+        dev_state = self.hass.states.get(target_device)
+        if dev_state and dev_state.state == "playing":
+            try:
+                self.hass.async_create_task(
+                    self.hass.services.async_call(
+                        "media_player",
+                        "media_stop",
+                        {"entity_id": target_device},
+                        blocking=False,
+                    )
+                )
+            except Exception as err:
+                _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
+
+        # Trigger actionable notification with EVENT_ID_INTERACTIVE
+        if self.hass.services.has_service(
+            "script", "activate_alexa_actionable_notification"
+        ):
+            await self.hass.services.async_call(
+                "script",
+                "activate_alexa_actionable_notification",
+                {
+                    "text": question,
+                    "event_id": EVENT_ID_INTERACTIVE,
+                    "alexa_device": target_device,
+                    "suppress_confirmation": "true",
+                },
+                blocking=False,
+            )
+        else:
+            _LOGGER.warning(
+                "script.activate_alexa_actionable_notification not found"
+            )
+
+    async def async_send_to_mobile(
+        self, question: str, answer: str, reply_device: str
+    ) -> None:
+        """Send an answer to the configured smartphone / notify target."""
+        notify_target = str(
+            self.entry.options.get(CONF_NOTIFY_TARGET, DEFAULT_NOTIFY_TARGET) or DEFAULT_NOTIFY_TARGET
+        )
+        confirm_text = str(
+            self.entry.options.get(
+                CONF_MOBILE_CONFIRMATION, DEFAULT_MOBILE_CONFIRMATION
+            ) or ""
+        )
+
+        title = f"Schlaue Antworten: {question}"[:100]
+        message = answer
+
+        domain = "notify"
+        service = (
+            notify_target.replace("notify.", "")
+            if notify_target.startswith("notify.")
+            else notify_target
+        )
+
+        _LOGGER.info("Sending push notification to %s: %s", notify_target, title)
+        try:
+            await self.hass.services.async_call(
+                domain,
+                service,
+                {"title": title, "message": message},
+                blocking=False,
+            )
+        except Exception as err:
+            _LOGGER.warning(
+                "Could not send mobile notification to %s: %s", notify_target, err
+            )
+
+        if confirm_text:
+            try:
+                await self.hass.services.async_call(
+                    "notify",
+                    "alexa_media",
+                    {
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": confirm_text,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to speak mobile confirmation: %s", err)
+
+        self.add_history_entry(
+            reply_device,
+            f"[Smartphone] {question}",
+            confirm_text or "Gesendet",
+            char_count=len(answer),
+            mode="Push",
+        )
 
     async def async_start_dialog(self, target_device: str) -> None:
         """Start the Actionable Notification dialog on the target Echo."""
@@ -474,7 +605,7 @@ class SchlaueAntwortenManager:
         start_time = time.monotonic()
         data = event.data
         event_id = data.get("event_id")
-        if event_id not in (EVENT_ID_QUERY, EVENT_ID_FOLLOWUP):
+        if event_id not in (EVENT_ID_QUERY, EVENT_ID_FOLLOWUP, EVENT_ID_INTERACTIVE):
             return
 
         raw_response = str(data.get("event_response", "")).strip()
@@ -487,6 +618,122 @@ class SchlaueAntwortenManager:
             or data.get("device")
             or self._get_target_echo()
         )
+
+        # Handle proactive interactive question response (e.g. from automations)
+        if event_id == EVENT_ID_INTERACTIVE:
+            stored_data = self._active_interactive.pop(reply_device, None)
+            custom_event_id = (
+                str(stored_data.get("event_id", "interactive_question"))
+                if stored_data
+                else "interactive_question"
+            )
+            question_text = (
+                str(stored_data.get("question", ""))
+                if stored_data
+                else ""
+            )
+
+            is_positive = response_type == "ResponseYes" or any(
+                p in resp_lower for p in POSITIVE_PHRASES
+            )
+            is_negative = response_type == "ResponseNo" or any(
+                p in resp_lower for p in NEGATIVE_PHRASES
+            )
+
+            if is_positive:
+                _LOGGER.info(
+                    "Interactive action CONFIRMED for %s on %s (response: %s)",
+                    custom_event_id,
+                    reply_device,
+                    raw_response,
+                )
+                self.hass.bus.async_fire(
+                    EVENT_ACTION_CONFIRMED,
+                    {
+                        "confirmed": True,
+                        "response_type": "ResponseYes",
+                        "raw_response": raw_response,
+                        "event_id": custom_event_id,
+                        "echo_device": reply_device,
+                        "question": question_text,
+                    },
+                )
+                confirm_prompt = str(
+                    self.entry.options.get(
+                        CONF_INTERACTIVE_CONFIRM_PROMPT,
+                        DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+                    )
+                    or DEFAULT_INTERACTIVE_CONFIRM_PROMPT
+                )
+                self.add_history_entry(
+                    reply_device,
+                    f"[Interaktiv] {question_text}",
+                    confirm_prompt,
+                    duration=time.monotonic() - start_time,
+                    char_count=len(confirm_prompt),
+                    mode="Bestätigt",
+                )
+                if confirm_prompt:
+                    try:
+                        await self.hass.services.async_call(
+                            "notify",
+                            "alexa_media",
+                            {
+                                "target": [reply_device],
+                                "data": {"type": "tts"},
+                                "message": confirm_prompt,
+                            },
+                            blocking=False,
+                        )
+                    except Exception as err:
+                        _LOGGER.error("Failed to speak confirm prompt: %s", err)
+            elif is_negative:
+                _LOGGER.info(
+                    "Interactive action DECLINED for %s on %s (response: %s)",
+                    custom_event_id,
+                    reply_device,
+                    raw_response,
+                )
+                self.hass.bus.async_fire(
+                    EVENT_ACTION_DECLINED,
+                    {
+                        "confirmed": False,
+                        "response_type": "ResponseNo",
+                        "raw_response": raw_response,
+                        "event_id": custom_event_id,
+                        "echo_device": reply_device,
+                        "question": question_text,
+                    },
+                )
+                goodbye_text = str(
+                    self.entry.options.get(
+                        CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT
+                    )
+                    or DEFAULT_GOODBYE_TEXT
+                )
+                self.add_history_entry(
+                    reply_device,
+                    f"[Interaktiv] {question_text}",
+                    goodbye_text,
+                    duration=time.monotonic() - start_time,
+                    char_count=len(goodbye_text),
+                    mode="Abgelehnt",
+                )
+                if goodbye_text:
+                    try:
+                        await self.hass.services.async_call(
+                            "notify",
+                            "alexa_media",
+                            {
+                                "target": [reply_device],
+                                "data": {"type": "tts"},
+                                "message": goodbye_text,
+                            },
+                            blocking=False,
+                        )
+                    except Exception as err:
+                        _LOGGER.error("Failed to speak decline prompt: %s", err)
+            return
 
         # Handle follow-up response (user answers yes/no to "Möchtest du mehr darüber erfahren?")
         if event_id == EVENT_ID_FOLLOWUP:
@@ -503,6 +750,19 @@ class SchlaueAntwortenManager:
             else:
                 stored_question = str(stored_data)
                 previous_answer = ""
+
+            # Check if user requested mobile push (e.g. "aufs Handy", "schick mir das")
+            if any(p in resp_lower for p in MOBILE_TRIGGER_PHRASES):
+                _LOGGER.info(
+                    "User requested answer to be sent to smartphone for: %s",
+                    stored_question,
+                )
+                await self.async_send_to_mobile(
+                    question=stored_question,
+                    answer=previous_answer,
+                    reply_device=reply_device,
+                )
+                return
 
             is_positive = response_type == "ResponseYes" or any(
                 p in resp_lower for p in POSITIVE_PHRASES
@@ -756,6 +1016,15 @@ class SchlaueAntwortenManager:
             final_speech = f"{cleaned} Beantwortet von {agent_name}."
         else:
             final_speech = cleaned
+
+        # Check if user explicitly asked for mobile delivery in the question
+        q_lower = question.lower()
+        if any(p in q_lower for p in ("aufs handy", "auf mein handy", "aufs smartphone", "aufs telefon", "per nachricht")):
+            await self.async_send_to_mobile(
+                question=question,
+                answer=cleaned,
+                reply_device=reply_device,
+            )
 
         # Log interaction (with latency and character count)
         duration = time.monotonic() - start_time
