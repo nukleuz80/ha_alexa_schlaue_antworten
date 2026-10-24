@@ -19,6 +19,7 @@ from .const import (
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_ENABLE_HA_CONTEXT,
     CONF_ENABLE_LOGGING,
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
@@ -33,6 +34,7 @@ from .const import (
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_ENABLE_LOGGING,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
@@ -122,6 +124,27 @@ NEGATIVE_PHRASES = (
     "keine",
     "lass",
 )
+
+WEEKDAYS_DE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
+MONTHS_DE = ("", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
+
+WEATHER_TRANSLATIONS = {
+    "clear-night": "klar",
+    "cloudy": "bewölkt",
+    "exceptional": "außergewöhnlich",
+    "fog": "neblig",
+    "hail": "Hagel",
+    "lightning": "Gewitter",
+    "lightning-rainy": "Gewitter mit Regen",
+    "partlycloudy": "teilweise bewölkt",
+    "pouring": "starker Regen",
+    "rainy": "regnerisch",
+    "snowy": "schneereich",
+    "snowy-rainy": "Schneeregen",
+    "sunny": "sonnig",
+    "windy": "windig",
+    "windy-variant": "windig",
+}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -610,6 +633,11 @@ class SchlaueAntwortenManager:
         else:
             prompt = question
 
+        # Append compact Smart Home context (weather, time, location, presence) if enabled
+        context_str = self._get_ha_context_summary(reply_device)
+        if context_str:
+            prompt = f"{prompt} {context_str}"
+
         raw_speech: str | None = None
         used_agent: str = primary_agent
 
@@ -830,4 +858,64 @@ class SchlaueAntwortenManager:
             return str(state.attributes["friendly_name"])
 
         return "KI"
+
+    def _get_ha_context_summary(self, reply_device: str) -> str:
+        """Build a compact, single-line Smart Home context block for the LLM prompt."""
+        if not self.entry.options.get(
+            CONF_ENABLE_HA_CONTEXT, DEFAULT_ENABLE_HA_CONTEXT
+        ):
+            return ""
+
+        parts: list[str] = []
+
+        # 1. Date & Time
+        now = dt_util.now()
+        weekday = WEEKDAYS_DE[now.weekday()]
+        month_name = (
+            MONTHS_DE[now.month] if 1 <= now.month <= 12 else str(now.month)
+        )
+        parts.append(
+            f"Zeitpunkt: {weekday}, {now.day}. {month_name} {now.year}, {now.strftime('%H:%M')} Uhr"
+        )
+
+        # 2. Room / Location
+        dev_state = self.hass.states.get(reply_device)
+        room_name = (
+            dev_state.attributes.get("friendly_name")
+            if dev_state and dev_state.attributes.get("friendly_name")
+            else reply_device.replace("media_player.", "").replace("_", " ").title()
+        )
+        parts.append(f"Standort: {room_name}")
+
+        # 3. Weather
+        weather_entity = None
+        if self.hass.states.get("weather.hildesheim"):
+            weather_entity = "weather.hildesheim"
+        else:
+            weather_states = self.hass.states.async_all("weather")
+            if weather_states:
+                weather_entity = weather_states[0].entity_id
+
+        if weather_entity:
+            w = self.hass.states.get(weather_entity)
+            if w and w.state not in ("unavailable", "unknown"):
+                cond_de = WEATHER_TRANSLATIONS.get(w.state.lower(), w.state)
+                temp = w.attributes.get("temperature")
+                if temp is not None:
+                    parts.append(f"Wetter: {cond_de}, {temp}°C")
+                else:
+                    parts.append(f"Wetter: {cond_de}")
+
+        # 4. Presence (who is home)
+        person_states = self.hass.states.async_all("person")
+        if person_states:
+            home_persons = [
+                str(p.attributes.get("friendly_name") or p.entity_id.replace("person.", "").title())
+                for p in person_states
+                if p.state == "home" and not p.entity_id.endswith(".mcp")
+            ]
+            if home_persons:
+                parts.append(f"Zu Hause: {', '.join(home_persons)}")
+
+        return f"[Smart-Home-Kontext: {' | '.join(parts)}]"
 

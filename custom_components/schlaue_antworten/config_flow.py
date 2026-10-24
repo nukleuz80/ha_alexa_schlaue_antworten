@@ -16,6 +16,7 @@ from .const import (
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_ENABLE_HA_CONTEXT,
     CONF_ENABLE_LOGGING,
     CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
@@ -30,6 +31,7 @@ from .const import (
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_ENABLE_LOGGING,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
@@ -67,6 +69,7 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ANNOUNCE_MODEL: DEFAULT_ANNOUNCE_MODEL,
                     CONF_SHORT_ANSWERS: DEFAULT_SHORT_ANSWERS,
                     CONF_ENABLE_LOGGING: DEFAULT_ENABLE_LOGGING,
+                    CONF_ENABLE_HA_CONTEXT: DEFAULT_ENABLE_HA_CONTEXT,
                     CONF_ENABLE_DETAILED_FOLLOWUP: DEFAULT_ENABLE_DETAILED_FOLLOWUP,
                     CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
                     CONF_GOODBYE_TEXT: DEFAULT_GOODBYE_TEXT,
@@ -144,6 +147,10 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_ENABLE_LOGGING,
                     default=opts.get(CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING),
+                ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_ENABLE_HA_CONTEXT,
+                    default=opts.get(CONF_ENABLE_HA_CONTEXT, DEFAULT_ENABLE_HA_CONTEXT),
                 ): selector.BooleanSelector(),
                 vol.Required(
                     CONF_ENABLE_DETAILED_FOLLOWUP,

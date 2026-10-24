@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.19-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.20-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -37,6 +37,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 - 🎯 **Dynamische Raum-Erkennung:** Antwortet dank `sensor.last_alexa` automatisch auf dem Echo-Gerät, mit dem du gerade gesprochen hast.
 - ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
 - 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen konfigurierten Ausweich-Agenten (z. B. Claude Sonnet).
+- 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI. Fragen wie *„Brauche ich heute einen Schirm?“*, *„Wie spät ist es?“* oder *„Ist jemand zu Hause?“* werden dadurch sofort situativ beantwortet.
 - 🧹 **Perfekt für die Sprachausgabe aufbereitet:** Bereinigt automatisch störende Markdown-Sterne (`*`), Rauten (`#`) und Sonderzeichen.
 - 🏷️ **Transparente Modellnennung:** Nennt auf Wunsch am Ende der Antwort automatisch das Modell (*„Beantwortet von Google Gemini.“*).
 - ⚙️ **Vollständige UI-Konfiguration:** Alle Modelle, Prompts und Standardwerte können direkt in der Home Assistant Benutzeroberfläche ohne YAML konfiguriert werden.
@@ -152,7 +153,9 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    - **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
    - **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an.
    - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
-   - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *deaktiviert*).
+   - **Dialog-Log aktivieren:** Schaltet die Aufzeichnung der letzten Dialoge an/aus.
+   - **Smart-Home-Kontext an KI übergeben:** Schaltet die diskrete Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus (Standard: *aktiviert*).
+   - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
    - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
    - **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung, falls du ablehnst (Standard: *„Alles klar.“*).
    - **Wiederholungsansage bei unverständlicher Frage:** Text für den ersten Fehlversuch (Standard: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“*).
@@ -217,6 +220,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.20** | 24.10.2026 | Neues Feature: Smart-Home-Kontext im Prompt (Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, Echo-Standort/Raum und Anwesenheit werden als kompakter Kontextblock diskret an das KI-Modell übergeben – ermöglicht orts- und wetterbezogene Fragen wie 'Brauche ich einen Schirm?', 'Wie spät ist es?' oder 'Wer ist zu Hause?'); ein-/ausschaltbar in den Einstellungen. |
 | **v1.0.19** | 24.10.2026 | Performance- & Latenz-Update: 1-2 Sekunden Zeitersparnis beim Dialogstart durch smarte Zustandsprüfung (kein unnötiger Cloud-Stop-Call bei inaktiver Musikwiedergabe; nicht-blockierende Ausführung); gestraffter Kurzantwort-Prompt für schnellere Time-To-First-Token; vorab kompilierte Regex-Muster und $O(1)$-Set-Lookups; Non-Blocking-TTS; Dokumentationsabschnitt zu Performance- und Latenztipps (u. a. Einsparung von 1,5s durch Deaktivieren der Modellansage). |
 | **v1.0.18** | 24.10.2026 | Dokumentations-Erweiterung: Detaillierte Empfehlung für OpenRouter mit kostenlosen Modellen (z. B. Llama 3.3 70B Free / Gemini Flash Free) für einen schnellen, risikofreien Einstieg ohne monatliche Fixkosten oder Kreditkarte aufgenommen. |
 | **v1.0.17** | 24.10.2026 | Critical Bugfix: Endlosschleife beim Speichern der Einstellungen (`update_listener`) behoben; anstelle rekursiver manueller Reload-Aufrufe nutzt die Integration nun das native `hass.config_entries.async_reload`, wodurch das 4096-Websocket-Nachrichtenlimit, Browser-Abbrüche („disconnected“) und Endlos-Spinner beim Speichern dauerhaft beseitigt wurden. |

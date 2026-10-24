@@ -31,6 +31,7 @@
           "announce_model": "Announce model name at the end of answers",
           "short_answers": "Force concise spoken answers (1-2 sentences)",
           "enable_logging": "Enable dialogue log (Record recent interactions)",
+          "enable_ha_context": "Provide Smart Home context to AI (weather, time, presence)",
           "enable_detailed_followup": "Offer follow-up question for deeper explanations",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on rejection ('No')",
