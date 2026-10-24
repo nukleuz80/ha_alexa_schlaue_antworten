@@ -16,6 +16,7 @@ from .const import (
     CODEWORD_UNVERSTAENDLICH,
     CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
+    CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_ENABLE_DETAILED_FOLLOWUP,
@@ -31,6 +32,7 @@ from .const import (
     CONF_SHORT_ANSWERS,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
+    DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
@@ -916,6 +918,21 @@ class SchlaueAntwortenManager:
             ]
             if home_persons:
                 parts.append(f"Zu Hause: {', '.join(home_persons)}")
+
+        # 5. Custom Knowledge / House Wiki
+        custom_knowledge = str(
+            self.entry.options.get(
+                CONF_CUSTOM_KNOWLEDGE, DEFAULT_CUSTOM_KNOWLEDGE
+            )
+            or ""
+        ).strip()
+        if custom_knowledge:
+            clean_lines = " | ".join(
+                line.strip()
+                for line in custom_knowledge.splitlines()
+                if line.strip()
+            )
+            parts.append(f"Haus-Fakten: {clean_lines}")
 
         return f"[Smart-Home-Kontext: {' | '.join(parts)}]"
 

@@ -32,6 +32,7 @@
           "short_answers": "Force concise spoken answers (1-2 sentences)",
           "enable_logging": "Enable dialogue log (Record recent interactions)",
           "enable_ha_context": "Provide Smart Home context to AI (weather, time, presence)",
+          "custom_knowledge": "House Wiki & Family Facts (custom knowledge for the AI)",
           "enable_detailed_followup": "Offer follow-up question for deeper explanations",
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on rejection ('No')",

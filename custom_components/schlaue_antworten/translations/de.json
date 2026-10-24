@@ -32,6 +32,7 @@
           "short_answers": "Kurze Antworten für Sprache erzwingen (1-2 Sätze)",
           "enable_logging": "Dialog-Log aktivieren (Protokollierung der letzten Dialoge)",
           "enable_ha_context": "Smart-Home-Kontext an KI übergeben (Wetter, Zeit, Anwesenheit)",
+          "custom_knowledge": "Haus-Wiki & Familien-Fakten (individuelles Wissen für die KI)",
           "enable_detailed_followup": "Nachfrage für ausführlichere Erklärung anbieten",
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
