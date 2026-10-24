@@ -6,23 +6,24 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.22-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.23-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
 </p>
 
-**Schlaue Antworten** verbindet deine Amazon Echo-Lautsprecher nahtlos mit modernen KI-Sprachmodellen (z. B. Google Gemini, Anthropic Claude oder lokalen LLMs) in Home Assistant.
+**Schlaue Antworten** verbindet deine Amazon Echo-Lautsprecher nahtlos mit modernen KI-Sprachmodellen (z. B. Google Gemini, Anthropic Claude, OpenAI oder lokalen LLMs) in Home Assistant.
 
 Per Sprachbefehl **„Alexa, öffne Schlaue Antworten“** meldet sich Alexa mit einem geöffneten Mikrofon (blauer Leuchtring) auf genau dem Echo, vor dem du gerade stehst, nimmt deine freie Wissens- oder Alltagsfrage entgegen und liest dir die Antwort des KI-Modells sekundenschnell und sauber formuliert vor.
 
 ---
 
-## 🔒 100 % Privat & Lokal – Kein AWS Lambda oder Entwicklerkonto nötig!
+## 🔒 100 % Privat, Lokal & Zero-YAML – Kein Entwicklerkonto nötig!
 
 Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 - ❌ **Kein** Amazon Developer Account erforderlich
 - ❌ **Keine** AWS-Lambda-Funktionen oder Cloud-Proxies
+- ❌ **Kein YAML-Code nötig:** Keine manuellen Skripte (`scripts.yaml`), keine Helfer (`input_text`, `input_boolean`) und keine Template-Sensoren
 - ❌ **Keine** sensiblen URLs, Tokens oder Zugangsdaten, die irgendwo extern eingetragen werden müssen
 - ✅ **100 % isoliert:** Alle Dialoge, KI-Abfragen und Antworten verbleiben vollständig in deiner eigenen Home-Assistant-Instanz.
 
@@ -30,145 +31,90 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 
 ## ✨ Features
 
+- 🚀 **100 % Zero-YAML Setup (ab v1.0.23):** Vollständige Integration out-of-the-box ohne YAML-Konfiguration.
+- 🔘 **Native Schalter- & Taster-Entitäten:** Stellt `switch.alexa_schlaue_antworten_dialog_starten` bereit, der direkt in Alexa-Routinen geschaltet werden kann, sowie einen praktischen Button für Dashboards.
 - 🗣️ **Interaktiver Sprachdialog:** Startet mit *„Schlaue Antworten: Was möchtest du wissen?“* und lässt das Mikrofon offen für deine Frage.
-- 📜 **Kompaktes Dialog-Log:** Protokolliert die letzten Interaktionen (welches Echo-Gerät, welcher Input, welcher Output bis 100 Zeichen) direkt sichtbar in den Einstellungen.
-- 🔄 **2-Stufen-Fehlererkennung mit Schleifenschutz:** Fängt Gemurmel, Füllwörter oder unverständliche Fragen ab, bittet einmalig höflich um Wiederholung und beendet bei erneutem Fehlschlag geräuschlos den Dialog.
-- 💬 **Optionale Vertiefung (Follow-up):** Fragt auf Wunsch nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze).
-- 🎯 **Dynamische Raum-Erkennung:** Antwortet dank `sensor.last_alexa` automatisch auf dem Echo-Gerät, mit dem du gerade gesprochen hast.
+- 🎯 **Dynamische Raum-Erkennung:** Erkennt automatisch das aktive Echo-Gerät anhand des `last_called`-Status der `alexa_media`-Geräte (oder optional via `sensor.last_alexa`).
+- 📜 **Kompaktes Dialog-Log:** Protokolliert die letzten Interaktionen (Gerät, Input, Output, Latenz und Zeichenanzahl) direkt in den Optionen.
+- 🔄 **2-Stufen-Fehlererkennung mit Schleifenschutz:** Fängt Gemurmel oder unverständliche Fragen ab, bittet einmalig höflich um Wiederholung und beendet bei erneutem Fehlschlag geräuschlos den Dialog.
+- 💬 **Optionale Vertiefung (Follow-up):** Fragt nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze), ohne die Kurzantwort zu wiederholen.
 - ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
-- 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen konfigurierten Ausweich-Agenten (z. B. Claude Sonnet).
-- 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI. Fragen wie *„Brauche ich heute einen Schirm?“*, *„Wie spät ist es?“* oder *„Ist jemand zu Hause?“* werden dadurch sofort situativ beantwortet.
-- 📖 **Haus-Wiki & Familien-Fakten:** Erlaubt es, in den Einstellungen individuelle Notizen und Fakten zu hinterlegen (z. B. WLAN-Gastpasswort, Müllabfuhr-Tage, Haustiernamen, Notfallnummern). Die KI greift nahtlos darauf zu und beantwortet persönliche Haushaltsfragen blitzschnell.
-- 🚨 **Proaktive Fragen für Automatisierungen:** Dienst `schlaue_antworten.interactive_question` stellt bei Ereignissen (z. B. Waschmaschine fertig, Regenmeldung) eine Frage über Alexa und feuert bei *„Ja“* oder *„Nein“* entsprechende Events für deine Folge-Automatisierungen.
-- 📱 **Auf mein Handy senden:** Sage im Dialog einfach *„Aufs Handy senden“* oder frage direkt *„... und schick es mir aufs Smartphone“*, um die vollständige Antwort als saubere Push-Mitteilung an deine Home Assistant Companion App zu erhalten.
+- 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen Ausweich-Agenten (z. B. Claude Sonnet).
+- 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI (z. B. für Fragen wie *„Brauche ich heute einen Schirm?“* oder *„Wie spät ist es?“*).
+- 📖 **Haus-Wiki & Familien-Fakten:** Erlaubt es, in den Einstellungen individuelle Notizen zu hinterlegen (z. B. WLAN-Gastpasswort, Müllabfuhr-Tage, Haustiernamen, Notfallnummern), auf die die KI bei Haushaltsfragen zugreift.
+- 🚨 **Proaktive Fragen für Automatisierungen:** Dienst `schlaue_antworten.interactive_question` stellt bei Ereignissen eine Ja/Nein-Frage über Alexa und feuert bei *„Ja“* bzw. *„Nein“* entsprechende Events (`schlaue_antworten_action_confirmed`/`declined`).
+- 📱 **Auf mein Handy senden:** Sage im Dialog *„Aufs Handy senden“* oder frage direkt *„... und schick es mir aufs Smartphone“*, um die Antwort als Push-Mitteilung an die Home Assistant Companion App zu erhalten.
 - 🧹 **Perfekt für die Sprachausgabe aufbereitet:** Bereinigt automatisch störende Markdown-Sterne (`*`), Rauten (`#`) und Sonderzeichen.
 - 🏷️ **Transparente Modellnennung:** Nennt auf Wunsch am Ende der Antwort automatisch das Modell (*„Beantwortet von Google Gemini.“*).
-- ⚙️ **Vollständige UI-Konfiguration:** Alle Modelle, Prompts und Standardwerte können direkt in der Home Assistant Benutzeroberfläche ohne YAML konfiguriert werden.
+- ⚙️ **Vollständige UI-Konfiguration:** Alle Modelle, Prompts und Standardwerte werden direkt in der Benutzeroberfläche verwaltet.
 
 ---
 
-## 📋 Voraussetzungen in Home Assistant
+## 📋 Schnellstart (Zero-YAML)
 
-Damit die Integration auf deinen Echo-Geräten funktioniert, müssen die folgenden 5 Bausteine in deinem Home Assistant vorhanden sein:
+In nur 3 einfachen Schritten ist *Schlaue Antworten* einsatzbereit:
 
-### 1. Alexa Media Player (HACS)
-Wird für die Sprachausgabe (`notify.alexa_media`) und das Stoppen laufender Medien benötigt.
-- **Installation:** Über HACS nach *Alexa Media Player* suchen und installieren.
-
-### 2. Alexa Actionable Notifications (Dialog-Pipeline)
-Ermöglicht es dem Echo, eine Frage zu stellen und das Mikrofon mit dem blauen Leuchtring für deine Antwort offen zu halten.
-- **Skill:** Der offizielle, kostenlose Community-Skill `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40` muss in deinem Amazon-Konto aktiviert sein.
-- **Helfer in `configuration.yaml`:**
-  ```yaml
-  input_text:
-    alexa_actionable_notification:
-      name: Alexa Actionable Notification
-  ```
-- **Skript in `scripts.yaml`:**
-  ```yaml
-  activate_alexa_actionable_notification:
-    alias: activate_alexa_actionable_notification
-    sequence:
-      - action: input_text.set_value
-        data:
-          entity_id: input_text.alexa_actionable_notification
-          value: '{"text": "{{ text }}", "event": "{{ event_id }}", "suppress_confirmation": "{{ suppress_confirmation }}"}'
-      - action: media_player.play_media
-        data:
-          entity_id: "{{ alexa_device }}"
-          media_content_type: skill
-          media_content_id: amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40
-  ```
-
-### 3. Sensor für das aktive Echo-Gerät (`sensor.last_alexa`)
-Ermittelt automatisch das Echo-Gerät, das den letzten Sprachbefehl empfangen hat:
-```yaml
-template:
-  - sensor:
-      - name: "Last Alexa"
-        state: >
-          {{ expand(integration_entities('alexa_media') | select('search', 'media_player'))
-             | selectattr('attributes.last_called', 'defined')
-             | selectattr('attributes.last_called', 'eq', true)
-             | map(attribute='entity_id') | first | default('media_player.wohnzimmer_echo_dot') }}
-```
-
-### 4. Trigger-Helfer & Szene für die Alexa-Routine
-Verbindet den Sprachbefehl mit Home Assistant:
-- **Helfer (`configuration.yaml`):**
-  ```yaml
-  input_boolean:
-    alexa_ki_trigger:
-      name: "Alexa KI Trigger"
-      icon: mdi:robot
-  ```
-- **Szene (`scenes.yaml`):**
-  ```yaml
-  - id: 'alexa_ki_scene'
-    name: 'Schlaue Antworten'
-    icon: mdi:robot
-    entities:
-      input_boolean.alexa_ki_trigger:
-        state: 'on'
-  ```
-- **Routine in der Alexa-Smartphone-App:**
-  - **Wenn Folgendes passiert (Stimme):** `öffne schlaue antworten`
-  - **Aktion hinzufügen (Smart Home ➔ Szenen):** `Schlaue Antworten`
-
-### 5. Mindestens ein aktiver KI-Agent (Conversation Entity)
-Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
-- 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
-  Wir empfehlen für einen einfachen und unkomplizierten Einstieg **OpenRouter** mit einem der **kostenlosen Modelle** (wie z. B. `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free` o. ä.).  
-  - **Vorteil:** Du kannst *Schlaue Antworten* sofort unverbindlich ausprobieren – **ohne Kreditkarte, ohne Vorabkosten und ohne feste Monatsgebühren**.  
-  - **Einbindung in Home Assistant:** Über die integrierte *OpenAI Conversation*-Integration (als Basis-URL `https://openrouter.ai/api/v1` und deinen kostenlosen OpenRouter-API-Key angeben) oder die HACS OpenRouter-Integration. Schnelle Reaktionszeiten und hervorragende Antwortqualität garantiert!
-- **Google Generative AI (Gemini):** z. B. eine reine Text-Instanz ohne Smart-Home-Entitätssteuerung für maximale Geschwindigkeit (~1,2s Antwortzeit).
-- **Anthropic Claude:** z. B. `conversation.anthropic_claude_sonnet_4` für höchste sprachliche Präzision.
-- **OpenAI / Local LLM / Ollama:** Beliebige `conversation.*`-Entität oder lokale LLMs für 100 % lokalen Offline-Betrieb.
+### 1. Voraussetzungen in Home Assistant
+1. **Alexa Media Player (HACS):** Muss installiert und eingerichtet sein (wird für Sprachausgabe und Echo-Erkennung benötigt).
+2. **Community-Skill aktivieren:** Aktiviere in deinem Amazon-Konto den kostenlosen Actionable-Notification-Skill mit der ID:  
+   `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40`  
+   *(Kein Developer-Account und keine Lambda-Konfiguration nötig!)*
+3. **Ein KI-Agent:** Mindestens eine aktive Sprach-KI-Integration in Home Assistant:
+   - 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
+     Nutze OpenRouter mit kostenlosen Modellen (z. B. `meta-llama/llama-3.3-70b-instruct:free` oder `google/gemini-2.0-flash-exp:free`).  
+     *Keine Kreditkarte, keine Vorabkosten, keine Monatsgebühren – sofort startklar!*
+   - Alternativ: Google Generative AI (Gemini), Anthropic Claude, OpenAI oder lokale LLMs (z. B. Ollama).
 
 ---
 
-## 🚀 Installation
+### 2. Integration installieren & einrichten
+1. Installiere **Schlaue Antworten** über HACS (Custom Repository) oder manuell.
+2. Gehe in Home Assistant auf **Einstellungen ➔ Geräte & Dienste ➔ + Integration hinzufügen** und wähle **Schlaue Antworten**.
+3. Wähle deinen primären KI-Agenten und dein Standard-Echo-Gerät aus.
 
-### Über HACS (Custom Repository)
-1. Öffne **HACS** in Home Assistant.
-2. Klicke oben rechts auf die drei Punkte ➔ **Benutzerdefinierte Repositories**.
-3. URL eintragen: `https://github.com/nukleuz80/ha_alexa_schlaue_antworten`
-4. Kategorie: **Integration**.
-5. Klicke auf **Hinzufügen** und installiere **Schlaue Antworten**.
-6. Starte Home Assistant neu.
+---
 
-### Manuelle Installation
-1. Lade das Repository herunter.
-2. Kopiere den Ordner `custom_components/schlaue_antworten/` in dein Verzeichnis `/config/custom_components/`.
-3. Kopiere den Ordner `www/schlaue_antworten/` in dein Verzeichnis `/config/www/`.
-4. Starte Home Assistant neu.
+### 3. Alexa-Routine erstellen
+Erstelle in der Alexa-Smartphone-App eine neue Routine:
+- **Wenn Folgendes passiert (Stimme):** `öffne schlaue antworten`
+- **Aktion hinzufügen (Smart Home ➔ Geräte):** Schalter **`Schlaue Antworten: Dialog starten`** auf **AN** stellen.
+
+*Fertig! Sobald du „Alexa, öffne Schlaue Antworten“ sagst, leuchtet dein Echo blau und erwartet deine Frage.*
+
+---
+
+<details>
+<summary>📦 <b>Für bestehende Setups / Legacy-YAML-Modus (Klick zum Ausklappen)</b></summary>
+
+Falls du bereits ein bestehendes Setup aus früheren Versionen nutzt, bleibt alles zu **100 % abwärtskompatibel**:
+- Die Integration prüft weiterhin automatisch, ob `sensor.last_alexa`, `input_boolean.alexa_ki_trigger` oder `script.activate_alexa_actionable_notification` existieren, und nutzt diese bevorzugt.
+- Du musst bestehende Skripte, Helfer oder Szenen nicht löschen – sie funktionieren nahtlos weiter.
+</details>
 
 ---
 
 ## ⚙️ Konfiguration (UI Options Flow)
 
-1. Gehe in Home Assistant auf **Einstellungen ➔ Geräte & Dienste**.
-2. Klicke auf **+ Integration hinzufügen** und wähle **Schlaue Antworten**.
-3. Klicke nach der Installation auf **Konfigurieren**:
-   - **Primärer KI-Agent:** Hauptmodell für Antworten (z. B. Google Gemini 2).
-   - **Ausweich-Agent (Fallback):** Modell, das bei 503-Überlastung automatisch einspringt (z. B. Claude Sonnet).
-   - **Standard-Echo:** Fallback-Gerät, falls `sensor.last_alexa` einmal nicht gesetzt sein sollte.
-   - **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
-   - **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an.
-   - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
-   - **Dialog-Log aktivieren:** Schaltet die Aufzeichnung der letzten Dialoge an/aus.
-   - **Smart-Home-Kontext an KI übergeben:** Schaltet die diskrete Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus (Standard: *aktiviert*).
-   - **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
-   - **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy (z. B. `notify.notify` oder dein Smartphone wie `notify.mobile_app_...`).
-   - **Sprachbestätigung beim Senden aufs Smartphone:** Was Alexa sagen soll (Standard: *„Ich habe dir die Antwort aufs Handy geschickt.“*).
-   - **Bestätigungsansage bei Automatisierungs-Freigabe ('Ja'):** Text, wenn eine interaktive Automatisierungsfrage mit *„Ja“* beantwortet wird (Standard: *„Wird erledigt.“*).
-   - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
-   - **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
-   - **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung, falls du ablehnst (Standard: *„Alles klar.“*).
-   - **Wiederholungsansage bei unverständlicher Frage:** Text für den ersten Fehlversuch (Standard: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“*).
-   - **Abbruchansage nach zweitem Fehlversuch:** Beendet den Dialog bei wiederholt unverständlicher Eingabe (Standard: *„Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal.“*).
-   - **KI-Prompt für Kurzantwort (ohne Gewähr):** Mehrzeiliges Eingabefeld für den System-Prompt der Erstantwort. Der Platzhalter `{question}` wird automatisch mit der Frage belegt.
-   - **KI-Prompt für Vertiefung (ohne Gewähr):** Mehrzeiliges Eingabefeld für die ausführlichere Erklärung. Unterstützt `{question}` sowie `{previous_answer}` – verhindert Wiederholungen der Kurzantwort und priorisiert gezielt neue Hintergrundinformationen.
+Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf **Konfigurieren**:
+
+- **Primärer KI-Agent:** Hauptmodell für Antworten (z. B. Google Gemini 2 oder OpenRouter Llama 3.3).
+- **Ausweich-Agent (Fallback):** Modell, das bei 503-Überlastung automatisch einspringt (z. B. Claude Sonnet).
+- **Standard-Echo:** Fallback-Gerät, falls der aktive Echo einmal nicht eindeutig ermittelt werden kann.
+- **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
+- **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an (Tipp: Deaktivieren spart ~1,5s Sprechzeit).
+- **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
+- **Dialog-Log aktivieren:** Schaltet die Protokollierung der letzten Dialoge an/aus.
+- **Smart-Home-Kontext an KI übergeben:** Schaltet die Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus.
+- **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
+- **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy (z. B. `notify.notify` oder `notify.mobile_app_...`).
+- **Sprachbestätigung beim Senden aufs Smartphone:** Was Alexa sagen soll (Standard: *„Ich habe dir die Antwort aufs Handy geschickt.“*).
+- **Bestätigungsansage bei Automatisierungs-Freigabe ('Ja'):** Text, wenn eine interaktive Automatisierungsfrage mit *„Ja“* beantwortet wird (Standard: *„Wird erledigt.“*).
+- **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
+- **Fragetext für Vertiefung:** Eigener Text für die Nachfrage (Standard: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*).
+- **Abschiedstext bei Ablehnung ('Nein'):** Kurze Verabschiedung bei Ablehnung (Standard: *„Alles klar.“*).
+- **Wiederholungsansage bei unverständlicher Frage:** Text für den ersten Fehlversuch (Standard: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“*).
+- **Abbruchansage nach zweitem Fehlversuch:** Beendet den Dialog bei wiederholt unverständlicher Eingabe (Standard: *„Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal.“*).
+- **KI-Prompts für Kurzantwort & Vertiefung:** Frei anpassbare System-Prompts mit Platzhaltern `{question}` und `{previous_answer}`.
 
 ---
 
@@ -180,41 +126,29 @@ Mindestens eine Sprach-KI-Integration muss in Home Assistant aktiv sein:
    > *„Schlaue Antworten: Was möchtest du wissen?“*
 3. **Du stellst frei heraus deine Frage:**  
    - *„Wie weit ist der Mond entfernt?“*
-   - *„Warum ist der Himmel blau?“*
    - *„Was kann ich heute mit Kartoffeln und Spinat kochen?“*
    - *„Erkläre mir die Relativitätstheorie in zwei Sätzen.“*
+   - *„Wie lautet das WLAN-Passwort für Gäste?“*
 4. **Bei unverständlicher Spracheingabe (Schleifenschutz):**  
-   Versteht Alexa nur Füllwörter oder Gemurmel, antwortet sie: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“* und öffnet das Mikrofon erneut. Bei einem zweiten Fehlversuch verabschiedet sie sich sauber und beendet den Dialog.
-5. **Alexa liest dir die prägnante Antwort vor:**  
-   *(Optional mit Modellnennung am Ende)*
+   Versteht Alexa nur Füllwörter oder Gemurmel, bittet sie einmalig um Wiederholung und öffnet das Mikrofon erneut. Bei erneutem Fehlschlag beendet sie den Dialog sauber.
+5. **Alexa liest dir die prägnante Antwort vor.**
 6. **Vertiefungs-Modus (falls aktiviert):**  
-   Alexa fragt direkt im Anschluss: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“* und hält das Mikrofon offen.  
-   - Sagst du **„Ja“** (oder *„gerne“*, *„erzähl mir mehr“*), liefert die KI eine weiterführende 3–5-Satz-Erklärung – **ohne die bereits gehörte Kurzantwort zu wiederholen**, sondern mit neuen wichtigen Aspekten und Hintergründen.  
-   - Sagst du **„Nein“** (oder *„nein danke“*, *„stopp“*), antwortet Alexa mit einem minimalen Abschiedstext (*„Alles klar.“*) und beendet den Dialog sofort.  
-   - Schweigst du, schließt sich das Mikrofon nach dem Timeout geräuschlos.
+   Alexa fragt: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*  
+   - Sagst du **„Ja“**, liefert die KI eine weiterführende Erklärung, **ohne die Kurzantwort zu wiederholen**.  
+   - Sagst du **„Nein“**, beendet Alexa den Dialog mit *„Alles klar.“*.  
+   - Sagst du **„Aufs Handy senden“**, erhältst du die Antwort sofort als Push-Nachricht auf dein Smartphone.
 
 ---
 
-## ⚡ Performance- & Latenz-Optimierung (Jede Sekunde sparen)
+## ⚡ Performance- & Latenz-Tipps
 
-Um die Verzögerung zwischen deiner Frage und Alexas Antwort auf ein absolutes Minimum zu reduzieren, beachte folgende Tipps und Neuerungen:
-
-1. 🔇 **Modellansage deaktivieren (Spart ca. 1,5 Sekunden reine Sprechzeit!):**  
-   In den Einstellungen der Integration findest du die Option **„Modellname am Ende der Antwort ansagen“**.  
-   *Ist diese Option deaktiviert*, liest Alexa ausschließlich die Antwort vor – der Zusatz *„Beantwortet von Google Gemini.“* entfällt. Das spart bei jedem Dialog sofort ca. 1,5 Sekunden Sprechzeit und hält die Gesamtlänge kompakt genug, sodass die Antwort und eine eventuelle Nachfrage nahtlos in einem Rutsch gesprochen werden können.
-2. 🏎️ **Smarte Musik-Vorprüfung (ab v1.0.19):**  
-   Vor dem Start des Dialogs prüft die Integration im lokalen Zustandscache, ob der Echo überhaupt Medien abspielt. Läuft keine Musik, wird kein blockierender Stop-Befehl an die Amazon-Cloud gesendet. Das spart sofort **1 bis 2 Sekunden Wartezeit** beim Öffnen des Mikrofons.
-3. 🧠 **Kurzer, optimierter Standard-Prompt (ab v1.0.19):**  
-   Der interne Prompt für Kurzantworten wurde auf maximale Prägnanz komprimiert. Dadurch generiert das KI-Modell deutlich weniger Füllwörter und antwortet in Bruchteilen einer Sekunde (schnellere *Time-To-First-Token*).
-4. 🤖 **Wahl des schnellsten KI-Agenten:**  
-   - Modelle wie **Google Gemini 2.0 Flash** oder schnelle OpenRouter-Modelle (wie **Llama 3.3 70B Instruct Free**) liefern Antworten in der Regel innerhalb von 1 bis 1,5 Sekunden.  
-   - Für maximale Geschwindigkeit empfiehlt sich ein KI-Agent **ohne** Smart-Home-Entitätssteuerung (`assist`), damit kein unnötiger Geräte-Kontext geladen werden muss.
+1. 🔇 **Modellansage deaktivieren:** Spart ca. 1,5 Sekunden reine Sprechzeit pro Antwort.
+2. 🏎️ **Smarte Musik-Vorprüfung:** Läuft keine Musik, wird kein blockierender Cloud-Stop-Befehl gesendet (spart 1–2 Sekunden beim Dialogstart).
+3. 🤖 **Schnelle Modelle wählen:** OpenRouter (Llama 3.3 70B Instruct Free) oder Google Gemini 2.0 Flash antworten typischerweise in 1 bis 1,5 Sekunden.
 
 ---
 
 ## 🛠️ Dienste (Services)
-
-Die Integration stellt drei native Home Assistant Dienste bereit:
 
 | Dienst | Beschreibung | Parameter |
 | :--- | :--- | :--- |
@@ -249,6 +183,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.23** | 24.10.2026 | **Zero-YAML Revolution & Native Entitäten:** 1) 100 % YAML-freie Installation – kein manuelles Anlegen von `input_text`, `scripts.yaml`, `scenes.yaml` oder Template-Sensoren mehr erforderlich; 2) Neue native Entitäten `switch.alexa_schlaue_antworten_dialog_starten` (Schalter für Alexa-Routinen) und `button.alexa_schlaue_antworten_dialog_starten` (Taster für Dashboards/Automatisierungen); 3) Automatische Erkennung des aktiven Echo-Lautsprechers direkt aus dem `last_called`-Status der `media_player`-Entitäten in Python; 4) Direkte Skill-Ausführung via Python; 5) 100 % abwärtskompatibel zu bestehenden YAML-Setups. |
 | **v1.0.22** | 24.10.2026 | Neue Features: 1) Proaktiver Dialog-Dienst `schlaue_antworten.interactive_question` für Automatisierungen (Alexa stellt bei Ereignissen eine Ja/Nein-Rückfrage und feuert `schlaue_antworten_action_confirmed` bzw. `declined` Events); 2) Push-Notification aufs Smartphone ('Auf mein Handy senden') per Sprachbefehl im Dialog oder direkt in der Frage. |
 | **v1.0.21** | 24.10.2026 | Neues Feature: Haus-Wiki & Familien-Fakten (mehrzeiliges Eingabefeld in den Einstellungen für individuelles Haushaltswissen wie WLAN-Gastpasswörter, Müllabfuhr-Termine oder Haustiernamen; wird als Teil des Smart-Home-Kontexts an die KI übergeben und ermöglicht präzise Auskünfte zu persönlichen Haushaltsfragen). |
 | **v1.0.20** | 24.10.2026 | Neues Feature: Smart-Home-Kontext im Prompt (Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, Echo-Standort/Raum und Anwesenheit werden als kompakter Kontextblock diskret an das KI-Modell übergeben – ermöglicht orts- und wetterbezogene Fragen wie 'Brauche ich einen Schirm?', 'Wie spät ist es?' oder 'Wer ist zu Hause?'); ein-/ausschaltbar in den Einstellungen. |

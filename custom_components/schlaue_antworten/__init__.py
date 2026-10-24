@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
@@ -35,6 +37,7 @@ from .const import (
     CONF_SHORT_ANSWERS,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
+    DEFAULT_COMMUNITY_SKILL_ID,
     DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
@@ -53,6 +56,7 @@ from .const import (
     DEFAULT_RETRY_PROMPT,
     DEFAULT_SHORT_ANSWERS,
     DOMAIN,
+    ENTITY_ID_ACTIONABLE_INPUT_TEXT,
     EVENT_ACTIONABLE_NOTIFICATION,
     EVENT_ACTION_CONFIRMED,
     EVENT_ACTION_DECLINED,
@@ -68,6 +72,8 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.BUTTON]
 
 RE_MARKDOWN = re.compile(r"[*#`_~]")
 RE_NON_WORDS = re.compile(r"[^\w\s]")
@@ -168,18 +174,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await manager.async_setup()
     hass.data[DOMAIN][entry.entry_id] = manager
 
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
     if entry.entry_id in hass.data[DOMAIN]:
         manager: SchlaueAntwortenManager = hass.data[DOMAIN][entry.entry_id]
         await manager.async_unload()
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    return True
+    return unload_ok
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -304,6 +314,7 @@ class SchlaueAntwortenManager:
         if preferred_device and self.hass.states.get(preferred_device):
             return preferred_device
 
+        # Check existing sensor.last_alexa for full backward compatibility
         last_alexa = self.hass.states.get("sensor.last_alexa")
         if (
             last_alexa
@@ -312,8 +323,80 @@ class SchlaueAntwortenManager:
         ):
             return last_alexa.state
 
+        # Zero-YAML: Auto-detect active Echo directly from media_player entities
+        for state in self.hass.states.async_all("media_player"):
+            if state.attributes.get("last_called") is True:
+                return state.entity_id
+
         default_echo = self.entry.options.get(CONF_DEFAULT_ECHO, DEFAULT_ECHO)
         return str(default_echo)
+
+    async def async_trigger_actionable_notification(
+        self,
+        target_device: str,
+        text: str,
+        event_id: str,
+    ) -> None:
+        """Trigger an Alexa Actionable Notification directly (Zero-YAML) or via script."""
+        if self.hass.services.has_service(
+            "script", "activate_alexa_actionable_notification"
+        ):
+            await self.hass.services.async_call(
+                "script",
+                "activate_alexa_actionable_notification",
+                {
+                    "text": text,
+                    "event_id": event_id,
+                    "alexa_device": target_device,
+                    "suppress_confirmation": "true",
+                },
+                blocking=False,
+            )
+            return
+
+        # Direct Zero-YAML execution without YAML script
+        payload = json.dumps({
+            "text": text,
+            "event": event_id,
+            "suppress_confirmation": "true",
+        })
+
+        if self.hass.services.has_service("input_text", "set_value"):
+            try:
+                await self.hass.services.async_call(
+                    "input_text",
+                    "set_value",
+                    {
+                        "entity_id": ENTITY_ID_ACTIONABLE_INPUT_TEXT,
+                        "value": payload,
+                    },
+                    blocking=True,
+                )
+            except Exception as err:
+                _LOGGER.debug(
+                    "input_text.set_value failed, setting state directly: %s", err
+                )
+                self.hass.states.async_set(ENTITY_ID_ACTIONABLE_INPUT_TEXT, payload)
+        else:
+            self.hass.states.async_set(ENTITY_ID_ACTIONABLE_INPUT_TEXT, payload)
+
+        try:
+            await self.hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": target_device,
+                    "media_content_type": "skill",
+                    "media_content_id": DEFAULT_COMMUNITY_SKILL_ID,
+                },
+                blocking=False,
+            )
+        except Exception as err:
+            _LOGGER.error(
+                "Failed to trigger actionable notification skill on %s: %s",
+                target_device,
+                err,
+            )
 
     async def async_service_start_dialog(self, call: ServiceCall) -> None:
         """Service handler to start the dialogue on an Echo device."""
@@ -364,24 +447,9 @@ class SchlaueAntwortenManager:
                 _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
 
         # Trigger actionable notification with EVENT_ID_INTERACTIVE
-        if self.hass.services.has_service(
-            "script", "activate_alexa_actionable_notification"
-        ):
-            await self.hass.services.async_call(
-                "script",
-                "activate_alexa_actionable_notification",
-                {
-                    "text": question,
-                    "event_id": EVENT_ID_INTERACTIVE,
-                    "alexa_device": target_device,
-                    "suppress_confirmation": "true",
-                },
-                blocking=False,
-            )
-        else:
-            _LOGGER.warning(
-                "script.activate_alexa_actionable_notification not found"
-            )
+        await self.async_trigger_actionable_notification(
+            target_device, question, EVENT_ID_INTERACTIVE
+        )
 
     async def async_send_to_mobile(
         self, question: str, answer: str, reply_device: str
@@ -463,25 +531,10 @@ class SchlaueAntwortenManager:
             except Exception as err:
                 _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
 
-        # Trigger actionable notification script (non-blocking for immediate execution)
-        if self.hass.services.has_service(
-            "script", "activate_alexa_actionable_notification"
-        ):
-            await self.hass.services.async_call(
-                "script",
-                "activate_alexa_actionable_notification",
-                {
-                    "text": prompt,
-                    "event_id": EVENT_ID_QUERY,
-                    "alexa_device": target_device,
-                    "suppress_confirmation": "true",
-                },
-                blocking=False,
-            )
-        else:
-            _LOGGER.warning(
-                "script.activate_alexa_actionable_notification not found"
-            )
+        # Trigger actionable notification (non-blocking for immediate execution)
+        await self.async_trigger_actionable_notification(
+            target_device, prompt, EVENT_ID_QUERY
+        )
 
     def _is_local_nonsense(self, text: str) -> bool:
         """Check if input text is obviously unclear, too short, or pure filler."""
@@ -525,31 +578,9 @@ class SchlaueAntwortenManager:
                 char_count=len(retry_prompt),
                 mode="Wiederholung",
             )
-            if self.hass.services.has_service(
-                "script", "activate_alexa_actionable_notification"
-            ):
-                await self.hass.services.async_call(
-                    "script",
-                    "activate_alexa_actionable_notification",
-                    {
-                        "text": retry_prompt,
-                        "event_id": EVENT_ID_QUERY,
-                        "alexa_device": reply_device,
-                        "suppress_confirmation": "true",
-                    },
-                    blocking=False,
-                )
-            else:
-                await self.hass.services.async_call(
-                    "notify",
-                    "alexa_media",
-                    {
-                        "target": [reply_device],
-                        "data": {"type": "tts"},
-                        "message": retry_prompt,
-                    },
-                    blocking=False,
-                )
+            await self.async_trigger_actionable_notification(
+                reply_device, retry_prompt, EVENT_ID_QUERY
+            )
         else:
             self._retry_counts.pop(reply_device, None)
             abort_prompt = self.entry.options.get(
@@ -1046,57 +1077,38 @@ class SchlaueAntwortenManager:
             }
             combined_message = f"{final_speech} {followup_prompt}"
 
-            if self.hass.services.has_service(
-                "script", "activate_alexa_actionable_notification"
-            ):
-                # If message is compact (<= 170 chars), Alexa can speak answer + followup in one notification
-                if len(combined_message) <= 170:
-                    await self.hass.services.async_call(
-                        "script",
-                        "activate_alexa_actionable_notification",
-                        {
-                            "text": combined_message,
-                            "event_id": EVENT_ID_FOLLOWUP,
-                            "alexa_device": reply_device,
-                            "suppress_confirmation": "true",
-                        },
-                        blocking=False,
-                    )
-                    return
+            # If message is compact (<= 170 chars), Alexa can speak answer + followup in one notification
+            if len(combined_message) <= 170:
+                await self.async_trigger_actionable_notification(
+                    reply_device, combined_message, EVENT_ID_FOLLOWUP
+                )
+                return
 
-                # For longer answers: play short answer via TTS first to avoid 255-char input_text limit,
-                # then ask the follow-up prompt with open microphone
-                try:
-                    await self.hass.services.async_call(
-                        "notify",
-                        "alexa_media",
-                        {
-                            "target": [reply_device],
-                            "data": {"type": "tts"},
-                            "message": final_speech,
-                        },
-                        blocking=False,
-                    )
-                except Exception as err:
-                    _LOGGER.warning("TTS error on %s: %s", reply_device, err)
-
-                # Wait for TTS to finish (approx 13 chars per second + 0.5s pause)
-                wait_duration = max(2.5, (len(final_speech) / 13.0) + 0.5)
-                await asyncio.sleep(wait_duration)
-
-                # Now trigger the follow-up question with open microphone
+            # For longer answers: play short answer via TTS first to avoid 255-char input_text limit,
+            # then ask the follow-up prompt with open microphone
+            try:
                 await self.hass.services.async_call(
-                    "script",
-                    "activate_alexa_actionable_notification",
+                    "notify",
+                    "alexa_media",
                     {
-                        "text": followup_prompt,
-                        "event_id": EVENT_ID_FOLLOWUP,
-                        "alexa_device": reply_device,
-                        "suppress_confirmation": "true",
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": final_speech,
                     },
                     blocking=False,
                 )
-                return
+            except Exception as err:
+                _LOGGER.warning("TTS error on %s: %s", reply_device, err)
+
+            # Wait for TTS to finish (approx 13 chars per second + 0.5s pause)
+            wait_duration = max(2.5, (len(final_speech) / 13.0) + 0.5)
+            await asyncio.sleep(wait_duration)
+
+            # Now trigger the follow-up question with open microphone
+            await self.async_trigger_actionable_notification(
+                reply_device, followup_prompt, EVENT_ID_FOLLOWUP
+            )
+            return
 
         # 8. Standard TTS output
         try:

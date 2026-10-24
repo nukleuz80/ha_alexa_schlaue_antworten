@@ -10,6 +10,18 @@
       "single_instance_allowed": "Schlaue Antworten ist bereits eingerichtet."
     }
   },
+  "entity": {
+    "switch": {
+      "dialog_trigger": {
+        "name": "Dialog-Auslöser"
+      }
+    },
+    "button": {
+      "start_dialog": {
+        "name": "Dialog starten"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {

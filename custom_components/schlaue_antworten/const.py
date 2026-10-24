@@ -104,4 +104,6 @@ MOBILE_TRIGGER_PHRASES = (
 
 # Helper entity to listen for existing scene/routine triggers
 TRIGGER_BOOLEAN_ENTITY = "input_boolean.alexa_ki_trigger"
+ENTITY_ID_ACTIONABLE_INPUT_TEXT = "input_text.alexa_actionable_notification"
+DEFAULT_COMMUNITY_SKILL_ID = "amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40"
 
