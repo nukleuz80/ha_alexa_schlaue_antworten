@@ -2,7 +2,7 @@
   <img src="www/schlaue_antworten/logo.png" alt="Schlaue Antworten Logo" width="180">
 </p>
 
-<h1 align="center">Schlaue Antworten</h1>
+<h1 align="center">ALEXA - Schlaue Antworten</h1>
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
