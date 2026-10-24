@@ -1,6 +1,7 @@
 """The Schlaue Antworten integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -736,11 +737,47 @@ class SchlaueAntwortenManager:
             if self.hass.services.has_service(
                 "script", "activate_alexa_actionable_notification"
             ):
+                # If message is compact (<= 170 chars), Alexa can speak answer + followup in one notification
+                if len(combined_message) <= 170:
+                    await self.hass.services.async_call(
+                        "script",
+                        "activate_alexa_actionable_notification",
+                        {
+                            "text": combined_message,
+                            "event_id": EVENT_ID_FOLLOWUP,
+                            "alexa_device": reply_device,
+                            "suppress_confirmation": "true",
+                        },
+                        blocking=False,
+                    )
+                    return
+
+                # For longer answers: play short answer via TTS first to avoid 255-char input_text limit,
+                # then ask the follow-up prompt with open microphone
+                try:
+                    await self.hass.services.async_call(
+                        "notify",
+                        "alexa_media",
+                        {
+                            "target": [reply_device],
+                            "data": {"type": "tts"},
+                            "message": final_speech,
+                        },
+                        blocking=True,
+                    )
+                except Exception as err:
+                    _LOGGER.warning("TTS error on %s: %s", reply_device, err)
+
+                # Wait for TTS to finish (approx 13 chars per second + 0.8s pause)
+                wait_duration = max(3.0, (len(final_speech) / 13.0) + 0.8)
+                await asyncio.sleep(wait_duration)
+
+                # Now trigger the follow-up question with open microphone
                 await self.hass.services.async_call(
                     "script",
                     "activate_alexa_actionable_notification",
                     {
-                        "text": combined_message,
+                        "text": followup_prompt,
                         "event_id": EVENT_ID_FOLLOWUP,
                         "alexa_device": reply_device,
                         "suppress_confirmation": "true",

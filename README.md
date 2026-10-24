@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.15-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.16-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -196,6 +196,7 @@ Die Integration stellt zwei native Home Assistant Dienste bereit:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.16** | 24.10.2026 | Follow-up-Erweiterung & Puffer-Handling: 255-Zeichen-Limitierung von `input_text.alexa_actionable_notification` behoben (längere Antworten werden zuerst über TTS ausgegeben, gefolgt von der Nachfrage mit geöffnetem Mikrofon); Standardwert für Vertiefungs-Nachfrage auf `Aktiviert` geändert. |
 | **v1.0.15** | 24.10.2026 | Rechenaufgaben-Erkennung & Logging-Option: Mathematische Berechnungen (z. B. `33/11`, `5*8`, `100-25`) werden nun explizit als gültig erkannt und nicht mehr fälschlicherweise als unvollständige Eingabe abgewiesen; neue Einstellung `Dialog-Log aktivieren` (An/Aus-Schalter) zur flexiblen Aktivierung/Deaktivierung der Protokollierung hinzugefügt. |
 | **v1.0.14** | 24.10.2026 | Logo- & Icon-Optimierung: Gehirn und Sprechblasen-Glow im Verhältnis zur Gesamtkachelfläche deutlich vergrößert (Füllrate von ~55 % auf über 90 % der Breite angehoben, dunkle Randbereiche minimiert) für optimale Erkennbarkeit auf kleinen Displays und Kacheln. |
 | **v1.0.13** | 24.10.2026 | Separater Dialog für Dialog-Log & FormatJS-Endfix: Dialog-Log vollständig aus den Einstellungen ausgelagert und in ein eigenes Menüfenster (`📜 Dialog-Log`) überführt; Einstellungen (`⚙️ Einstellungen & Prompts`) als eigenständiger Menüschritt ohne Textvariablen strukturiert (verhindert jegliche FormatJS-Fehler); automatische Entleerung des Translations-Caches beim Neuladen der Integration. |
