@@ -42,6 +42,8 @@
           "dialog_prompt": "Greeting voice prompt",
           "announce_model": "Announce model name at the end of answers",
           "short_answers": "Force concise spoken answers (1-2 sentences)",
+          "enable_direct_query": "Enable direct one-sentence query (without intermediate prompt)",
+          "direct_query_prefixes": "Trigger prefixes for direct query (comma-separated, e.g. 'smart question, ai')",
           "enable_logging": "Enable dialogue log (Record recent interactions)",
           "enable_ha_context": "Provide Smart Home context to AI (weather, time, presence)",
           "custom_knowledge": "House Wiki & Family Facts (custom knowledge for the AI)",

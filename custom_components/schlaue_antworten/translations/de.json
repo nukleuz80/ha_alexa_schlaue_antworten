@@ -42,6 +42,8 @@
           "dialog_prompt": "Begrüßungsansage",
           "announce_model": "Modellname am Ende der Antwort ansagen",
           "short_answers": "Kurze Antworten für Sprache erzwingen (1-2 Sätze)",
+          "enable_direct_query": "Direktabfrage in einem Satz aktivieren (ohne Zwischenfrage)",
+          "direct_query_prefixes": "Signalwörter für Direktabfrage (kommagetrennt, z. B. 'schlaue frage, ki')",
           "enable_logging": "Dialog-Log aktivieren (Protokollierung der letzten Dialoge)",
           "enable_ha_context": "Smart-Home-Kontext an KI übergeben (Wetter, Zeit, Anwesenheit)",
           "custom_knowledge": "Haus-Wiki & Familien-Fakten (individuelles Wissen für die KI)",

@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.23-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.24-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -14,7 +14,9 @@
 
 **Schlaue Antworten** verbindet deine Amazon Echo-Lautsprecher nahtlos mit modernen KI-Sprachmodellen (z. B. Google Gemini, Anthropic Claude, OpenAI oder lokalen LLMs) in Home Assistant.
 
-Per Sprachbefehl **„Alexa, öffne Schlaue Antworten“** meldet sich Alexa mit einem geöffneten Mikrofon (blauer Leuchtring) auf genau dem Echo, vor dem du gerade stehst, nimmt deine freie Wissens- oder Alltagsfrage entgegen und liest dir die Antwort des KI-Modells sekundenschnell und sauber formuliert vor.
+Du hast die Wahl zwischen zwei komfortablen Sprachwegen:
+- ⚡ **Ein-Satz-Direktabfrage:** *„Alexa, schlaue Frage: Wie weit ist der Mond entfernt?“* (Direkte Antwort in einem Rutsch)
+- 🗣️ **Interaktiver Dialog:** *„Alexa, öffne Schlaue Antworten“* ➔ *„Schlaue Antworten: Was möchtest du wissen?“* (Offenes Mikrofon mit blauem Leuchtring)
 
 ---
 
@@ -31,6 +33,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 
 ## ✨ Features
 
+- ⚡ **Native Ein-Satz-Direktabfrage (ab v1.0.24):** Stelle deine Frage direkt in einem Satz (*„Alexa, schlaue Frage: ...“* oder *„Alexa, frage KI: ...“*), ohne dass zuvor eine Zwischenfrage abgewartet werden muss – 100 % nativ ohne YAML-Automationen!
 - 🚀 **100 % Zero-YAML Setup (ab v1.0.23):** Vollständige Integration out-of-the-box ohne YAML-Konfiguration.
 - 🔘 **Native Schalter- & Taster-Entitäten:** Stellt `switch.alexa_schlaue_antworten_dialog_starten` bereit, der direkt in Alexa-Routinen geschaltet werden kann, sowie einen praktischen Button für Dashboards.
 - 🗣️ **Interaktiver Sprachdialog:** Startet mit *„Schlaue Antworten: Was möchtest du wissen?“* und lässt das Mikrofon offen für deine Frage.
@@ -61,7 +64,7 @@ In nur 3 einfachen Schritten ist *Schlaue Antworten* einsatzbereit:
    *(Kein Developer-Account und keine Lambda-Konfiguration nötig!)*
 3. **Ein KI-Agent:** Mindestens eine aktive Sprach-KI-Integration in Home Assistant:
    - 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
-     Nutze OpenRouter mit kostenlosen Modellen (z. B. `meta-llama/llama-3.3-70b-instruct:free` oder `google/gemini-2.0-flash-exp:free`).  
+     Nutze OpenRouter mit kostenlosen Modellen (z. B. `meta-llama/llama-3.3-70b-instruct:free` oder `openrouter/free`).  
      *Keine Kreditkarte, keine Vorabkosten, keine Monatsgebühren – sofort startklar!*
    - Alternativ: Google Generative AI (Gemini), Anthropic Claude, OpenAI oder lokale LLMs (z. B. Ollama).
 
@@ -74,12 +77,12 @@ In nur 3 einfachen Schritten ist *Schlaue Antworten* einsatzbereit:
 
 ---
 
-### 3. Alexa-Routine erstellen
+### 3. Alexa-Routine erstellen (für interaktiven Dialog)
 Erstelle in der Alexa-Smartphone-App eine neue Routine:
 - **Wenn Folgendes passiert (Stimme):** `öffne schlaue antworten`
 - **Aktion hinzufügen (Smart Home ➔ Geräte):** Schalter **`Schlaue Antworten: Dialog starten`** auf **AN** stellen.
 
-*Fertig! Sobald du „Alexa, öffne Schlaue Antworten“ sagst, leuchtet dein Echo blau und erwartet deine Frage.*
+*Fertig! Sobald du „Alexa, öffne Schlaue Antworten“ sagst, leuchtet dein Echo blau und erwartet deine Frage. Für Ein-Satz-Fragen („Alexa, schlaue Frage: ...“) ist nicht einmal eine Routine nötig!*
 
 ---
 
@@ -103,6 +106,8 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 - **Begrüßungsansage:** Der Starttext für den Dialog (Standard: *„Schlaue Antworten: Was möchtest du wissen?“*).
 - **Modellname am Ende der Antwort ansagen:** Hängt z. B. *„Beantwortet von Google Gemini.“* an (Tipp: Deaktivieren spart ~1,5s Sprechzeit).
 - **Kurze Antworten für Sprache erzwingen:** Begrenzt die Antwortlänge auf 1–2 gesprochene Sätze.
+- **Direktabfrage in einem Satz aktivieren:** Erlaubt direkte Fragen wie *„Alexa, schlaue Frage: ...“* (Standard: *aktiviert*).
+- **Signalwörter für Direktabfrage:** Kommagetrennte Trigger-Wörter (Standard: `schlaue frage, frage ki, ki frage, ki, schlaue antworten`).
 - **Dialog-Log aktivieren:** Schaltet die Protokollierung der letzten Dialoge an/aus.
 - **Smart-Home-Kontext an KI übergeben:** Schaltet die Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus.
 - **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
@@ -120,23 +125,23 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 ## 🗣️ Ablauf im Alltag
 
+### ⚡ Variante 1: Direktabfrage in einem Satz (Neu)
+1. **Du sagst:**  
+   > *„Alexa, schlaue Frage: Wie weit ist der Mond entfernt?“*  
+   *(oder „Alexa, frage KI: ...“ bzw. „Alexa, KI: ...“)*
+2. **Alexa antwortet direkt nach ca. 2 Sekunden** mit der Antwort der KI – ohne Zwischenfrage!
+3. **Vertiefungs-Modus:** Alexa fragt im Anschluss: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*.
+
+### 💬 Variante 2: Klassischer interaktiver Dialog
 1. **Du sagst:**  
    > *„Alexa, öffne Schlaue Antworten“*
 2. **Dein Echo leuchtet blau und fragt:**  
    > *„Schlaue Antworten: Was möchtest du wissen?“*
 3. **Du stellst frei heraus deine Frage:**  
-   - *„Wie weit ist der Mond entfernt?“*
    - *„Was kann ich heute mit Kartoffeln und Spinat kochen?“*
    - *„Erkläre mir die Relativitätstheorie in zwei Sätzen.“*
    - *„Wie lautet das WLAN-Passwort für Gäste?“*
-4. **Bei unverständlicher Spracheingabe (Schleifenschutz):**  
-   Versteht Alexa nur Füllwörter oder Gemurmel, bittet sie einmalig um Wiederholung und öffnet das Mikrofon erneut. Bei erneutem Fehlschlag beendet sie den Dialog sauber.
-5. **Alexa liest dir die prägnante Antwort vor.**
-6. **Vertiefungs-Modus (falls aktiviert):**  
-   Alexa fragt: *„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*  
-   - Sagst du **„Ja“**, liefert die KI eine weiterführende Erklärung, **ohne die Kurzantwort zu wiederholen**.  
-   - Sagst du **„Nein“**, beendet Alexa den Dialog mit *„Alles klar.“*.  
-   - Sagst du **„Aufs Handy senden“**, erhältst du die Antwort sofort als Push-Nachricht auf dein Smartphone.
+4. **Alexa antwortet und bietet Vertiefung an.**
 
 ---
 
@@ -144,7 +149,7 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 1. 🔇 **Modellansage deaktivieren:** Spart ca. 1,5 Sekunden reine Sprechzeit pro Antwort.
 2. 🏎️ **Smarte Musik-Vorprüfung:** Läuft keine Musik, wird kein blockierender Cloud-Stop-Befehl gesendet (spart 1–2 Sekunden beim Dialogstart).
-3. 🤖 **Schnelle Modelle wählen:** OpenRouter (Llama 3.3 70B Instruct Free) oder Google Gemini 2.0 Flash antworten typischerweise in 1 bis 1,5 Sekunden.
+3. 🤖 **Websuche in OpenRouter ausschalten:** In OpenRouter `web_search: off` stellen, um Suchmaschinen-Wartezeiten zu vermeiden (Antwort in 1–2 Sekunden).
 
 ---
 
@@ -183,6 +188,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.24** | 25.10.2026 | **Native Ein-Satz-Direktabfrage (One-Sentence Voice Query):** 1) Fragen können nun direkt in einem einzigen Satz gesprochen werden (*„Alexa, schlaue Frage: ...“*, *„Alexa, frage KI: ...“* oder *„Alexa, KI: ...“*); 2) 100 % nativ in der Integration über `alexa_media_last_called_event` ohne manuelle YAML-Automationen; 3) Vollständig konfigurierbar in der UI (Ein/Aus-Schalter und anpassbare Signalwörter); 4) Intelligenter Kollisionsschutz mit bestehenden Routinen (*„öffne schlaue antworten“*) und Brainstorm-Befehlen. |
 | **v1.0.23** | 24.10.2026 | **Zero-YAML Revolution & Native Entitäten:** 1) 100 % YAML-freie Installation – kein manuelles Anlegen von `input_text`, `scripts.yaml`, `scenes.yaml` oder Template-Sensoren mehr erforderlich; 2) Neue native Entitäten `switch.alexa_schlaue_antworten_dialog_starten` (Schalter für Alexa-Routinen) und `button.alexa_schlaue_antworten_dialog_starten` (Taster für Dashboards/Automatisierungen); 3) Automatische Erkennung des aktiven Echo-Lautsprechers direkt aus dem `last_called`-Status der `media_player`-Entitäten in Python; 4) Direkte Skill-Ausführung via Python; 5) 100 % abwärtskompatibel zu bestehenden YAML-Setups. |
 | **v1.0.22** | 24.10.2026 | Neue Features: 1) Proaktiver Dialog-Dienst `schlaue_antworten.interactive_question` für Automatisierungen (Alexa stellt bei Ereignissen eine Ja/Nein-Rückfrage und feuert `schlaue_antworten_action_confirmed` bzw. `declined` Events); 2) Push-Notification aufs Smartphone ('Auf mein Handy senden') per Sprachbefehl im Dialog oder direkt in der Frage. |
 | **v1.0.21** | 24.10.2026 | Neues Feature: Haus-Wiki & Familien-Fakten (mehrzeiliges Eingabefeld in den Einstellungen für individuelles Haushaltswissen wie WLAN-Gastpasswörter, Müllabfuhr-Termine oder Haustiernamen; wird als Teil des Smart-Home-Kontexts an die KI übergeben und ermöglicht präzise Auskünfte zu persönlichen Haushaltsfragen). |

@@ -16,7 +16,9 @@ from .const import (
     CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
+    CONF_DIRECT_QUERY_PREFIXES,
     CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_ENABLE_DIRECT_QUERY,
     CONF_ENABLE_HA_CONTEXT,
     CONF_ENABLE_LOGGING,
     CONF_FALLBACK_AGENT,
@@ -34,8 +36,10 @@ from .const import (
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
+    DEFAULT_DIRECT_QUERY_PREFIXES,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_ENABLE_DIRECT_QUERY,
     DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_ENABLE_LOGGING,
     DEFAULT_FALLBACK_AGENT,
@@ -156,6 +160,20 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     CONF_SHORT_ANSWERS,
                     default=opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS),
                 ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_ENABLE_DIRECT_QUERY,
+                    default=opts.get(
+                        CONF_ENABLE_DIRECT_QUERY,
+                        DEFAULT_ENABLE_DIRECT_QUERY,
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_DIRECT_QUERY_PREFIXES,
+                    default=opts.get(
+                        CONF_DIRECT_QUERY_PREFIXES,
+                        DEFAULT_DIRECT_QUERY_PREFIXES,
+                    ),
+                ): selector.TextSelector(),
                 vol.Required(
                     CONF_ENABLE_LOGGING,
                     default=opts.get(CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING),

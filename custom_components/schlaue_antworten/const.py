@@ -21,6 +21,8 @@ CONF_NOTIFY_TARGET = "notify_target"
 CONF_MOBILE_CONFIRMATION = "mobile_confirmation"
 CONF_RETRY_PROMPT = "retry_prompt"
 CONF_ABORT_PROMPT = "abort_prompt"
+CONF_ENABLE_DIRECT_QUERY = "enable_direct_query"
+CONF_DIRECT_QUERY_PREFIXES = "direct_query_prefixes"
 CONF_PROMPT_SHORT = "prompt_short"
 CONF_PROMPT_DETAILED = "prompt_detailed"
 
@@ -42,6 +44,8 @@ DEFAULT_NOTIFY_TARGET = "notify.notify"
 DEFAULT_MOBILE_CONFIRMATION = "Ich habe dir die Antwort aufs Handy geschickt."
 DEFAULT_RETRY_PROMPT = "Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage."
 DEFAULT_ABORT_PROMPT = "Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal."
+DEFAULT_ENABLE_DIRECT_QUERY = True
+DEFAULT_DIRECT_QUERY_PREFIXES = "schlaue frage, frage ki, ki frage, ki, schlaue antworten"
 CODEWORD_UNVERSTAENDLICH = "[UNVERSTAENDLICH]"
 
 FILLER_PHRASES = {

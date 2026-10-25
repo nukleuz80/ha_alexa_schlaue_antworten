@@ -21,7 +21,9 @@ from .const import (
     CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
+    CONF_DIRECT_QUERY_PREFIXES,
     CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_ENABLE_DIRECT_QUERY,
     CONF_ENABLE_HA_CONTEXT,
     CONF_ENABLE_LOGGING,
     CONF_FALLBACK_AGENT,
@@ -40,8 +42,10 @@ from .const import (
     DEFAULT_COMMUNITY_SKILL_ID,
     DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
+    DEFAULT_DIRECT_QUERY_PREFIXES,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_ENABLE_DIRECT_QUERY,
     DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_ENABLE_LOGGING,
     DEFAULT_FALLBACK_AGENT,
@@ -206,6 +210,7 @@ class SchlaueAntwortenManager:
         self.entry = entry
         self._unsub_event: Any = None
         self._unsub_state: Any = None
+        self._unsub_last_called: Any = None
         self._last_questions: dict[str, Any] = {}
         self._retry_counts: dict[str, int] = {}
         self._active_interactive: dict[str, dict[str, Any]] = {}
@@ -276,7 +281,13 @@ class SchlaueAntwortenManager:
             self._async_handle_boolean_trigger,
         )
 
-        # 3. Register services
+        # 3. Listen for direct voice queries in one sentence (e.g. "schlaue frage ...")
+        self._unsub_last_called = self.hass.bus.async_listen(
+            "alexa_media_last_called_event",
+            self._async_handle_last_called_event,
+        )
+
+        # 4. Register services
         self.hass.services.async_register(
             DOMAIN,
             SERVICE_START_DIALOG,
@@ -304,6 +315,10 @@ class SchlaueAntwortenManager:
         if self._unsub_state:
             self._unsub_state()
             self._unsub_state = None
+
+        if self._unsub_last_called:
+            self._unsub_last_called()
+            self._unsub_last_called = None
 
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
@@ -630,6 +645,98 @@ class SchlaueAntwortenManager:
         )
         target_device = self._get_target_echo()
         self.hass.async_create_task(self.async_start_dialog(target_device))
+
+    async def _async_handle_last_called_event(self, event: Event) -> None:
+        """Handle direct voice queries spoken to Alexa in one sentence."""
+        if not self.entry.options.get(
+            CONF_ENABLE_DIRECT_QUERY, DEFAULT_ENABLE_DIRECT_QUERY
+        ):
+            return
+
+        summary = str(event.data.get("summary", "")).strip()
+        if not summary or len(summary) < 4:
+            return
+
+        summary_lower = summary.lower()
+
+        # Collision guard: Ignore commands intended for starting the interactive routine or brainstorm
+        if summary_lower in (
+            "öffne schlaue antworten",
+            "starte schlaue antworten",
+            "schlaue antworten öffnen",
+            "schlaue antworten starten",
+            "schlaue antworten",
+            "öffne brainstorm",
+            "starte brainstorm",
+        ) or summary_lower.startswith(("öffne schlaue antworten", "starte schlaue antworten")):
+            return
+
+        # Fetch configured prefixes (ordered longest first to prevent prefix shadowing)
+        prefixes_str = str(
+            self.entry.options.get(
+                CONF_DIRECT_QUERY_PREFIXES, DEFAULT_DIRECT_QUERY_PREFIXES
+            )
+            or DEFAULT_DIRECT_QUERY_PREFIXES
+        )
+        prefixes = sorted(
+            [p.strip().lower() for p in prefixes_str.split(",") if p.strip()],
+            key=len,
+            reverse=True,
+        )
+
+        matched_prefix: str | None = None
+        for prefix in prefixes:
+            if (
+                summary_lower.startswith(prefix + " ")
+                or summary_lower.startswith(prefix + ":")
+                or summary_lower.startswith(prefix + ",")
+            ):
+                matched_prefix = prefix
+                break
+
+        if not matched_prefix:
+            return
+
+        # Extract the question, stripping prefix and leading punctuation
+        cleaned_question = summary[len(matched_prefix):].lstrip(" :,?-").strip()
+        if len(cleaned_question) < 3:
+            return
+
+        # Determine target Echo from event or fallback
+        reply_device = str(
+            event.data.get("entity_id")
+            or event.data.get("device")
+            or self._get_target_echo()
+        )
+
+        _LOGGER.info(
+            "Direct voice query matched prefix '%s' on %s: %s",
+            matched_prefix,
+            reply_device,
+            cleaned_question,
+        )
+
+        # Stop active media playback if currently playing
+        dev_state = self.hass.states.get(reply_device)
+        if dev_state and dev_state.state == "playing":
+            try:
+                self.hass.async_create_task(
+                    self.hass.services.async_call(
+                        "media_player",
+                        "media_stop",
+                        {"entity_id": reply_device},
+                        blocking=False,
+                    )
+                )
+            except Exception as err:
+                _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
+
+        # Process and speak answer directly (supports follow-up prompt if enabled)
+        await self.async_process_and_speak(
+            cleaned_question,
+            reply_device,
+            is_followup=False,
+        )
 
     async def _async_handle_notification_event(self, event: Event) -> None:
         """Process user's spoken answer from Actionable Notifications."""
