@@ -75,3 +75,4 @@ class SchlaueAntwortenQueriesTodaySensor(SensorEntity):
             "letzte_dauer_sekunden": stats.get("last_duration"),
             "datum": stats.get("date"),
         }
+

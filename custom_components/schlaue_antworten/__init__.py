@@ -483,6 +483,7 @@ class SchlaueAntwortenManager:
         event_id: str,
     ) -> None:
         """Trigger an Alexa Actionable Notification directly (Zero-YAML) or via script."""
+        clean_text = text.replace('"', "'").replace("&", " und ").replace("\\", "")
         if self.hass.services.has_service(
             "script", "activate_alexa_actionable_notification"
         ):
@@ -490,7 +491,7 @@ class SchlaueAntwortenManager:
                 "script",
                 "activate_alexa_actionable_notification",
                 {
-                    "text": text,
+                    "text": clean_text,
                     "event_id": event_id,
                     "alexa_device": target_device,
                     "suppress_confirmation": "true",
@@ -501,7 +502,7 @@ class SchlaueAntwortenManager:
 
         # Direct Zero-YAML execution without YAML script
         payload = json.dumps({
-            "text": text,
+            "text": clean_text,
             "event": event_id,
             "suppress_confirmation": "true",
         })
