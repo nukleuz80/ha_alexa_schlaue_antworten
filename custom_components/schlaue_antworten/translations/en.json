@@ -11,6 +11,11 @@
     }
   },
   "entity": {
+    "sensor": {
+      "queries_today": {
+        "name": "AI queries today"
+      }
+    },
     "switch": {
       "dialog_trigger": {
         "name": "Dialogue trigger"

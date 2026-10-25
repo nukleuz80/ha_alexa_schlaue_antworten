@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.25-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.26-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -33,6 +33,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 
 ## ✨ Features
 
+- 📊 **Nativer Statistik-Sensor (Tageszähler ab v1.0.26):** Stellt `sensor.alexa_schlaue_antworten_ki_anfragen_heute` bereit; zählt alle KI-Anfragen des aktuellen Tages, setzt sich um Mitternacht automatisch auf 0 zurück, speichert Daten persistent im HA-Speicher (`.storage`) und liefert nützliche Attribute (Kurz- vs. Lang-Antworten, Gesamtzahl, letztes Echo, Zeitstempel & Dauer).
 - ⚡ **Native Ein-Satz-Direktabfrage (ab v1.0.24):** Stelle deine Frage direkt in einem Satz (*„Alexa, schlaue Frage: ...“* oder *„Alexa, frage KI: ...“*), ohne dass zuvor eine Zwischenfrage abgewartet werden muss – 100 % nativ ohne YAML-Automationen!
 - 🚀 **100 % Zero-YAML Setup (ab v1.0.23):** Vollständige Integration out-of-the-box ohne YAML-Konfiguration.
 - 🔘 **Native Schalter- & Taster-Entitäten:** Stellt `switch.alexa_schlaue_antworten_dialog_starten` bereit, der direkt in Alexa-Routinen geschaltet werden kann, sowie einen praktischen Button für Dashboards.
@@ -188,6 +189,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.26** | 25.10.2026 | **Nativer Statistik-Sensor (Tageszähler):** 1) Neue Sensor-Entität `sensor.alexa_schlaue_antworten_ki_anfragen_heute` (bzw. `_queries_today`); zählt alle KI-Anfragen des aktuellen Tages mit automatischer Rücksetzung um Mitternacht (`00:00:00`); 2) Persistente Speicherung via Home Assistant `Store` (übersteht Neustarts ohne Datenverlust); 3) Detaillierte Attribute (`anfragen_heute`, `kurze_antworten_heute`, `ausfuehrliche_antworten_heute`, `anfragen_gesamt`, `letzte_anfrage`, `letztes_echo`, `letzte_uhrzeit`, `letzte_dauer_sekunden`). |
 | **v1.0.25** | 25.10.2026 | **Echo-Geräteauflösung & Sofort-Stopp für native Suchantworten:** 1) Präzise Zuordnung des auslösenden Echo-Lautsprechers aus `alexa_media_last_called_event` über die Hardware-Seriennummer (`last_called` ➔ `entity_registry.unique_id`) sowie Friendly Name; verhindert Fehlleitungen auf das Standardgerät; 2) Bedingungsloser Sofort-Stopp (`media_player.media_stop`) auf dem Ziel-Echo, um Alexas native Websuch-Monologe (*„Hier ist eine Antwort von Qucka / Übersetzt von answers.com“*) unmittelbar zu unterbrechen, bevor die KI-Antwort gesprochen wird. |
 | **v1.0.24** | 25.10.2026 | **Native Ein-Satz-Direktabfrage (One-Sentence Voice Query):** 1) Fragen können nun direkt in einem einzigen Satz gesprochen werden (*„Alexa, schlaue Frage: ...“*, *„Alexa, frage KI: ...“* oder *„Alexa, KI: ...“*); 2) 100 % nativ in der Integration über `alexa_media_last_called_event` ohne manuelle YAML-Automationen; 3) Vollständig konfigurierbar in der UI (Ein/Aus-Schalter und anpassbare Signalwörter); 4) Intelligenter Kollisionsschutz mit bestehenden Routinen (*„öffne schlaue antworten“*) und Brainstorm-Befehlen. |
 | **v1.0.23** | 24.10.2026 | **Zero-YAML Revolution & Native Entitäten:** 1) 100 % YAML-freie Installation – kein manuelles Anlegen von `input_text`, `scripts.yaml`, `scenes.yaml` oder Template-Sensoren mehr erforderlich; 2) Neue native Entitäten `switch.alexa_schlaue_antworten_dialog_starten` (Schalter für Alexa-Routinen) und `button.alexa_schlaue_antworten_dialog_starten` (Taster für Dashboards/Automatisierungen); 3) Automatische Erkennung des aktiven Echo-Lautsprechers direkt aus dem `last_called`-Status der `media_player`-Entitäten in Python; 4) Direkte Skill-Ausführung via Python; 5) 100 % abwärtskompatibel zu bestehenden YAML-Setups. |

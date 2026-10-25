@@ -6,13 +6,14 @@ import json
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_change
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -78,7 +79,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.BUTTON]
+PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.BUTTON, Platform.SENSOR]
 
 RE_MARKDOWN = re.compile(r"[*#`_~]")
 RE_NON_WORDS = re.compile(r"[^\w\s]")
@@ -216,6 +217,20 @@ class SchlaueAntwortenManager:
         self._retry_counts: dict[str, int] = {}
         self._active_interactive: dict[str, dict[str, Any]] = {}
         self._history: list[dict[str, str]] = []
+        self._stats_store: Store[dict[str, Any]] = Store(hass, 1, f"{DOMAIN}_stats")
+        self._stats: dict[str, Any] = {
+            "date": dt_util.now().date().isoformat(),
+            "today_count": 0,
+            "today_short": 0,
+            "today_detailed": 0,
+            "total_count": 0,
+            "last_query": None,
+            "last_device": None,
+            "last_time": None,
+            "last_duration": None,
+        }
+        self._stats_listeners: list[Callable[[], None]] = []
+        self._unsub_midnight: Any = None
 
     def add_history_entry(
         self,
@@ -288,7 +303,18 @@ class SchlaueAntwortenManager:
             self._async_handle_last_called_event,
         )
 
-        # 4. Register services
+        # 4. Load persistent daily statistics
+        stored_stats = await self._stats_store.async_load()
+        if stored_stats and isinstance(stored_stats, dict):
+            self._stats.update(stored_stats)
+        self._check_date_rollover()
+
+        # 5. Listen for midnight reset
+        self._unsub_midnight = async_track_time_change(
+            self.hass, self._async_handle_midnight_reset, hour=0, minute=0, second=0
+        )
+
+        # 6. Register services
         self.hass.services.async_register(
             DOMAIN,
             SERVICE_START_DIALOG,
@@ -321,9 +347,83 @@ class SchlaueAntwortenManager:
             self._unsub_last_called()
             self._unsub_last_called = None
 
+        if self._unsub_midnight:
+            self._unsub_midnight()
+            self._unsub_midnight = None
+
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
         self.hass.services.async_remove(DOMAIN, SERVICE_INTERACTIVE_QUESTION)
+
+    @property
+    def stats(self) -> dict[str, Any]:
+        """Return the current stats dictionary."""
+        return self._stats
+
+    def register_stats_listener(
+        self, listener: Callable[[], None]
+    ) -> Callable[[], None]:
+        """Register a callback for stats updates."""
+        self._stats_listeners.append(listener)
+
+        def _remove() -> None:
+            if listener in self._stats_listeners:
+                self._stats_listeners.remove(listener)
+
+        return _remove
+
+    def _notify_stats_listeners(self) -> None:
+        """Notify all registered stats listeners of a state change."""
+        for listener in self._stats_listeners:
+            try:
+                listener()
+            except Exception as err:
+                _LOGGER.warning("Error in stats listener: %s", err)
+
+    def _check_date_rollover(self) -> bool:
+        """Check if date changed and reset daily counters if necessary."""
+        today = dt_util.now().date().isoformat()
+        if self._stats.get("date") != today:
+            self._stats["date"] = today
+            self._stats["today_count"] = 0
+            self._stats["today_short"] = 0
+            self._stats["today_detailed"] = 0
+            return True
+        return False
+
+    @callback
+    def _async_handle_midnight_reset(self, *args: Any) -> None:
+        """Reset daily counters at midnight."""
+        self._check_date_rollover()
+        self.hass.async_create_task(self._stats_store.async_save(self._stats))
+        self._notify_stats_listeners()
+
+    def record_query_stats(
+        self,
+        device: str,
+        query: str,
+        is_followup: bool = False,
+        duration: float | None = None,
+    ) -> None:
+        """Record query metrics and notify listeners."""
+        self._check_date_rollover()
+        self._stats["today_count"] = self._stats.get("today_count", 0) + 1
+        self._stats["total_count"] = self._stats.get("total_count", 0) + 1
+        if is_followup:
+            self._stats["today_detailed"] = self._stats.get("today_detailed", 0) + 1
+        else:
+            self._stats["today_short"] = self._stats.get("today_short", 0) + 1
+
+        clean_dev = device.replace("media_player.", "").replace("_", " ").title()
+        self._stats["last_query"] = query
+        self._stats["last_device"] = clean_dev
+        self._stats["last_time"] = dt_util.now().isoformat()
+        if duration is not None:
+            self._stats["last_duration"] = round(duration, 1)
+
+        # Save to storage in background
+        self.hass.async_create_task(self._stats_store.async_save(self._stats))
+        self._notify_stats_listeners()
 
     def _resolve_echo_from_event(self, event_data: dict[str, Any]) -> str:
         """Resolve the exact media_player entity from an Alexa event payload."""
@@ -1194,6 +1294,12 @@ class SchlaueAntwortenManager:
             duration=duration,
             char_count=len(final_speech),
             mode=mode_label,
+        )
+        self.record_query_stats(
+            device=reply_device,
+            query=question,
+            is_followup=is_followup,
+            duration=duration,
         )
 
         # 7. Actionable Notification with follow-up question if enabled

@@ -11,6 +11,11 @@
     }
   },
   "entity": {
+    "sensor": {
+      "queries_today": {
+        "name": "KI-Anfragen heute"
+      }
+    },
     "switch": {
       "dialog_trigger": {
         "name": "Dialog-Auslöser"
