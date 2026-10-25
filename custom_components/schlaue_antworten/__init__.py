@@ -11,6 +11,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
@@ -323,6 +324,35 @@ class SchlaueAntwortenManager:
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
         self.hass.services.async_remove(DOMAIN, SERVICE_INTERACTIVE_QUESTION)
+
+    def _resolve_echo_from_event(self, event_data: dict[str, Any]) -> str:
+        """Resolve the exact media_player entity from an Alexa event payload."""
+        # 1. Direct entity_id if provided and valid
+        eid = event_data.get("entity_id")
+        if eid and self.hass.states.get(str(eid)):
+            return str(eid)
+
+        dev = event_data.get("device")
+        if dev and self.hass.states.get(str(dev)):
+            return str(dev)
+
+        # 2. Match by serial / unique_id in entity registry (exact for alexa_media last_called)
+        serial = event_data.get("last_called")
+        if serial:
+            ent_reg = er.async_get(self.hass)
+            for entity in ent_reg.entities.values():
+                if entity.platform == "alexa_media" and entity.unique_id == str(serial):
+                    return entity.entity_id
+
+        # 3. Match by friendly name in states
+        name = event_data.get("name")
+        if name:
+            for state in self.hass.states.async_all("media_player"):
+                if state.attributes.get("friendly_name") == name:
+                    return state.entity_id
+
+        # 4. Fallback to standard target Echo detection
+        return self._get_target_echo()
 
     def _get_target_echo(self, preferred_device: str | None = None) -> str:
         """Determine the active Echo media_player."""
@@ -702,12 +732,8 @@ class SchlaueAntwortenManager:
         if len(cleaned_question) < 3:
             return
 
-        # Determine target Echo from event or fallback
-        reply_device = str(
-            event.data.get("entity_id")
-            or event.data.get("device")
-            or self._get_target_echo()
-        )
+        # Determine target Echo from event directly (serial/name mapping)
+        reply_device = self._resolve_echo_from_event(event.data)
 
         _LOGGER.info(
             "Direct voice query matched prefix '%s' on %s: %s",
@@ -716,20 +742,18 @@ class SchlaueAntwortenManager:
             cleaned_question,
         )
 
-        # Stop active media playback if currently playing
-        dev_state = self.hass.states.get(reply_device)
-        if dev_state and dev_state.state == "playing":
-            try:
-                self.hass.async_create_task(
-                    self.hass.services.async_call(
-                        "media_player",
-                        "media_stop",
-                        {"entity_id": reply_device},
-                        blocking=False,
-                    )
+        # Unconditionally stop any active speech or playback on the target Echo immediately
+        try:
+            self.hass.async_create_task(
+                self.hass.services.async_call(
+                    "media_player",
+                    "media_stop",
+                    {"entity_id": reply_device},
+                    blocking=False,
                 )
-            except Exception as err:
-                _LOGGER.debug("Non-blocking media_stop ignored: %s", err)
+            )
+        except Exception as err:
+            _LOGGER.debug("Immediate media_stop ignored: %s", err)
 
         # Process and speak answer directly (supports follow-up prompt if enabled)
         await self.async_process_and_speak(
@@ -751,11 +775,7 @@ class SchlaueAntwortenManager:
         response_type = str(data.get("event_response_type", "")).strip()
 
         # Identify reply Echo
-        reply_device = str(
-            data.get("entity_id")
-            or data.get("device")
-            or self._get_target_echo()
-        )
+        reply_device = self._resolve_echo_from_event(data)
 
         # Handle proactive interactive question response (e.g. from automations)
         if event_id == EVENT_ID_INTERACTIVE:
