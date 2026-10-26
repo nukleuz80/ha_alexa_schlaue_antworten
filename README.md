@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.27-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.28-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -189,6 +189,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.28** | 26.10.2026 | **Stabilitäts- & Timing-Update (Beseitigung von Simon Says & Ghost-Prompts):** 1) Task-Tracking & Abbruch veralteter Timer (`_cancel_pending_followup`); verhindert, dass alte Hintergrund-Timer nachfolgende Dialoge überschreiben; 2) Beseitigung des fehleranfälligen `asyncio.sleep`-Splits bei langen Antworten: Antworten über 170 Zeichen werden direkt vollständig via TTS abgespielt, wodurch die Fehlermeldung *„Bei dem Simon Says EU Skill ist ein Problem aufgetreten“* und verzögerte Geister-Nachfragen dauerhaft eliminiert werden; 3) Ein-Satz-Direktabfragen spielen Antworten unmittelbar ab (ohne interaktive Nachfrage); 4) Puffer-Schutz (`clean_text[:172]`) gegen 255-Zeichen-Overflows in `input_text.alexa_actionable_notification`. |
 | **v1.0.27** | 25.10.2026 | **JSON-Sanitization für Alexa Actionable Notifications (Simon Says Fix):** Automatische Bereinigung von Anführungszeichen (`"`), kaufmännischen Und-Zeichen (`&`) und Backslashes vor Übergabe an den Actionable Notification Skill; verhindert JSON-Syntaxfehler im `input_text` und schützt vor der Amazon-Fehlermeldung *„Bei dem Simon Says EU Skill ist ein Problem aufgetreten“*. |
 | **v1.0.26** | 25.10.2026 | **Nativer Statistik-Sensor (Tageszähler):** 1) Neue Sensor-Entität `sensor.alexa_schlaue_antworten_ki_anfragen_heute` (bzw. `_queries_today`); zählt alle KI-Anfragen des aktuellen Tages mit automatischer Rücksetzung um Mitternacht (`00:00:00`); 2) Persistente Speicherung via Home Assistant `Store` (übersteht Neustarts ohne Datenverlust); 3) Detaillierte Attribute (`anfragen_heute`, `kurze_antworten_heute`, `ausfuehrliche_antworten_heute`, `anfragen_gesamt`, `letzte_anfrage`, `letztes_echo`, `letzte_uhrzeit`, `letzte_dauer_sekunden`). |
 | **v1.0.25** | 25.10.2026 | **Echo-Geräteauflösung & Sofort-Stopp für native Suchantworten:** 1) Präzise Zuordnung des auslösenden Echo-Lautsprechers aus `alexa_media_last_called_event` über die Hardware-Seriennummer (`last_called` ➔ `entity_registry.unique_id`) sowie Friendly Name; verhindert Fehlleitungen auf das Standardgerät; 2) Bedingungsloser Sofort-Stopp (`media_player.media_stop`) auf dem Ziel-Echo, um Alexas native Websuch-Monologe (*„Hier ist eine Antwort von Qucka / Übersetzt von answers.com“*) unmittelbar zu unterbrechen, bevor die KI-Antwort gesprochen wird. |

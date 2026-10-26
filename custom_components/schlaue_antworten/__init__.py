@@ -231,6 +231,13 @@ class SchlaueAntwortenManager:
         }
         self._stats_listeners: list[Callable[[], None]] = []
         self._unsub_midnight: Any = None
+        self._pending_followup_task: asyncio.Task[None] | None = None
+
+    def _cancel_pending_followup(self) -> None:
+        """Cancel any running delayed follow-up timer immediately."""
+        if self._pending_followup_task and not self._pending_followup_task.done():
+            self._pending_followup_task.cancel()
+            self._pending_followup_task = None
 
     def add_history_entry(
         self,
@@ -350,6 +357,8 @@ class SchlaueAntwortenManager:
         if self._unsub_midnight:
             self._unsub_midnight()
             self._unsub_midnight = None
+
+        self._cancel_pending_followup()
 
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
@@ -484,6 +493,9 @@ class SchlaueAntwortenManager:
     ) -> None:
         """Trigger an Alexa Actionable Notification directly (Zero-YAML) or via script."""
         clean_text = text.replace('"', "'").replace("&", " und ").replace("\\", "")
+        # Protect against Home Assistant input_text 255 character limit
+        if len(clean_text) > 175:
+            clean_text = clean_text[:172] + "..."
         if self.hass.services.has_service(
             "script", "activate_alexa_actionable_notification"
         ):
@@ -658,6 +670,7 @@ class SchlaueAntwortenManager:
 
     async def async_start_dialog(self, target_device: str) -> None:
         """Start the Actionable Notification dialog on the target Echo."""
+        self._cancel_pending_followup()
         self._retry_counts.pop(target_device, None)
         prompt = self.entry.options.get(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
 
@@ -843,6 +856,8 @@ class SchlaueAntwortenManager:
             cleaned_question,
         )
 
+        self._cancel_pending_followup()
+
         # Unconditionally stop any active speech or playback on the target Echo immediately
         try:
             self.hass.async_create_task(
@@ -856,11 +871,12 @@ class SchlaueAntwortenManager:
         except Exception as err:
             _LOGGER.debug("Immediate media_stop ignored: %s", err)
 
-        # Process and speak answer directly (supports follow-up prompt if enabled)
+        # Process and speak answer directly (direct queries speak in one rut without interactive follow-up)
         await self.async_process_and_speak(
             cleaned_question,
             reply_device,
             is_followup=False,
+            enable_followup_override=False,
         )
 
     async def _async_handle_notification_event(self, event: Event) -> None:
@@ -1105,8 +1121,10 @@ class SchlaueAntwortenManager:
         is_followup: bool = False,
         previous_answer: str = "",
         start_time: float | None = None,
+        enable_followup_override: bool | None = None,
     ) -> None:
         """Query LLM and output answer via Alexa."""
+        self._cancel_pending_followup()
         if start_time is None:
             start_time = time.monotonic()
 
@@ -1115,9 +1133,12 @@ class SchlaueAntwortenManager:
         fallback_agent = opts.get(CONF_FALLBACK_AGENT, DEFAULT_FALLBACK_AGENT)
         short_answers = opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS)
         announce_model = opts.get(CONF_ANNOUNCE_MODEL, DEFAULT_ANNOUNCE_MODEL)
-        enable_followup = opts.get(
-            CONF_ENABLE_DETAILED_FOLLOWUP, DEFAULT_ENABLE_DETAILED_FOLLOWUP
-        )
+        if enable_followup_override is not None:
+            enable_followup = enable_followup_override
+        else:
+            enable_followup = opts.get(
+                CONF_ENABLE_DETAILED_FOLLOWUP, DEFAULT_ENABLE_DETAILED_FOLLOWUP
+            )
         followup_prompt = opts.get(
             CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT
         )
@@ -1318,8 +1339,14 @@ class SchlaueAntwortenManager:
                 )
                 return
 
-            # For longer answers: play short answer via TTS first to avoid 255-char input_text limit,
-            # then ask the follow-up prompt with open microphone
+            # For answers exceeding 170 chars:
+            # Speak cleanly via TTS directly without launching the Simon Says skill.
+            # This completely prevents delayed 30-second ghost prompts, device-busy errors,
+            # and "Simon Says EU Skill" crashes.
+            _LOGGER.info(
+                "Answer length (%d chars) exceeds actionable notification limit (170 chars); playing via TTS directly",
+                len(combined_message),
+            )
             try:
                 await self.hass.services.async_call(
                     "notify",
@@ -1332,16 +1359,7 @@ class SchlaueAntwortenManager:
                     blocking=False,
                 )
             except Exception as err:
-                _LOGGER.warning("TTS error on %s: %s", reply_device, err)
-
-            # Wait for TTS to finish (approx 13 chars per second + 0.5s pause)
-            wait_duration = max(2.5, (len(final_speech) / 13.0) + 0.5)
-            await asyncio.sleep(wait_duration)
-
-            # Now trigger the follow-up question with open microphone
-            await self.async_trigger_actionable_notification(
-                reply_device, followup_prompt, EVENT_ID_FOLLOWUP
-            )
+                _LOGGER.error("Failed to speak answer via notify.alexa_media: %s", err)
             return
 
         # 8. Standard TTS output

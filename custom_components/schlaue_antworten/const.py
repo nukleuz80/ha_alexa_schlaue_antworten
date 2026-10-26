@@ -69,7 +69,7 @@ FILLER_PHRASES = {
 }
 
 DEFAULT_PROMPT_SHORT = (
-    "Antworte extrem kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
+    "Antworte extrem kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch (maximal 120 Zeichen) "
     "für direkte Sprachausgabe (ohne Aufzählungen, Formatierungen oder Sonderzeichen). "
     "Berechne Rechenaufgaben direkt. Frage: {question}. "
     "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]"
