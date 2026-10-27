@@ -231,13 +231,69 @@ class SchlaueAntwortenManager:
         }
         self._stats_listeners: list[Callable[[], None]] = []
         self._unsub_midnight: Any = None
-        self._pending_followup_task: asyncio.Task[None] | None = None
+        self._pending_followup_tasks: dict[str, asyncio.Task[None]] = {}
 
-    def _cancel_pending_followup(self) -> None:
-        """Cancel any running delayed follow-up timer immediately."""
-        if self._pending_followup_task and not self._pending_followup_task.done():
-            self._pending_followup_task.cancel()
-            self._pending_followup_task = None
+    def _cancel_pending_followup(self, device: str | None = None) -> None:
+        """Cancel running delayed follow-up timer(s) immediately."""
+        if device:
+            task = self._pending_followup_tasks.pop(device, None)
+            if task and not task.done():
+                task.cancel()
+        else:
+            for dev, task in list(self._pending_followup_tasks.items()):
+                if not task.done():
+                    task.cancel()
+            self._pending_followup_tasks.clear()
+
+    async def _async_delayed_followup(
+        self, reply_device: str, followup_prompt: str, wait_duration: float
+    ) -> None:
+        """Wait for TTS to finish and trigger actionable notification for follow-up."""
+        try:
+            await asyncio.sleep(wait_duration)
+
+            # Check if user explicitly stopped playback on the Echo during the wait
+            dev_state = self.hass.states.get(reply_device)
+            if dev_state:
+                summary = str(
+                    dev_state.attributes.get("last_called_summary", "")
+                ).lower().strip()
+                if summary in ("stopp", "stop", "abbrechen", "abbruch", "aus", "pause"):
+                    last_ts = dev_state.attributes.get("last_called_timestamp", 0)
+                    if last_ts and (time.time() * 1000 - last_ts) < (wait_duration + 5.0) * 1000:
+                        _LOGGER.info(
+                            "User stopped playback on %s (summary: %s); cancelling follow-up",
+                            reply_device,
+                            summary,
+                        )
+                        return
+
+            # Check if device is still reported as actively playing
+            for _ in range(8):
+                dev_state = self.hass.states.get(reply_device)
+                if dev_state and dev_state.state == "playing":
+                    await asyncio.sleep(0.5)
+                else:
+                    break
+
+            # Buffer after playback finishes to allow Echo audio pipeline to reset
+            await asyncio.sleep(0.6)
+
+            _LOGGER.info(
+                "Triggering actionable notification follow-up on %s: %s",
+                reply_device,
+                followup_prompt,
+            )
+            await self.async_trigger_actionable_notification(
+                reply_device, followup_prompt, EVENT_ID_FOLLOWUP
+            )
+        except asyncio.CancelledError:
+            _LOGGER.debug(
+                "Delayed follow-up on %s was cancelled (new query or dialog initiated)",
+                reply_device,
+            )
+        finally:
+            self._pending_followup_tasks.pop(reply_device, None)
 
     def add_history_entry(
         self,
@@ -584,6 +640,7 @@ class SchlaueAntwortenManager:
         self, question: str, target_device: str, custom_event_id: str
     ) -> None:
         """Ask a proactive interactive question on an Echo device."""
+        self._cancel_pending_followup(target_device)
         self._active_interactive[target_device] = {
             "question": question,
             "event_id": custom_event_id,
@@ -670,7 +727,7 @@ class SchlaueAntwortenManager:
 
     async def async_start_dialog(self, target_device: str) -> None:
         """Start the Actionable Notification dialog on the target Echo."""
-        self._cancel_pending_followup()
+        self._cancel_pending_followup(target_device)
         self._retry_counts.pop(target_device, None)
         prompt = self.entry.options.get(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
 
@@ -718,6 +775,7 @@ class SchlaueAntwortenManager:
         self, reply_device: str, start_time: float | None = None
     ) -> None:
         """Handle an unclear or nonsensical question with loop protection."""
+        self._cancel_pending_followup(reply_device)
         duration = time.monotonic() - start_time if start_time else None
         current_retries = self._retry_counts.get(reply_device, 0)
         if current_retries < 1:
@@ -856,7 +914,7 @@ class SchlaueAntwortenManager:
             cleaned_question,
         )
 
-        self._cancel_pending_followup()
+        self._cancel_pending_followup(reply_device)
 
         # Unconditionally stop any active speech or playback on the target Echo immediately
         try:
@@ -893,6 +951,7 @@ class SchlaueAntwortenManager:
 
         # Identify reply Echo
         reply_device = self._resolve_echo_from_event(data)
+        self._cancel_pending_followup(reply_device)
 
         # Handle proactive interactive question response (e.g. from automations)
         if event_id == EVENT_ID_INTERACTIVE:
@@ -1124,7 +1183,7 @@ class SchlaueAntwortenManager:
         enable_followup_override: bool | None = None,
     ) -> None:
         """Query LLM and output answer via Alexa."""
-        self._cancel_pending_followup()
+        self._cancel_pending_followup(reply_device)
         if start_time is None:
             start_time = time.monotonic()
 
@@ -1332,19 +1391,23 @@ class SchlaueAntwortenManager:
             }
             combined_message = f"{final_speech} {followup_prompt}"
 
-            # If message is compact (<= 170 chars), Alexa can speak answer + followup in one notification
-            if len(combined_message) <= 170:
+            # If message is compact (<= 175 chars), Alexa can speak answer + followup in one single notification
+            if len(combined_message) <= 175:
+                _LOGGER.info(
+                    "Combined message length (%d chars) <= 175; sending single actionable notification to %s",
+                    len(combined_message),
+                    reply_device,
+                )
                 await self.async_trigger_actionable_notification(
                     reply_device, combined_message, EVENT_ID_FOLLOWUP
                 )
                 return
 
-            # For answers exceeding 170 chars:
-            # Speak cleanly via TTS directly without launching the Simon Says skill.
-            # This completely prevents delayed 30-second ghost prompts, device-busy errors,
-            # and "Simon Says EU Skill" crashes.
+            # For answers exceeding 175 chars:
+            # Speak answer via TTS first to avoid 255-char input_text limit,
+            # then reliably schedule follow-up question with open microphone.
             _LOGGER.info(
-                "Answer length (%d chars) exceeds actionable notification limit (170 chars); playing via TTS directly",
+                "Combined message length (%d chars) > 175; speaking answer via TTS and scheduling follow-up prompt",
                 len(combined_message),
             )
             try:
@@ -1360,6 +1423,21 @@ class SchlaueAntwortenManager:
                 )
             except Exception as err:
                 _LOGGER.error("Failed to speak answer via notify.alexa_media: %s", err)
+                return
+
+            # Realistic German speech rate (~11.0 chars/s) + 1.8s cloud startup/latency buffer
+            wait_duration = max(3.0, (len(final_speech) / 11.0) + 1.8)
+            _LOGGER.debug(
+                "Scheduling delayed follow-up prompt on %s in %.1f seconds",
+                reply_device,
+                wait_duration,
+            )
+            task = self.hass.async_create_task(
+                self._async_delayed_followup(
+                    reply_device, followup_prompt, wait_duration
+                )
+            )
+            self._pending_followup_tasks[reply_device] = task
             return
 
         # 8. Standard TTS output
