@@ -6,7 +6,8 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.30-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.31-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -197,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.31** | 29.10.2026 | **Vibe Coding Manifest & Badges:** Offizieller Hinweis und Badges zur leidenschaftlichen KI-gestützten Entwicklung (*„Vibe Coding mit voller Hingabe“*) in Dokumentation und Repository aufgenommen. |
 | **v1.0.30** | 29.10.2026 | **Dokumentations-Offensive & Speed-Guide:** Neuer umfassender Praxis-Leitfaden [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md) mit detaillierten Latenz- und Throughput-Benchmarks (Tokens/s), Free-Tier-Empfehlungen (Google Gemini 2.5 Flash, OpenRouter Free Pool) und Hardware-Beschleuniger-Vergleich (Llama 3.3 70B via Cerebras/Groq). |
 | **v1.0.29** | 27.10.2026 | **Wiederherstellung & Präzisions-Timing für Vertiefungs-Nachfragen:** 1) Zuverlässiges Auslösen der interaktiven Vertiefungs-Nachfrage (*„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*) mit geöffnetem Mikrofon auch bei Antworten über 175 Zeichen; 2) Intelligentes TTS-Timing (~11 Zeichen/Sekunde + 1,8s Latenz-Puffer) mit Audio-Statusüberprüfung (`playing`-State-Guard) und 0,6s Cooldown verhindert jegliche Skill-Kollisionen und Simon-Says-Fehler; 3) Automatischer Abbruch bei gesprochenem Zwischenstopp (*„Alexa, Stopp“*); 4) Gerätebezogenes Task-Management (`_pending_followup_tasks`) mit sofortiger Stornierung bei neuen Dialogen oder Direktabfragen. |
 | **v1.0.28** | 26.10.2026 | **Stabilitäts- & Timing-Update (Beseitigung von Simon Says & Ghost-Prompts):** 1) Task-Tracking & Abbruch veralteter Timer (`_cancel_pending_followup`); verhindert, dass alte Hintergrund-Timer nachfolgende Dialoge überschreiben; 2) Beseitigung des fehleranfälligen `asyncio.sleep`-Splits bei langen Antworten: Antworten über 170 Zeichen werden direkt vollständig via TTS abgespielt, wodurch die Fehlermeldung *„Bei dem Simon Says EU Skill ist ein Problem aufgetreten“* und verzögerte Geister-Nachfragen dauerhaft eliminiert werden; 3) Ein-Satz-Direktabfragen spielen Antworten unmittelbar ab (ohne interaktive Nachfrage); 4) Puffer-Schutz (`clean_text[:172]`) gegen 255-Zeichen-Overflows in `input_text.alexa_actionable_notification`. |
@@ -228,6 +230,17 @@ action:
 | **v1.0.2** | 23.10.2026 | Bild-Assets in dedizierten Ordner `www/schlaue_antworten/` verschoben und Pfade/Skripte bereinigt. |
 | **v1.0.1** | 23.10.2026 | Offizielles Logo hinzugefügt (SVG- und PNG-Assets) und Dokumentations-Update. |
 | **v1.0.0** | 23.10.2026 | Erstveröffentlichung als native Custom Integration mit vollständigem Options Flow, dynamischer Raum-Erkennung via `sensor.last_alexa`, 503-Ausweich-Logik (Fallback) und nahtloser Alexa Actionable Notifications Anbindung. |
+
+---
+
+## ✨ 🚀 Vibe Coding mit voller Hingabe
+
+> *„Vibe Coding ist die Kunst, reine Ideen durch fließenden Dialog, menschliche Kreativität und KI-Superkräfte in funktionierende Realität zu verwandeln.“*
+
+Dieses Projekt wurde und wird mit voller Hingabe durch **Vibe Coding** erschaffen. Wir verstecken uns nicht hinter KI, sondern stehen mit Stolz und voller Transparenz dazu:
+- **Menschliche Produkt- & Sprach-Vision:** Jede Dialog-Verfeinerung, jeder Prompt-Kniff und jeder Latenz-Boost entstammt echter Praxis-Nutzung im eigenen smarten Zuhause.
+- **High-Velocity AI Pair-Programming:** Durch den Einsatz moderner agentischer KI-Entwicklung (Google Antigravity & Claude/Gemini) entstehen saubere Architekturen und fortlaufende Innovation in Rekordzeit.
+- **100 % Open Source & Community First:** Transparent, erweiterbar und für jeden in der Home Assistant Community frei nutzbar.
 
 ---
 
