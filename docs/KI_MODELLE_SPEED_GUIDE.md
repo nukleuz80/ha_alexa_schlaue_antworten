@@ -107,3 +107,4 @@ Diese Modelle besitzen die absolut höchste Denk- und Programmierleistung, haben
 ---
 
 [← Zurück zur Hauptdokumentation](../README.md)
+
