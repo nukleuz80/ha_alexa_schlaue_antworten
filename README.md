@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.29-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.30-blue.svg" alt="Version"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
@@ -17,6 +17,10 @@
 Du hast die Wahl zwischen zwei komfortablen Sprachwegen:
 - ⚡ **Ein-Satz-Direktabfrage:** *„Alexa, schlaue Frage: Wie weit ist der Mond entfernt?“* (Direkte Antwort in einem Rutsch)
 - 🗣️ **Interaktiver Dialog:** *„Alexa, öffne Schlaue Antworten“* ➔ *„Schlaue Antworten: Was möchtest du wissen?“* (Offenes Mikrofon mit blauem Leuchtring)
+
+> [!TIP]
+> 🚀 **Welche KI-Modelle sind am schnellsten & besten für Alexa?**  
+> Siehe unseren ausführlichen Praxis-Guide: [**⚡ KI-Modelle & Speed-Guide: Die besten & schnellsten LLMs für Alexa**](docs/KI_MODELLE_SPEED_GUIDE.md) mit Latenz-Benchmarks, Free-Tier-Tipps (Google Gemini, OpenRouter) und Hardware-Speed-Champions (Llama 3.3 via Cerebras/Groq)!
 
 ---
 
@@ -67,7 +71,8 @@ In nur 3 einfachen Schritten ist *Schlaue Antworten* einsatzbereit:
    - 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
      Nutze OpenRouter mit kostenlosen Modellen (z. B. `meta-llama/llama-3.3-70b-instruct:free` oder `openrouter/free`).  
      *Keine Kreditkarte, keine Vorabkosten, keine Monatsgebühren – sofort startklar!*
-   - Alternativ: Google Generative AI (Gemini), Anthropic Claude, OpenAI oder lokale LLMs (z. B. Ollama).
+   - 🚀 **Google Generative AI (Gemini 2.5 Flash):** Extrem schnell (< 0,8s), kostenlos und exzellentes Deutsch.
+   - 📖 *Ausführliche Modell-Empfehlungen, Latenz-Messungen und Vergleiche findest du in unserem [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md).*
 
 ---
 
@@ -148,9 +153,12 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 ## ⚡ Performance- & Latenz-Tipps
 
+> 📖 **Ausführlicher Speed-Guide:** Eine vollständige Übersicht über die schnellsten LLMs der Welt (inkl. Latenz-Benchmarks und Hardware-Beschleunigern wie Cerebras & Groq) findest du im [**⚡ KI-Modelle & Speed-Guide**](docs/KI_MODELLE_SPEED_GUIDE.md).
+
 1. 🔇 **Modellansage deaktivieren:** Spart ca. 1,5 Sekunden reine Sprechzeit pro Antwort.
 2. 🏎️ **Smarte Musik-Vorprüfung:** Läuft keine Musik, wird kein blockierender Cloud-Stop-Befehl gesendet (spart 1–2 Sekunden beim Dialogstart).
 3. 🤖 **Websuche in OpenRouter ausschalten:** In OpenRouter `web_search: off` stellen, um Suchmaschinen-Wartezeiten zu vermeiden (Antwort in 1–2 Sekunden).
+4. ⚡ **Schnelle Modelle wählen:** Nutze vorzugsweise *Google Gemini 2.5 Flash* oder *Meta Llama 3.3 70B*.
 
 ---
 
@@ -189,6 +197,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.30** | 29.10.2026 | **Dokumentations-Offensive & Speed-Guide:** Neuer umfassender Praxis-Leitfaden [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md) mit detaillierten Latenz- und Throughput-Benchmarks (Tokens/s), Free-Tier-Empfehlungen (Google Gemini 2.5 Flash, OpenRouter Free Pool) und Hardware-Beschleuniger-Vergleich (Llama 3.3 70B via Cerebras/Groq). |
 | **v1.0.29** | 27.10.2026 | **Wiederherstellung & Präzisions-Timing für Vertiefungs-Nachfragen:** 1) Zuverlässiges Auslösen der interaktiven Vertiefungs-Nachfrage (*„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*) mit geöffnetem Mikrofon auch bei Antworten über 175 Zeichen; 2) Intelligentes TTS-Timing (~11 Zeichen/Sekunde + 1,8s Latenz-Puffer) mit Audio-Statusüberprüfung (`playing`-State-Guard) und 0,6s Cooldown verhindert jegliche Skill-Kollisionen und Simon-Says-Fehler; 3) Automatischer Abbruch bei gesprochenem Zwischenstopp (*„Alexa, Stopp“*); 4) Gerätebezogenes Task-Management (`_pending_followup_tasks`) mit sofortiger Stornierung bei neuen Dialogen oder Direktabfragen. |
 | **v1.0.28** | 26.10.2026 | **Stabilitäts- & Timing-Update (Beseitigung von Simon Says & Ghost-Prompts):** 1) Task-Tracking & Abbruch veralteter Timer (`_cancel_pending_followup`); verhindert, dass alte Hintergrund-Timer nachfolgende Dialoge überschreiben; 2) Beseitigung des fehleranfälligen `asyncio.sleep`-Splits bei langen Antworten: Antworten über 170 Zeichen werden direkt vollständig via TTS abgespielt, wodurch die Fehlermeldung *„Bei dem Simon Says EU Skill ist ein Problem aufgetreten“* und verzögerte Geister-Nachfragen dauerhaft eliminiert werden; 3) Ein-Satz-Direktabfragen spielen Antworten unmittelbar ab (ohne interaktive Nachfrage); 4) Puffer-Schutz (`clean_text[:172]`) gegen 255-Zeichen-Overflows in `input_text.alexa_actionable_notification`. |
 | **v1.0.27** | 25.10.2026 | **JSON-Sanitization für Alexa Actionable Notifications (Simon Says Fix):** Automatische Bereinigung von Anführungszeichen (`"`), kaufmännischen Und-Zeichen (`&`) und Backslashes vor Übergabe an den Actionable Notification Skill; verhindert JSON-Syntaxfehler im `input_text` und schützt vor der Amazon-Fehlermeldung *„Bei dem Simon Says EU Skill ist ein Problem aufgetreten“*. |
