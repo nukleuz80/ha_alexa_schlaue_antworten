@@ -44,6 +44,7 @@
           "primary_agent": "Primary AI agent",
           "fallback_agent": "Fallback AI agent (used during outage/high demand)",
           "primary_timeout": "Time limit for the primary agent (seconds)",
+          "answer_budget": "Time budget until the answer (seconds)",
           "default_echo": "Default Echo media player (fallback)",
           "dialog_prompt": "Greeting voice prompt",
           "announce_model": "Announce model name at the end of answers",
@@ -59,13 +60,15 @@
           "interactive_confirm_prompt": "Confirmation prompt on automation approval ('Yes')",
           "notify_target": "Target device for mobile push (e.g. notify.notify or phone)",
           "mobile_confirmation": "Spoken confirmation when sending to smartphone",
+          "late_text": "Announcement when the answer takes too long",
           "retry_prompt": "Prompt when question was not understood",
           "abort_prompt": "Abort announcement after second failed attempt",
           "prompt_short": "AI prompt for short answer (as-is, must include [question])",
           "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders [question] and [previous_answer])"
         },
         "data_description": {
-          "primary_timeout": "If the primary agent has not answered by then, the fallback agent starts in parallel and the first valid answer wins. 0 = fallback agent only on an error."
+          "primary_timeout": "If the primary agent has not answered by then, the fallback agent starts in parallel and the first valid answer wins. 0 = fallback agent only on an error.",
+          "answer_budget": "If no agent has answered by then, Alexa says the text for slow answers and the answer follows as a push message to your phone. 0 = no time budget."
         }
       },
       "history": {

@@ -16,9 +16,10 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .answer import AnswerEngine
+from .answer import AnswerEngine, AnswerResult
 from .const import (
     CONF_ABORT_PROMPT,
+    CONF_ANSWER_BUDGET,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_DIRECT_QUERY_PREFIXES,
@@ -28,10 +29,12 @@ from .const import (
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_INTERACTIVE_CONFIRM_PROMPT,
+    CONF_LATE_TEXT,
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
     CONF_RETRY_PROMPT,
     DEFAULT_ABORT_PROMPT,
+    DEFAULT_ANSWER_BUDGET,
     DEFAULT_COMMUNITY_SKILL_ID,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_DIRECT_QUERY_PREFIXES,
@@ -42,6 +45,7 @@ from .const import (
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+    DEFAULT_LATE_TEXT,
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
     DEFAULT_RETRY_PROMPT,
@@ -197,6 +201,7 @@ class SchlaueAntwortenManager:
         self._unsub_midnight: Any = None
         self._pending_followup_tasks: dict[str, asyncio.Task[None]] = {}
         self.answers = AnswerEngine(hass, entry)
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
     def _cancel_pending_followup(self, device: str | None = None) -> None:
         """Cancel running delayed follow-up timer(s) immediately."""
@@ -383,6 +388,10 @@ class SchlaueAntwortenManager:
             self._unsub_midnight = None
 
         self._cancel_pending_followup()
+
+        for task in list(self._background_tasks):
+            task.cancel()
+        self._background_tasks.clear()
 
         self.hass.services.async_remove(DOMAIN, SERVICE_START_DIALOG)
         self.hass.services.async_remove(DOMAIN, SERVICE_ASK_QUESTION)
@@ -670,8 +679,103 @@ class SchlaueAntwortenManager:
             target_device, question, EVENT_ID_INTERACTIVE
         )
 
+    async def async_answer_within_budget(
+        self,
+        question: str,
+        reply_device: str,
+        *,
+        is_followup: bool = False,
+        previous_answer: str = "",
+        start_time: float,
+        path: str,
+    ) -> AnswerResult | None:
+        """Answer within the time budget, or return None and push the answer later.
+
+        The AI keeps working after the budget ran out. Its answer then goes to
+        the phone, so the caller only has to say the late text.
+        """
+        answer = self.answers.async_answer(
+            question,
+            reply_device,
+            is_followup=is_followup,
+            previous_answer=previous_answer,
+            start_time=start_time,
+            path=path,
+        )
+        budget = float(
+            self.entry.options.get(CONF_ANSWER_BUDGET, DEFAULT_ANSWER_BUDGET) or 0
+        )
+        if budget <= 0:
+            return await answer
+
+        task = self.hass.async_create_task(answer)
+        remaining = max(budget - (time.monotonic() - start_time), 0.1)
+        done, _pending = await asyncio.wait({task}, timeout=remaining)
+        if done:
+            return task.result()
+
+        _LOGGER.info(
+            "No answer within the budget of %.1fs (%s); the answer follows by push",
+            budget,
+            path,
+        )
+        late = self.hass.async_create_task(
+            self._async_deliver_late(question, reply_device, task, start_time, path)
+        )
+        # Both are tracked, so unloading stops the AI request as well
+        for background in (task, late):
+            self._background_tasks.add(background)
+            background.add_done_callback(self._background_tasks.discard)
+        return None
+
+    async def _async_deliver_late(
+        self,
+        question: str,
+        reply_device: str,
+        task: asyncio.Task[AnswerResult],
+        start_time: float,
+        path: str,
+    ) -> None:
+        """Wait for an answer that missed the budget and push it to the phone."""
+        result = await task
+        duration = time.monotonic() - start_time
+        if result.error or result.unclear or not result.text:
+            _LOGGER.info("The late answer to %r brought no usable text", question)
+            self.add_history_entry(
+                reply_device,
+                f"[Spät] {question}",
+                "Keine Antwort",
+                duration=duration,
+                mode="Fehler",
+                timing=result.timing_text,
+            )
+            return
+        await self.async_send_to_mobile(
+            question=question,
+            answer=result.text,
+            reply_device=reply_device,
+            confirm=False,
+        )
+        self.add_history_entry(
+            reply_device,
+            f"[Spät] {question}",
+            result.text,
+            duration=duration,
+            char_count=len(result.text),
+            mode="Push",
+            timing=f"KI {result.timing_text} • {path}",
+        )
+        self.record_query_stats(
+            device=reply_device,
+            query=question,
+            duration=duration,
+            llm_seconds=result.llm_seconds,
+            agent=result.agent,
+            path=path,
+        )
+
     async def async_send_to_mobile(
-        self, question: str, answer: str, reply_device: str
+        self, question: str, answer: str, reply_device: str, confirm: bool = True
     ) -> None:
         """Send an answer to the configured smartphone / notify target."""
         notify_target = str(
@@ -705,6 +809,9 @@ class SchlaueAntwortenManager:
             _LOGGER.warning(
                 "Could not send mobile notification to %s: %s", notify_target, err
             )
+
+        if not confirm:
+            return
 
         if confirm_text:
             try:
@@ -1209,7 +1316,7 @@ class SchlaueAntwortenManager:
             CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT
         )
 
-        result = await self.answers.async_answer(
+        result = await self.async_answer_within_budget(
             question,
             reply_device,
             is_followup=is_followup,
@@ -1217,6 +1324,27 @@ class SchlaueAntwortenManager:
             start_time=start_time,
             path=path,
         )
+
+        # Too slow: say so now, the answer follows on the phone
+        if result is None:
+            late_text = str(
+                opts.get(CONF_LATE_TEXT, DEFAULT_LATE_TEXT) or DEFAULT_LATE_TEXT
+            )
+            try:
+                await self.hass.services.async_call(
+                    "notify",
+                    "alexa_media",
+                    {
+                        "target": [reply_device],
+                        "data": {"type": "tts"},
+                        "message": late_text,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to speak late text via notify.alexa_media: %s", err)
+            return
+
         timing_text = result.timing_text
 
         # Error response

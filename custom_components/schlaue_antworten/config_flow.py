@@ -13,6 +13,7 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
+    CONF_ANSWER_BUDGET,
     CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
@@ -25,6 +26,7 @@ from .const import (
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_INTERACTIVE_CONFIRM_PROMPT,
+    CONF_LATE_TEXT,
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
     CONF_PRIMARY_AGENT,
@@ -35,6 +37,7 @@ from .const import (
     CONF_SHORT_ANSWERS,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
+    DEFAULT_ANSWER_BUDGET,
     DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_DIRECT_QUERY_PREFIXES,
@@ -47,6 +50,7 @@ from .const import (
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+    DEFAULT_LATE_TEXT,
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
     DEFAULT_PRIMARY_AGENT,
@@ -79,6 +83,8 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PRIMARY_AGENT: DEFAULT_PRIMARY_AGENT,
                     CONF_FALLBACK_AGENT: DEFAULT_FALLBACK_AGENT,
                     CONF_PRIMARY_TIMEOUT: DEFAULT_PRIMARY_TIMEOUT,
+                    CONF_ANSWER_BUDGET: DEFAULT_ANSWER_BUDGET,
+                    CONF_LATE_TEXT: DEFAULT_LATE_TEXT,
                     CONF_DEFAULT_ECHO: DEFAULT_ECHO,
                     CONF_DIALOG_PROMPT: DEFAULT_DIALOG_PROMPT,
                     CONF_ANNOUNCE_MODEL: DEFAULT_ANNOUNCE_MODEL,
@@ -152,6 +158,18 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     selector.NumberSelectorConfig(
                         min=0,
                         max=15,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_ANSWER_BUDGET,
+                    default=opts.get(CONF_ANSWER_BUDGET, DEFAULT_ANSWER_BUDGET),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=30,
                         step=0.5,
                         unit_of_measurement="s",
                         mode=selector.NumberSelectorMode.BOX,
@@ -244,6 +262,10 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                         CONF_MOBILE_CONFIRMATION,
                         DEFAULT_MOBILE_CONFIRMATION,
                     ),
+                ): selector.TextSelector(),
+                vol.Required(
+                    CONF_LATE_TEXT,
+                    default=opts.get(CONF_LATE_TEXT, DEFAULT_LATE_TEXT),
                 ): selector.TextSelector(),
                 vol.Required(
                     CONF_RETRY_PROMPT,

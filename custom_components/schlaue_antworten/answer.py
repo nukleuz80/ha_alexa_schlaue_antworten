@@ -259,6 +259,8 @@ class AnswerEngine:
             for task, agent in tasks.items():
                 task.cancel()
                 seconds[agent] = time.monotonic() - starts[agent]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     async def async_answer(
         self,

@@ -26,12 +26,17 @@ CONF_DIRECT_QUERY_PREFIXES = "direct_query_prefixes"
 CONF_PROMPT_SHORT = "prompt_short"
 CONF_PROMPT_DETAILED = "prompt_detailed"
 CONF_PRIMARY_TIMEOUT = "primary_timeout"
+CONF_ANSWER_BUDGET = "answer_budget"
+CONF_LATE_TEXT = "late_text"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
 DEFAULT_FALLBACK_AGENT = "conversation.google_ai_conversation"
 # Seconds after which the fallback agent races the primary one (0 = only on an error)
 DEFAULT_PRIMARY_TIMEOUT = 2.5
+# Seconds from the question until Alexa must say something (0 = no limit)
+DEFAULT_ANSWER_BUDGET = 6.0
+DEFAULT_LATE_TEXT = "Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy."
 DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"
 DEFAULT_ANNOUNCE_MODEL = True
