@@ -14,6 +14,7 @@ SKILL_LOCALE = "de-DE"
 SLOT_QUESTION = "frage"
 INTENT_QUESTION = "FrageIntent"
 INTENT_PHONE = "HandyIntent"
+INTENT_START = "StartIntent"
 
 # Alexa's free-text slot needs a word in front of it. Each question word gets
 # its own intent, so Home Assistant can put the word back in front of the slot.
@@ -186,16 +187,23 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
                 "samples": [f"{carrier} {{{SLOT_QUESTION}}}" for carrier in carriers],
             }
         )
+    # In an open dialog Alexa matches a new "frag schlaufuchs ..." against this
+    # skill's sentences, so the invocation itself has to be one of them
+    carriers = [*QUESTION_CARRIERS, f"frag {invocation}", f"frage {invocation}"]
     intents.append(
         {
             "name": INTENT_QUESTION,
             "slots": _question_slot(),
-            "samples": [
-                f"{carrier} {{{SLOT_QUESTION}}}" for carrier in QUESTION_CARRIERS
-            ],
+            "samples": [f"{carrier} {{{SLOT_QUESTION}}}" for carrier in carriers],
         }
     )
     intents.append({"name": INTENT_PHONE, "samples": list(PHONE_SAMPLES)})
+    intents.append(
+        {
+            "name": INTENT_START,
+            "samples": [f"öffne {invocation}", f"starte {invocation}"],
+        }
+    )
     return {
         "interactionModel": {
             "languageModel": {

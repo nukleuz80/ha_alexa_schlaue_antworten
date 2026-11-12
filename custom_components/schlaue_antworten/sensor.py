@@ -81,5 +81,6 @@ class SchlaueAntwortenQueriesTodaySensor(SensorEntity):
             "mittlere_gesamtdauer_sekunden": means["total"],
             "gemessene_anfragen": len(stats.get("recent") or []),
             "datum": stats.get("date"),
+            "letzte_skill_anfrage": self.manager.skill.last_skill_request,
         }
 

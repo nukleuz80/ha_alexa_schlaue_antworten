@@ -92,3 +92,10 @@ def test_invocation_names() -> None:
     assert not is_valid_invocation("Schlaufuchs")
     assert not is_valid_invocation("schlau fuchs 2")
     assert not is_valid_invocation("")
+
+
+def test_invocation_sentences_in_open_dialog() -> None:
+    """In an open dialog "frag schlaufuchs ..." and "öffne schlaufuchs" match."""
+    intents = {intent["name"]: intent for intent in _model()["intents"]}
+    assert "frag schlaufuchs {frage}" in intents[INTENT_QUESTION]["samples"]
+    assert "öffne schlaufuchs" in intents["StartIntent"]["samples"]

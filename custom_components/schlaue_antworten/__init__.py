@@ -430,6 +430,10 @@ class SchlaueAntwortenManager:
 
         return _remove
 
+    def notify_stats_listeners(self) -> None:
+        """Notify all registered stats listeners of a state change."""
+        self._notify_stats_listeners()
+
     def _notify_stats_listeners(self) -> None:
         """Notify all registered stats listeners of a state change."""
         for listener in self._stats_listeners:

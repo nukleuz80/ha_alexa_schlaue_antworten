@@ -382,3 +382,61 @@ async def test_no_detail_keeps_dialog_open(
     )
     assert (await response.json())["speech"] == "Was möchtest du wissen?"
     assert agents.calls == []
+
+
+async def test_no_endless_fallback(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """The second sentence Alexa cannot match ends the dialog."""
+    entry = await setup_entry(OPTIONS)
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(
+            url,
+            json={"application_id": APP_ID, "action": "intent", **payload},
+        )
+        return await response.json()
+
+    first = await post(intent="AMAZON.FallbackIntent")
+    assert first["end_session"] is False
+    assert first["session"] == {"retries": 1}
+    second = await post(intent="AMAZON.FallbackIntent", session=first["session"])
+    assert second["end_session"] is True
+    assert "wieder nicht verstehen" in second["speech"]
+
+    state = hass.states.get("sensor.alexa_schlaue_antworten_ki_anfragen_heute")
+    last = state.attributes["letzte_skill_anfrage"]
+    assert last["intent"] == "AMAZON.FallbackIntent"
+    assert last["offen"] == "False"
+
+
+async def test_start_intent_and_invocation_question(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """"öffne schlaufuchs" and "frag schlaufuchs ..." also work in an open dialog."""
+    entry = await setup_entry(OPTIONS)
+    agents.answers[PRIMARY] = "Ein Dichter."
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(
+            url,
+            json={"application_id": APP_ID, "action": "intent", **payload},
+        )
+        return await response.json()
+
+    start = await post(intent="StartIntent", session={"retries": 1})
+    assert start["speech"].endswith("Was möchtest du wissen?")
+    assert start["end_session"] is False
+    answer = await post(intent="FrageIntent", text="wer goethe war")
+    assert answer["speech"] == "Ein Dichter."
+    assert agents.calls[-1]["text"].count("wer goethe war") >= 1

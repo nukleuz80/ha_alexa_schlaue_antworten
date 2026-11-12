@@ -7,6 +7,7 @@ so Alexa speaks it at once, without a second trip through Alexa Media.
 from __future__ import annotations
 
 from collections import deque
+import json
 import logging
 import secrets
 import time
@@ -23,6 +24,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_DEFAULT_ECHO,
+    CONF_ABORT_PROMPT,
     CONF_DIALOG_PROMPT,
     CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_FOLLOWUP_PROMPT,
@@ -31,6 +33,7 @@ from .const import (
     CONF_LATE_TEXT,
     CONF_RETRY_PROMPT,
     CONF_SKILL_KEEP_OPEN,
+    DEFAULT_ABORT_PROMPT,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_FOLLOWUP_PROMPT,
@@ -48,6 +51,7 @@ from .const import (
 )
 from .skill_model import (
     INTENT_PHONE,
+    INTENT_START,
     build_skill_code,
     interaction_model_json,
     question_from_intent,
@@ -73,6 +77,7 @@ SESSION_STAGE = "stage"
 SESSION_QUESTION = "question"
 SESSION_ANSWER = "answer"
 STAGE_FOLLOWUP = "followup"
+SESSION_RETRIES = "retries"
 
 INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
 INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
@@ -107,6 +112,7 @@ class SkillConnector:
         self._requests: deque[float] = deque()
         self._active = False
         self.last_request: dict[str, str] | None = None
+        self.last_skill_request: dict[str, str] | None = None
 
     @property
     def is_linked(self) -> bool:
@@ -229,7 +235,7 @@ class SkillConnector:
         text: str,
         end_session: bool = True,
         reprompt: str | None = None,
-        session: dict[str, str] | None = None,
+        session: dict[str, Any] | None = None,
     ) -> web.Response:
         """Return the reply the skill code turns into Alexa speech."""
         reply: dict[str, Any] = {
@@ -289,7 +295,42 @@ class SkillConnector:
             _LOGGER.warning("Too many skill requests, slowing down")
             return web.Response(status=429)
 
-        if action == ACTION_LAUNCH:
+        response = await self._async_dispatch(
+            action, intent, text, device_id, session, start_time
+        )
+        self._remember(action, intent, text, response)
+        return response
+
+    def _remember(
+        self, action: str, intent: str | None, text: str, response: web.Response
+    ) -> None:
+        """Keep the latest skill request for the sensor, to see what Alexa sent."""
+        try:
+            reply = json.loads(response.text or "{}")
+        except ValueError:
+            reply = {}
+        self.last_skill_request = {
+            "zeit": dt_util.now().strftime("%d.%m. %H:%M:%S"),
+            "intent": intent or action,
+            "text": text[:MAX_TEXT_LENGTH],
+            "antwort": str(reply.get("speech", ""))[:200],
+            "offen": str(not reply.get("end_session", True)),
+        }
+        self.manager.notify_stats_listeners()
+
+    async def _async_dispatch(
+        self,
+        action: str,
+        intent: str | None,
+        text: str,
+        device_id: str | None,
+        session: dict[str, Any],
+        start_time: float,
+    ) -> web.Response:
+        """Answer a valid request from the linked skill."""
+        retries = session.get(SESSION_RETRIES)
+        retries = retries if isinstance(retries, int) else 0
+        if action == ACTION_LAUNCH or intent == INTENT_START:
             return self._ask_again(
                 self._option(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
             )
@@ -306,15 +347,30 @@ class SkillConnector:
                 )
             question = question_from_intent(intent, text)
             if question is None:
-                return self._answer_other_intent(intent, session)
+                return self._answer_other_intent(intent, session, retries)
         else:
             question = text
 
         question = " ".join(question.split())[:MAX_TEXT_LENGTH]
         if len(question) < 2:
-            return self._ask_again(self._retry_prompt())
+            return self._not_understood(retries)
 
-        return await self._async_ask(question, self._echo_for(device_id), start_time)
+        return await self._async_ask(
+            question, self._echo_for(device_id), start_time, retries=retries
+        )
+
+    def _not_understood(self, retries: int) -> web.Response:
+        """Ask once more to repeat, the second time end the dialog.
+
+        Without this, every sentence in an open dialog that Alexa cannot match
+        leads to the fallback again, and the dialog never ends.
+        """
+        if retries >= 1:
+            return self._speech(self._option(CONF_ABORT_PROMPT, DEFAULT_ABORT_PROMPT))
+        text = self._retry_prompt()
+        return self._speech(
+            text, end_session=False, reprompt=text, session={SESSION_RETRIES: 1}
+        )
 
     @staticmethod
     def _followup_from(session: dict[str, Any]) -> tuple[str, str] | None:
@@ -340,7 +396,7 @@ class SkillConnector:
         )
 
     def _answer_other_intent(
-        self, intent: str | None, session: dict[str, Any]
+        self, intent: str | None, session: dict[str, Any], retries: int
     ) -> web.Response:
         """Answer intents that are not a question."""
         if (
@@ -362,7 +418,7 @@ class SkillConnector:
         if intent in INTENTS_SILENT_OK:
             return self._speech("Okay.")
         # AMAZON.FallbackIntent and anything unknown
-        return self._ask_again(self._retry_prompt())
+        return self._not_understood(retries)
 
     @property
     def keeps_dialog_open(self) -> bool:
@@ -396,6 +452,7 @@ class SkillConnector:
         start_time: float,
         *,
         previous_answer: str | None = None,
+        retries: int = 0,
     ) -> web.Response:
         """Answer a question within the skill's time limit.
 
@@ -433,7 +490,7 @@ class SkillConnector:
             return self._speech(result.speech)
 
         if result.unclear:
-            return self._ask_again(self._retry_prompt())
+            return self._not_understood(retries)
 
         manager.add_history_entry(
             device,
