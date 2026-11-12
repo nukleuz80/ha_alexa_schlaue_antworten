@@ -24,12 +24,16 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
+    CONF_ENABLE_DETAILED_FOLLOWUP,
+    CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_INVOCATION_NAME,
     CONF_LATE_TEXT,
     CONF_RETRY_PROMPT,
     CONF_SKILL_KEEP_OPEN,
     DEFAULT_DIALOG_PROMPT,
+    DEFAULT_ENABLE_DETAILED_FOLLOWUP,
+    DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INVOCATION_NAME,
@@ -64,6 +68,11 @@ ACTION_LAUNCH = "launch"
 ACTION_INTENT = "intent"
 ACTIONS = (ACTION_ASK, ACTION_LAUNCH, ACTION_INTENT)
 MAX_INTENT_LENGTH = 100
+# Session attributes the skill keeps between turns of one dialog
+SESSION_STAGE = "stage"
+SESSION_QUESTION = "question"
+SESSION_ANSWER = "answer"
+STAGE_FOLLOWUP = "followup"
 
 INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
 INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
@@ -217,7 +226,10 @@ class SkillConnector:
 
     @staticmethod
     def _speech(
-        text: str, end_session: bool = True, reprompt: str | None = None
+        text: str,
+        end_session: bool = True,
+        reprompt: str | None = None,
+        session: dict[str, str] | None = None,
     ) -> web.Response:
         """Return the reply the skill code turns into Alexa speech."""
         reply: dict[str, Any] = {
@@ -226,6 +238,8 @@ class SkillConnector:
         }
         if reprompt and not end_session:
             reply["reprompt"] = reprompt[:MAX_SPEECH_LENGTH]
+        if session:
+            reply["session"] = session
         return web.json_response(reply)
 
     def _ask_again(self, text: str) -> web.Response:
@@ -249,6 +263,7 @@ class SkillConnector:
         text = payload.get("text") or ""
         device_id = payload.get("device_id")
         intent = payload.get("intent")
+        session = payload.get("session") or {}
         if (
             not isinstance(application_id, str)
             or not application_id
@@ -257,6 +272,7 @@ class SkillConnector:
             or not isinstance(device_id, str | None)
             or not isinstance(intent, str | None)
             or (intent is not None and len(intent) > MAX_INTENT_LENGTH)
+            or not isinstance(session, dict)
         ):
             return web.Response(status=400)
 
@@ -279,9 +295,18 @@ class SkillConnector:
             )
 
         if action == ACTION_INTENT:
+            if intent == "AMAZON.YesIntent" and (
+                followup := self._followup_from(session)
+            ):
+                return await self._async_ask(
+                    followup[0],
+                    self._echo_for(device_id),
+                    start_time,
+                    previous_answer=followup[1],
+                )
             question = question_from_intent(intent, text)
             if question is None:
-                return self._answer_other_intent(intent)
+                return self._answer_other_intent(intent, session)
         else:
             question = text
 
@@ -291,8 +316,40 @@ class SkillConnector:
 
         return await self._async_ask(question, self._echo_for(device_id), start_time)
 
-    def _answer_other_intent(self, intent: str | None) -> web.Response:
+    @staticmethod
+    def _followup_from(session: dict[str, Any]) -> tuple[str, str] | None:
+        """Return question and short answer if Alexa just offered more detail."""
+        question = session.get(SESSION_QUESTION)
+        answer = session.get(SESSION_ANSWER)
+        if (
+            session.get(SESSION_STAGE) != STAGE_FOLLOWUP
+            or not isinstance(question, str)
+            or not isinstance(answer, str)
+            or not question.strip()
+        ):
+            return None
+        return question[:MAX_TEXT_LENGTH], answer[:MAX_SPEECH_LENGTH]
+
+    @property
+    def offers_detail(self) -> bool:
+        """Return whether a short answer is followed by the offer of more detail."""
+        return bool(
+            self.entry.options.get(
+                CONF_ENABLE_DETAILED_FOLLOWUP, DEFAULT_ENABLE_DETAILED_FOLLOWUP
+            )
+        )
+
+    def _answer_other_intent(
+        self, intent: str | None, session: dict[str, Any]
+    ) -> web.Response:
         """Answer intents that are not a question."""
+        if (
+            intent == "AMAZON.NoIntent"
+            and self.keeps_dialog_open
+            and self._followup_from(session)
+        ):
+            # "Nein" to more detail, but the dialog goes on
+            return self._ask_again(SKILL_ANOTHER_TEXT)
         if intent in INTENTS_GOODBYE:
             return self._speech(self._option(CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT))
         if intent == "AMAZON.HelpIntent":
@@ -333,9 +390,18 @@ class SkillConnector:
         return str(self.entry.options.get(key, default) or default)
 
     async def _async_ask(
-        self, question: str, device: str, start_time: float
+        self,
+        question: str,
+        device: str,
+        start_time: float,
+        *,
+        previous_answer: str | None = None,
     ) -> web.Response:
-        """Answer a question within the skill's time limit."""
+        """Answer a question within the skill's time limit.
+
+        With a previous answer, the user said "Ja" to the offer of more detail.
+        """
+        is_followup = previous_answer is not None
         manager = self.manager
         self.last_request = {
             "time": dt_util.now().strftime("%d.%m. %H:%M:%S"),
@@ -344,6 +410,8 @@ class SkillConnector:
         result = await manager.async_answer_within_budget(
             question,
             device,
+            is_followup=is_followup,
+            previous_answer=previous_answer or "",
             start_time=start_time,
             path=PATH_SKILL,
             budget=SKILL_BUDGET_SECONDS,
@@ -369,19 +437,32 @@ class SkillConnector:
 
         manager.add_history_entry(
             device,
-            question,
+            f"[Vertiefung] {question}" if is_followup else question,
             result.speech,
             duration=duration,
             char_count=len(result.speech),
-            mode="Kurz",
+            mode="Lang" if is_followup else "Kurz",
             timing=f"KI {result.timing_text} • {PATH_SKILL}",
         )
         manager.record_query_stats(
             device=device,
             query=question,
+            is_followup=is_followup,
             duration=duration,
             llm_seconds=result.llm_seconds,
             agent=result.agent,
             path=PATH_SKILL,
         )
-        return self._answer(result.speech)
+        if is_followup or not self.offers_detail:
+            return self._answer(result.speech)
+        prompt = self._option(CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT)
+        return self._speech(
+            f"{result.speech} {prompt}",
+            end_session=False,
+            reprompt=prompt,
+            session={
+                SESSION_STAGE: STAGE_FOLLOWUP,
+                SESSION_QUESTION: question,
+                SESSION_ANSWER: result.speech,
+            },
+        )

@@ -299,3 +299,86 @@ async def test_dialog_stays_open(
     no = await post(action="intent", intent="AMAZON.NoIntent")
     assert no == {"speech": "Alles klar.", "end_session": True}
     assert len(agents.calls) == 3
+
+
+async def test_detail_on_yes(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """After a short answer Alexa offers more; "Ja" brings the detailed answer."""
+    entry = await setup_entry({**OPTIONS, "enable_detailed_followup": True})
+    manager = hass.data[DOMAIN][entry.entry_id]
+    url = f"/api/webhook/{manager.skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        return await response.json()
+
+    agents.answers[PRIMARY] = "Etwa 384.400 Kilometer."
+    short = await post(action="intent", intent="WieIntent", text="weit ist der mond")
+    assert short["speech"].startswith("Etwa 384.400 Kilometer. Möchtest du")
+    assert short["end_session"] is False
+    assert short["session"] == {
+        "stage": "followup",
+        "question": "wie weit ist der mond",
+        "answer": "Etwa 384.400 Kilometer.",
+    }
+
+    agents.answers[PRIMARY] = "Der Mond kreist in etwa 384.400 Kilometern um uns."
+    detail = await post(
+        action="intent", intent="AMAZON.YesIntent", session=short["session"]
+    )
+    assert detail == {
+        "speech": "Der Mond kreist in etwa 384.400 Kilometern um uns.",
+        "end_session": True,
+    }
+    assert "Etwa 384.400 Kilometer." in agents.calls[-1]["text"]
+    assert manager.stats["today_detailed"] == 1
+
+    no = await post(action="intent", intent="AMAZON.NoIntent", session=short["session"])
+    assert no == {"speech": "Alles klar.", "end_session": True}
+    assert len(agents.calls) == 2
+
+
+async def test_no_detail_keeps_dialog_open(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """With an open dialog "Nein" to more detail asks for the next question."""
+    entry = await setup_entry(
+        {**OPTIONS, "enable_detailed_followup": True, "skill_keep_open": True}
+    )
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+    session = {
+        "stage": "followup",
+        "question": "wer war goethe",
+        "answer": "Ein Dichter.",
+    }
+    response = await client.post(
+        url,
+        json={
+            "application_id": APP_ID,
+            "action": "intent",
+            "intent": "AMAZON.NoIntent",
+            "session": session,
+        },
+    )
+    reply = await response.json()
+    assert reply["speech"] == "Noch eine Frage?" and reply["end_session"] is False
+    # A "Ja" without a stored question just asks what the user wants to know
+    response = await client.post(
+        url,
+        json={
+            "application_id": APP_ID,
+            "action": "intent",
+            "intent": "AMAZON.YesIntent",
+        },
+    )
+    assert (await response.json())["speech"] == "Was möchtest du wissen?"
+    assert agents.calls == []
