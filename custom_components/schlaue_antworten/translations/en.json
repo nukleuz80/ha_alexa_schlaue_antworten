@@ -24,6 +24,9 @@
     "button": {
       "start_dialog": {
         "name": "Start dialogue"
+      },
+      "reset_skill": {
+        "name": "Reset skill link"
       }
     }
   },
@@ -41,6 +44,7 @@
         "title": "Settings & Prompts",
         "description": "Configure AI conversation agents, prompts, and settings.\n\n*Note: Custom prompts provided as-is without warranty - placeholder for question must remain present.*",
         "data": {
+          "voice_path": "Voice path (how Alexa hands over the question)",
           "primary_agent": "Primary AI agent",
           "fallback_agent": "Fallback AI agent (used during outage/high demand)",
           "primary_timeout": "Time limit for the primary agent (seconds)",
@@ -67,6 +71,7 @@
           "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders [question] and [previous_answer])"
         },
         "data_description": {
+          "voice_path": "Community: the previous path via the Actionable Notifications skill. Own skill: your Alexa skill „Schlaufuchs“ calls Home Assistant directly and speaks the answer at once. Both: both paths are active at the same time.",
           "primary_timeout": "If the primary agent has not answered by then, the fallback agent starts in parallel and the first valid answer wins. 0 = fallback agent only on an error.",
           "answer_budget": "If no agent has answered by then, Alexa says the text for slow answers and the answer follows as a push message to your phone. 0 = no time budget."
         }
@@ -118,6 +123,15 @@
           "name": "Event ID",
           "description": "Unique ID for the fired event in automations."
         }
+      }
+    }
+  },
+  "selector": {
+    "voice_path": {
+      "options": {
+        "community": "Community skill (previous)",
+        "skill": "Own skill",
+        "both": "Both"
       }
     }
   }

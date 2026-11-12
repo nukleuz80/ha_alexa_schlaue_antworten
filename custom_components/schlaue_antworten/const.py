@@ -28,6 +28,7 @@ CONF_PROMPT_DETAILED = "prompt_detailed"
 CONF_PRIMARY_TIMEOUT = "primary_timeout"
 CONF_ANSWER_BUDGET = "answer_budget"
 CONF_LATE_TEXT = "late_text"
+CONF_VOICE_PATH = "voice_path"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
@@ -36,6 +37,11 @@ DEFAULT_FALLBACK_AGENT = "conversation.google_ai_conversation"
 DEFAULT_PRIMARY_TIMEOUT = 2.5
 # Seconds from the question until Alexa must say something (0 = no limit)
 DEFAULT_ANSWER_BUDGET = 6.0
+VOICE_PATH_COMMUNITY = "community"
+VOICE_PATH_SKILL = "skill"
+VOICE_PATH_BOTH = "both"
+VOICE_PATHS = [VOICE_PATH_COMMUNITY, VOICE_PATH_SKILL, VOICE_PATH_BOTH]
+DEFAULT_VOICE_PATH = VOICE_PATH_COMMUNITY
 DEFAULT_LATE_TEXT = "Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy."
 DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"

@@ -35,6 +35,7 @@ from .const import (
     CONF_PROMPT_SHORT,
     CONF_RETRY_PROMPT,
     CONF_SHORT_ANSWERS,
+    CONF_VOICE_PATH,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_ANSWER_BUDGET,
@@ -59,7 +60,9 @@ from .const import (
     DEFAULT_PROMPT_SHORT,
     DEFAULT_RETRY_PROMPT,
     DEFAULT_SHORT_ANSWERS,
+    DEFAULT_VOICE_PATH,
     DOMAIN,
+    VOICE_PATHS,
 )
 
 
@@ -85,6 +88,7 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PRIMARY_TIMEOUT: DEFAULT_PRIMARY_TIMEOUT,
                     CONF_ANSWER_BUDGET: DEFAULT_ANSWER_BUDGET,
                     CONF_LATE_TEXT: DEFAULT_LATE_TEXT,
+                    CONF_VOICE_PATH: DEFAULT_VOICE_PATH,
                     CONF_DEFAULT_ECHO: DEFAULT_ECHO,
                     CONF_DIALOG_PROMPT: DEFAULT_DIALOG_PROMPT,
                     CONF_ANNOUNCE_MODEL: DEFAULT_ANNOUNCE_MODEL,
@@ -139,6 +143,16 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
+                vol.Required(
+                    CONF_VOICE_PATH,
+                    default=opts.get(CONF_VOICE_PATH, DEFAULT_VOICE_PATH),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=VOICE_PATHS,
+                        translation_key=CONF_VOICE_PATH,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
                 vol.Required(
                     CONF_PRIMARY_AGENT,
                     default=opts.get(CONF_PRIMARY_AGENT, DEFAULT_PRIMARY_AGENT),

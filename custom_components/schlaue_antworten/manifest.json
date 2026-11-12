@@ -1,13 +1,18 @@
 {
   "domain": "schlaue_antworten",
   "name": "Schlaue Antworten",
-  "codeowners": ["@nukleuz"],
+  "codeowners": [
+    "@nukleuz"
+  ],
   "config_flow": true,
+  "dependencies": [
+    "http",
+    "webhook"
+  ],
   "documentation": "https://github.com/nukleuz80/ha_alexa_schlaue_antworten",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/nukleuz80/ha_alexa_schlaue_antworten/issues",
   "single_config_entry": true,
-  "version": "1.0.35"
+  "version": "1.0.36"
 }
-

@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.35-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.36-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.36** | 12.11.2026 | **Grundlage für den eigenen Alexa-Skill:** Neue Option *Sprachweg* (Community-Skill wie bisher, eigener Skill oder beide; Standard bleibt Community). Mit eigenem Skill nimmt Schlaue Antworten Fragen über eine geheime Webhook-Adresse entgegen und gibt die Antwort direkt in der Rückmeldung zurück, damit Alexa sie sofort spricht – ohne Umweg über Alexa Media. Der erste Skill, der die Adresse aufruft, wird gekoppelt, alle anderen werden abgewiesen; dazu Prüfung der Anfragen und eine Begrenzung auf 20 Fragen pro Minute. Der Skill-Weg wartet höchstens 6 Sekunden und liefert spätere Antworten aufs Handy nach. Neuer Knopf *Skill-Kopplung zurücksetzen* erzeugt eine neue Adresse. Skill-Code und Einrichtung folgen in der nächsten Version. |
 | **v1.0.35** | 12.11.2026 | **Zeitbudget mit Nachlieferung aufs Handy:** Hat nach dem neuen Zeitbudget (Standard 6 s ab der Frage, einstellbar unter *Einstellungen & Prompts*) noch kein Agent geantwortet, sagt Alexa sofort *„Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy.“* (Text einstellbar). Die KI rechnet im Hintergrund weiter, die fertige Antwort kommt per Push an das eingestellte Benachrichtigungsziel und erscheint im Dialog-Log als *[Spät]*. 0 Sekunden schaltet das Zeitbudget ab. Beim Neuladen der Integration werden noch laufende Anfragen sauber abgebrochen. |
 | **v1.0.34** | 12.11.2026 | **Wettlauf statt Warteschlange:** Antwortet der primäre Agent nicht innerhalb des neuen Zeitlimits (Standard 2,5 s, einstellbar unter *Einstellungen & Prompts*), startet der Ausweich-Agent parallel. Die erste gültige Antwort gewinnt, der langsamere Agent wird abgebrochen. Bei einem Fehler (z. B. 503) startet der Ausweich-Agent sofort, ohne das Zeitlimit abzuwarten. 0 Sekunden stellt das alte Verhalten ein (Ausweich-Agent nur bei Fehler). Das Dialog-Log zeigt die Zeiten beider Agenten. |
 | **v1.0.33** | 12.11.2026 | **Neuer Antwort-Kern (Umbau ohne Verhaltensänderung):** Prompt-Bau, KI-Aufruf mit Fallback, Fehler- und Unklar-Erkennung, Bereinigung und Smart-Home-Kontext stecken jetzt im eigenen Modul `answer.py`. Die Sprachausgabe ist davon getrennt. Das ist die Grundlage für den kommenden eigenen Alexa-Skill und einen späteren Assist-Agenten. Neue Tests sichern das Verhalten ab. |

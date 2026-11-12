@@ -24,6 +24,9 @@
     "button": {
       "start_dialog": {
         "name": "Dialog starten"
+      },
+      "reset_skill": {
+        "name": "Skill-Kopplung zurücksetzen"
       }
     }
   },
@@ -41,6 +44,7 @@
         "title": "Einstellungen & Prompts",
         "description": "Passe Einstellungen, Prompts und Dialoge an.\n\n*Hinweis: Eigene Prompts auf eigene Verantwortung (ohne Gewähr) – Platzhalter für die Frage muss erhalten bleiben.*",
         "data": {
+          "voice_path": "Sprachweg (wie Alexa die Frage übergibt)",
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
           "primary_timeout": "Zeitlimit für den primären Agenten (Sekunden)",
@@ -67,6 +71,7 @@
           "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter [question] und [previous_answer] nutzen)"
         },
         "data_description": {
+          "voice_path": "Community: der bisherige Weg über den Actionable-Notifications-Skill. Eigener Skill: dein Alexa-Skill „Schlaufuchs“ ruft Home Assistant direkt auf und spricht die Antwort sofort. Beide: beide Wege sind gleichzeitig aktiv.",
           "primary_timeout": "Antwortet der primäre Agent bis dahin nicht, startet der Ausweich-Agent parallel und die erste gültige Antwort gewinnt. 0 = Ausweich-Agent nur bei einem Fehler.",
           "answer_budget": "Hat bis dahin kein Agent geantwortet, sagt Alexa den Text für zu langsame Antworten und die Antwort kommt per Push aufs Handy nach. 0 = kein Zeitbudget."
         }
@@ -118,6 +123,15 @@
           "name": "Event-Kennung",
           "description": "Eindeutige ID für das ausgelöste Event in Automatisierungen."
         }
+      }
+    }
+  },
+  "selector": {
+    "voice_path": {
+      "options": {
+        "community": "Community-Skill (bisher)",
+        "skill": "Eigener Skill",
+        "both": "Beide"
       }
     }
   }

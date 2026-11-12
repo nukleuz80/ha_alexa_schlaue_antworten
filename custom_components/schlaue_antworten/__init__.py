@@ -33,6 +33,7 @@ from .const import (
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
     CONF_RETRY_PROMPT,
+    CONF_VOICE_PATH,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANSWER_BUDGET,
     DEFAULT_COMMUNITY_SKILL_ID,
@@ -49,6 +50,7 @@ from .const import (
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
     DEFAULT_RETRY_PROMPT,
+    DEFAULT_VOICE_PATH,
     DOMAIN,
     ENTITY_ID_ACTIONABLE_INPUT_TEXT,
     EVENT_ACTIONABLE_NOTIFICATION,
@@ -63,7 +65,10 @@ from .const import (
     SERVICE_INTERACTIVE_QUESTION,
     SERVICE_START_DIALOG,
     TRIGGER_BOOLEAN_ENTITY,
+    VOICE_PATH_COMMUNITY,
+    VOICE_PATH_SKILL,
 )
+from .skill import SkillConnector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -202,6 +207,10 @@ class SchlaueAntwortenManager:
         self._pending_followup_tasks: dict[str, asyncio.Task[None]] = {}
         self.answers = AnswerEngine(hass, entry)
         self._background_tasks: set[asyncio.Task[Any]] = set()
+        voice_path = entry.options.get(CONF_VOICE_PATH, DEFAULT_VOICE_PATH)
+        self.uses_community = voice_path != VOICE_PATH_SKILL
+        self.uses_skill = voice_path != VOICE_PATH_COMMUNITY
+        self.skill = SkillConnector(hass, entry, self)
 
     def _cancel_pending_followup(self, device: str | None = None) -> None:
         """Cancel running delayed follow-up timer(s) immediately."""
@@ -321,23 +330,29 @@ class SchlaueAntwortenManager:
 
     async def async_setup(self) -> None:
         """Register listeners and services."""
-        # 1. Listen for Alexa Actionable Notification responses
-        self._unsub_event = self.hass.bus.async_listen(
-            EVENT_ACTIONABLE_NOTIFICATION, self._async_handle_notification_event
-        )
+        if self.uses_community:
+            # 1. Listen for Alexa Actionable Notification responses
+            self._unsub_event = self.hass.bus.async_listen(
+                EVENT_ACTIONABLE_NOTIFICATION, self._async_handle_notification_event
+            )
 
-        # 2. Listen for the existing input_boolean trigger (Scene/Routine compatibility)
-        self._unsub_state = async_track_state_change_event(
-            self.hass,
-            [TRIGGER_BOOLEAN_ENTITY],
-            self._async_handle_boolean_trigger,
-        )
+            # 2. Listen for the input_boolean trigger (Scene/Routine compatibility)
+            self._unsub_state = async_track_state_change_event(
+                self.hass,
+                [TRIGGER_BOOLEAN_ENTITY],
+                self._async_handle_boolean_trigger,
+            )
 
-        # 3. Listen for direct voice queries in one sentence (e.g. "schlaue frage ...")
-        self._unsub_last_called = self.hass.bus.async_listen(
-            "alexa_media_last_called_event",
-            self._async_handle_last_called_event,
-        )
+            # 3. Listen for direct voice queries (e.g. "schlaue frage ...")
+            self._unsub_last_called = self.hass.bus.async_listen(
+                "alexa_media_last_called_event",
+                self._async_handle_last_called_event,
+            )
+
+        # The own skill gets its answer straight back through a webhook
+        await self.skill.async_load()
+        if self.uses_skill:
+            self.skill.async_start()
 
         # 4. Load persistent daily statistics
         stored_stats = await self._stats_store.async_load()
@@ -388,6 +403,7 @@ class SchlaueAntwortenManager:
             self._unsub_midnight = None
 
         self._cancel_pending_followup()
+        self.skill.async_stop()
 
         for task in list(self._background_tasks):
             task.cancel()
@@ -688,11 +704,13 @@ class SchlaueAntwortenManager:
         previous_answer: str = "",
         start_time: float,
         path: str,
+        budget: float | None = None,
     ) -> AnswerResult | None:
         """Answer within the time budget, or return None and push the answer later.
 
         The AI keeps working after the budget ran out. Its answer then goes to
-        the phone, so the caller only has to say the late text.
+        the phone, so the caller only has to say the late text. A given budget
+        caps the configured one, as the own skill must reply within seconds.
         """
         answer = self.answers.async_answer(
             question,
@@ -702,9 +720,13 @@ class SchlaueAntwortenManager:
             start_time=start_time,
             path=path,
         )
-        budget = float(
+        configured = float(
             self.entry.options.get(CONF_ANSWER_BUDGET, DEFAULT_ANSWER_BUDGET) or 0
         )
+        if budget is None:
+            budget = configured
+        elif configured > 0:
+            budget = min(budget, configured)
         if budget <= 0:
             return await answer
 
