@@ -64,6 +64,7 @@ class SchlaueAntwortenQueriesTodaySensor(SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return statistical details as extra attributes."""
         stats = self.manager.stats
+        means = self.manager.timing_summary()
         return {
             "anfragen_heute": stats.get("today_count", 0),
             "kurze_antworten_heute": stats.get("today_short", 0),
@@ -73,6 +74,12 @@ class SchlaueAntwortenQueriesTodaySensor(SensorEntity):
             "letztes_echo": stats.get("last_device"),
             "letzte_uhrzeit": stats.get("last_time"),
             "letzte_dauer_sekunden": stats.get("last_duration"),
+            "letzte_ki_dauer_sekunden": stats.get("last_llm_seconds"),
+            "letzter_agent": stats.get("last_agent"),
+            "letzter_weg": stats.get("last_path"),
+            "mittlere_ki_dauer_sekunden": means["llm"],
+            "mittlere_gesamtdauer_sekunden": means["total"],
+            "gemessene_anfragen": len(stats.get("recent") or []),
             "datum": stats.get("date"),
         }
 

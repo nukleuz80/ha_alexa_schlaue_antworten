@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.31-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.32-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -38,7 +38,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 
 ## ✨ Features
 
-- 📊 **Nativer Statistik-Sensor (Tageszähler ab v1.0.26):** Stellt `sensor.alexa_schlaue_antworten_ki_anfragen_heute` bereit; zählt alle KI-Anfragen des aktuellen Tages, setzt sich um Mitternacht automatisch auf 0 zurück, speichert Daten persistent im HA-Speicher (`.storage`) und liefert nützliche Attribute (Kurz- vs. Lang-Antworten, Gesamtzahl, letztes Echo, Zeitstempel & Dauer).
+- 📊 **Nativer Statistik-Sensor (Tageszähler ab v1.0.26):** Stellt `sensor.alexa_schlaue_antworten_ki_anfragen_heute` bereit; zählt alle KI-Anfragen des aktuellen Tages, setzt sich um Mitternacht automatisch auf 0 zurück, speichert Daten persistent im HA-Speicher (`.storage`) und liefert nützliche Attribute (Kurz- vs. Lang-Antworten, Gesamtzahl, letztes Echo, Zeitstempel & Dauer). Ab v1.0.32 zusätzlich KI-Dauer, Agent, Sprachweg und Mittelwerte der letzten 20 Anfragen.
 - ⚡ **Native Ein-Satz-Direktabfrage (ab v1.0.24):** Stelle deine Frage direkt in einem Satz (*„Alexa, schlaue Frage: ...“* oder *„Alexa, frage KI: ...“*), ohne dass zuvor eine Zwischenfrage abgewartet werden muss – 100 % nativ ohne YAML-Automationen!
 - 🚀 **100 % Zero-YAML Setup (ab v1.0.23):** Vollständige Integration out-of-the-box ohne YAML-Konfiguration.
 - 🔘 **Native Schalter- & Taster-Entitäten:** Stellt `switch.alexa_schlaue_antworten_dialog_starten` bereit, der direkt in Alexa-Routinen geschaltet werden kann, sowie einen praktischen Button für Dashboards.
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.32** | 12.11.2026 | **Antwortzeiten messen:** Jede Anfrage misst jetzt getrennt, wie lange die KI gebraucht hat (je Agent, auch beim Fallback) und wie lange alles zusammen gedauert hat. Das Dialog-Log zeigt Agent, KI-Zeit und Sprachweg (direkt, Dialog, Dienst). Der Sensor `sensor.alexa_schlaue_antworten_ki_anfragen_heute` hat neue Attribute: `letzte_ki_dauer_sekunden`, `letzter_agent`, `letzter_weg` sowie die Mittelwerte `mittlere_ki_dauer_sekunden` und `mittlere_gesamtdauer_sekunden` über die letzten 20 Anfragen. |
 | **v1.0.31** | 29.10.2026 | **Vibe Coding Manifest & Badges:** Offizieller Hinweis und Badges zur leidenschaftlichen KI-gestützten Entwicklung (*„Vibe Coding mit voller Hingabe“*) in Dokumentation und Repository aufgenommen. |
 | **v1.0.30** | 29.10.2026 | **Dokumentations-Offensive & Speed-Guide:** Neuer umfassender Praxis-Leitfaden [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md) mit detaillierten Latenz- und Throughput-Benchmarks (Tokens/s), Free-Tier-Empfehlungen (Google Gemini 2.5 Flash, OpenRouter Free Pool) und Hardware-Beschleuniger-Vergleich (Llama 3.3 70B via Cerebras/Groq). |
 | **v1.0.29** | 27.10.2026 | **Wiederherstellung & Präzisions-Timing für Vertiefungs-Nachfragen:** 1) Zuverlässiges Auslösen der interaktiven Vertiefungs-Nachfrage (*„Möchtest du eine ausführlichere Erklärung? Ja oder Nein?“*) mit geöffnetem Mikrofon auch bei Antworten über 175 Zeichen; 2) Intelligentes TTS-Timing (~11 Zeichen/Sekunde + 1,8s Latenz-Puffer) mit Audio-Statusüberprüfung (`playing`-State-Guard) und 0,6s Cooldown verhindert jegliche Skill-Kollisionen und Simon-Says-Fehler; 3) Automatischer Abbruch bei gesprochenem Zwischenstopp (*„Alexa, Stopp“*); 4) Gerätebezogenes Task-Management (`_pending_followup_tasks`) mit sofortiger Stornierung bei neuen Dialogen oder Direktabfragen. |

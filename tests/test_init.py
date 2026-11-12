@@ -95,3 +95,49 @@ async def test_both_agents_fail(
 
     assert "überlastet" in spoken[-1]["message"]
     assert manager.stats["today_count"] == 0
+
+
+async def test_timings_are_recorded(
+    hass: HomeAssistant,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+    spoken: list[dict],
+) -> None:
+    """Every answer stores AI time, agent and path for the sensor and the log."""
+    entry = await setup_entry({**OPTIONS, "enable_logging": True})
+    agents.answers[PRIMARY] = "Error talking to API: 503"
+    agents.answers[FALLBACK] = "Etwa 384.400 Kilometer."
+
+    manager = hass.data[DOMAIN][entry.entry_id]
+    await manager.async_process_and_speak("Wie weit ist der Mond?", ECHO, path="direkt")
+    await manager.async_process_and_speak("Wer war Goethe?", ECHO)
+    await hass.async_block_till_done()
+
+    stats = manager.stats
+    assert stats["last_agent"] == FALLBACK
+    assert stats["last_path"] == "dienst"
+    assert stats["last_llm_seconds"] is not None
+    assert [item["path"] for item in stats["recent"]] == ["direkt", "dienst"]
+    assert manager.timing_summary()["llm"] is not None
+    assert "direkt" in manager.get_history_markdown()
+
+    state = hass.states.get("sensor.alexa_schlaue_antworten_ki_anfragen_heute")
+    assert state is not None
+    assert state.attributes["letzter_agent"] == FALLBACK
+    assert state.attributes["gemessene_anfragen"] == 2
+
+
+async def test_recent_timings_are_capped(
+    hass: HomeAssistant,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+    spoken: list[dict],
+) -> None:
+    """Only the latest 20 measurements are kept."""
+    entry = await setup_entry(OPTIONS)
+    agents.answers[PRIMARY] = "Antwort."
+    manager = hass.data[DOMAIN][entry.entry_id]
+    for number in range(25):
+        await manager.async_process_and_speak(f"Frage {number}", ECHO)
+    await hass.async_block_till_done()
+    assert len(manager.stats["recent"]) == 20

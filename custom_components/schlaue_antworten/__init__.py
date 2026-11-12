@@ -81,6 +81,14 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.BUTTON, Platform.SENSOR]
 
+# Number of recent queries kept for the mean response time
+RECENT_TIMINGS_MAX = 20
+
+# How the question reached Schlaue Antworten, shown in the log and the sensor
+PATH_DIRECT = "direkt"
+PATH_DIALOG = "dialog"
+PATH_SERVICE = "dienst"
+
 RE_MARKDOWN = re.compile(r"[*#`_~]")
 RE_NON_WORDS = re.compile(r"[^\w\s]")
 
@@ -228,6 +236,10 @@ class SchlaueAntwortenManager:
             "last_device": None,
             "last_time": None,
             "last_duration": None,
+            "last_llm_seconds": None,
+            "last_agent": None,
+            "last_path": None,
+            "recent": [],
         }
         self._stats_listeners: list[Callable[[], None]] = []
         self._unsub_midnight: Any = None
@@ -303,6 +315,7 @@ class SchlaueAntwortenManager:
         duration: float | None = None,
         char_count: int | None = None,
         mode: str | None = None,
+        timing: str | None = None,
     ) -> None:
         """Add a compact log entry for user view in options (max 100 chars output)."""
         if not self.entry.options.get(CONF_ENABLE_LOGGING, DEFAULT_ENABLE_LOGGING):
@@ -319,6 +332,8 @@ class SchlaueAntwortenManager:
             meta_parts.append(f"{char_count} Z.")
         if duration is not None:
             meta_parts.append(f"{duration:.1f}s")
+        if timing:
+            meta_parts.append(timing)
 
         meta_str = f" ({' • '.join(meta_parts)})" if meta_parts else ""
 
@@ -445,6 +460,18 @@ class SchlaueAntwortenManager:
             except Exception as err:
                 _LOGGER.warning("Error in stats listener: %s", err)
 
+    def timing_summary(self) -> dict[str, float | None]:
+        """Return the mean AI and total seconds over the recent queries."""
+        recent = [
+            item for item in self._stats.get("recent") or [] if isinstance(item, dict)
+        ]
+        if not recent:
+            return {"llm": None, "total": None}
+        return {
+            "llm": round(sum(item["llm"] for item in recent) / len(recent), 2),
+            "total": round(sum(item["total"] for item in recent) / len(recent), 2),
+        }
+
     def _check_date_rollover(self) -> bool:
         """Check if date changed and reset daily counters if necessary."""
         today = dt_util.now().date().isoformat()
@@ -469,6 +496,9 @@ class SchlaueAntwortenManager:
         query: str,
         is_followup: bool = False,
         duration: float | None = None,
+        llm_seconds: float | None = None,
+        agent: str | None = None,
+        path: str | None = None,
     ) -> None:
         """Record query metrics and notify listeners."""
         self._check_date_rollover()
@@ -485,6 +515,27 @@ class SchlaueAntwortenManager:
         self._stats["last_time"] = dt_util.now().isoformat()
         if duration is not None:
             self._stats["last_duration"] = round(duration, 1)
+        self._stats["last_llm_seconds"] = (
+            round(llm_seconds, 2) if llm_seconds is not None else None
+        )
+        self._stats["last_agent"] = agent
+        self._stats["last_path"] = path
+        if duration is not None and llm_seconds is not None:
+            recent = [
+                item
+                for item in self._stats.get("recent") or []
+                if isinstance(item, dict)
+            ]
+            recent.append(
+                {
+                    "time": dt_util.now().isoformat(timespec="seconds"),
+                    "agent": agent,
+                    "path": path,
+                    "llm": round(llm_seconds, 2),
+                    "total": round(duration, 2),
+                }
+            )
+            self._stats["recent"] = recent[-RECENT_TIMINGS_MAX:]
 
         # Save to storage in background
         self.hass.async_create_task(self._stats_store.async_save(self._stats))
@@ -935,6 +986,7 @@ class SchlaueAntwortenManager:
             reply_device,
             is_followup=False,
             enable_followup_override=False,
+            path=PATH_DIRECT,
         )
 
     async def _async_handle_notification_event(self, event: Event) -> None:
@@ -1116,6 +1168,7 @@ class SchlaueAntwortenManager:
                     is_followup=True,
                     previous_answer=previous_answer,
                     start_time=start_time,
+                    path=PATH_DIALOG,
                 )
             elif is_negative:
                 _LOGGER.debug(
@@ -1170,7 +1223,11 @@ class SchlaueAntwortenManager:
             return
 
         await self.async_process_and_speak(
-            raw_response, reply_device, is_followup=False, start_time=start_time
+            raw_response,
+            reply_device,
+            is_followup=False,
+            start_time=start_time,
+            path=PATH_DIALOG,
         )
 
     async def async_process_and_speak(
@@ -1181,6 +1238,7 @@ class SchlaueAntwortenManager:
         previous_answer: str = "",
         start_time: float | None = None,
         enable_followup_override: bool | None = None,
+        path: str = PATH_SERVICE,
     ) -> None:
         """Query LLM and output answer via Alexa."""
         self._cancel_pending_followup(reply_device)
@@ -1241,6 +1299,8 @@ class SchlaueAntwortenManager:
 
         raw_speech: str | None = None
         used_agent: str = primary_agent
+        prompt_ready = time.monotonic()
+        agent_seconds: dict[str, float] = {}
 
         # 1. Try primary agent
         try:
@@ -1260,6 +1320,7 @@ class SchlaueAntwortenManager:
                 )
         except Exception as err:
             _LOGGER.warning("Primary agent %s failed: %s", primary_agent, err)
+        agent_seconds[primary_agent] = time.monotonic() - prompt_ready
 
         # 2. Check if primary agent output is an error or empty
         is_error = False
@@ -1276,6 +1337,7 @@ class SchlaueAntwortenManager:
                 "Primary agent returned error; invoking fallback agent %s",
                 fallback_agent,
             )
+            fallback_start = time.monotonic()
             try:
                 res_fb = await self.hass.services.async_call(
                     "conversation",
@@ -1299,6 +1361,20 @@ class SchlaueAntwortenManager:
                         is_error = False
             except Exception as err:
                 _LOGGER.error("Fallback agent %s also failed: %s", fallback_agent, err)
+            agent_seconds[fallback_agent] = time.monotonic() - fallback_start
+
+        llm_seconds = time.monotonic() - prompt_ready
+        timing_text = " → ".join(
+            f"{self._get_agent_display_name(agent)} {seconds:.1f}s"
+            for agent, seconds in agent_seconds.items()
+        )
+        _LOGGER.info(
+            "Timing (%s): before AI %.2fs, AI %.2fs [%s]",
+            path,
+            prompt_ready - start_time,
+            llm_seconds,
+            ", ".join(f"{agent} {seconds:.2f}s" for agent, seconds in agent_seconds.items()),
+        )
 
         # 4. Error response
         if is_error or not raw_speech:
@@ -1314,6 +1390,7 @@ class SchlaueAntwortenManager:
                 duration=duration,
                 char_count=len(final_speech),
                 mode="Fehler",
+                timing=timing_text,
             )
             try:
                 await self.hass.services.async_call(
@@ -1375,12 +1452,16 @@ class SchlaueAntwortenManager:
             duration=duration,
             char_count=len(final_speech),
             mode=mode_label,
+            timing=f"KI {timing_text} • {path}",
         )
         self.record_query_stats(
             device=reply_device,
             query=question,
             is_followup=is_followup,
             duration=duration,
+            llm_seconds=llm_seconds,
+            agent=used_agent,
+            path=path,
         )
 
         # 7. Actionable Notification with follow-up question if enabled
