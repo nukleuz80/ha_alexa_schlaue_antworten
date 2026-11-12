@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.32-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.33-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.33** | 12.11.2026 | **Neuer Antwort-Kern (Umbau ohne Verhaltensänderung):** Prompt-Bau, KI-Aufruf mit Fallback, Fehler- und Unklar-Erkennung, Bereinigung und Smart-Home-Kontext stecken jetzt im eigenen Modul `answer.py`. Die Sprachausgabe ist davon getrennt. Das ist die Grundlage für den kommenden eigenen Alexa-Skill und einen späteren Assist-Agenten. Neue Tests sichern das Verhalten ab. |
 | **v1.0.32** | 12.11.2026 | **Antwortzeiten messen:** Jede Anfrage misst jetzt getrennt, wie lange die KI gebraucht hat (je Agent, auch beim Fallback) und wie lange alles zusammen gedauert hat. Das Dialog-Log zeigt Agent, KI-Zeit und Sprachweg (direkt, Dialog, Dienst). Der Sensor `sensor.alexa_schlaue_antworten_ki_anfragen_heute` hat neue Attribute: `letzte_ki_dauer_sekunden`, `letzter_agent`, `letzter_weg` sowie die Mittelwerte `mittlere_ki_dauer_sekunden` und `mittlere_gesamtdauer_sekunden` über die letzten 20 Anfragen. |
 | **v1.0.31** | 29.10.2026 | **Vibe Coding Manifest & Badges:** Offizieller Hinweis und Badges zur leidenschaftlichen KI-gestützten Entwicklung (*„Vibe Coding mit voller Hingabe“*) in Dokumentation und Repository aufgenommen. |
 | **v1.0.30** | 29.10.2026 | **Dokumentations-Offensive & Speed-Guide:** Neuer umfassender Praxis-Leitfaden [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md) mit detaillierten Latenz- und Throughput-Benchmarks (Tokens/s), Free-Tier-Empfehlungen (Google Gemini 2.5 Flash, OpenRouter Free Pool) und Hardware-Beschleuniger-Vergleich (Llama 3.3 70B via Cerebras/Groq). |

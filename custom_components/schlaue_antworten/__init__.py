@@ -16,51 +16,35 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from .answer import AnswerEngine
 from .const import (
-    CODEWORD_UNVERSTAENDLICH,
     CONF_ABORT_PROMPT,
-    CONF_ANNOUNCE_MODEL,
-    CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
     CONF_DIALOG_PROMPT,
     CONF_DIRECT_QUERY_PREFIXES,
     CONF_ENABLE_DETAILED_FOLLOWUP,
     CONF_ENABLE_DIRECT_QUERY,
-    CONF_ENABLE_HA_CONTEXT,
     CONF_ENABLE_LOGGING,
-    CONF_FALLBACK_AGENT,
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_INTERACTIVE_CONFIRM_PROMPT,
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
-    CONF_PRIMARY_AGENT,
-    CONF_PROMPT_DETAILED,
-    CONF_PROMPT_SHORT,
     CONF_RETRY_PROMPT,
-    CONF_SHORT_ANSWERS,
     DEFAULT_ABORT_PROMPT,
-    DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_COMMUNITY_SKILL_ID,
-    DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_DIRECT_QUERY_PREFIXES,
     DEFAULT_ECHO,
     DEFAULT_ENABLE_DETAILED_FOLLOWUP,
     DEFAULT_ENABLE_DIRECT_QUERY,
-    DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_ENABLE_LOGGING,
-    DEFAULT_FALLBACK_AGENT,
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
-    DEFAULT_PRIMARY_AGENT,
-    DEFAULT_PROMPT_DETAILED,
-    DEFAULT_PROMPT_SHORT,
     DEFAULT_RETRY_PROMPT,
-    DEFAULT_SHORT_ANSWERS,
     DOMAIN,
     ENTITY_ID_ACTIONABLE_INPUT_TEXT,
     EVENT_ACTIONABLE_NOTIFICATION,
@@ -89,18 +73,7 @@ PATH_DIRECT = "direkt"
 PATH_DIALOG = "dialog"
 PATH_SERVICE = "dienst"
 
-RE_MARKDOWN = re.compile(r"[*#`_~]")
 RE_NON_WORDS = re.compile(r"[^\w\s]")
-
-ERROR_PATTERNS = (
-    "503",
-    "service unavailable",
-    "servererror",
-    "high demand",
-    "error talking",
-    "api error",
-    "rate limit",
-)
 
 CANCEL_PHRASES = frozenset({
     "none",
@@ -157,27 +130,6 @@ NEGATIVE_PHRASES = (
     "keine",
     "lass",
 )
-
-WEEKDAYS_DE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
-MONTHS_DE = ("", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
-
-WEATHER_TRANSLATIONS = {
-    "clear-night": "klar",
-    "cloudy": "bewölkt",
-    "exceptional": "außergewöhnlich",
-    "fog": "neblig",
-    "hail": "Hagel",
-    "lightning": "Gewitter",
-    "lightning-rainy": "Gewitter mit Regen",
-    "partlycloudy": "teilweise bewölkt",
-    "pouring": "starker Regen",
-    "rainy": "regnerisch",
-    "snowy": "schneereich",
-    "snowy-rainy": "Schneeregen",
-    "sunny": "sonnig",
-    "windy": "windig",
-    "windy-variant": "windig",
-}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -244,6 +196,7 @@ class SchlaueAntwortenManager:
         self._stats_listeners: list[Callable[[], None]] = []
         self._unsub_midnight: Any = None
         self._pending_followup_tasks: dict[str, asyncio.Task[None]] = {}
+        self.answers = AnswerEngine(hass, entry)
 
     def _cancel_pending_followup(self, device: str | None = None) -> None:
         """Cancel running delayed follow-up timer(s) immediately."""
@@ -1246,10 +1199,6 @@ class SchlaueAntwortenManager:
             start_time = time.monotonic()
 
         opts = self.entry.options
-        primary_agent = opts.get(CONF_PRIMARY_AGENT, DEFAULT_PRIMARY_AGENT)
-        fallback_agent = opts.get(CONF_FALLBACK_AGENT, DEFAULT_FALLBACK_AGENT)
-        short_answers = opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS)
-        announce_model = opts.get(CONF_ANNOUNCE_MODEL, DEFAULT_ANNOUNCE_MODEL)
         if enable_followup_override is not None:
             enable_followup = enable_followup_override
         else:
@@ -1259,129 +1208,20 @@ class SchlaueAntwortenManager:
         followup_prompt = opts.get(
             CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT
         )
-        prompt_short_tmpl = opts.get(CONF_PROMPT_SHORT, DEFAULT_PROMPT_SHORT)
-        prompt_detailed_tmpl = opts.get(
-            CONF_PROMPT_DETAILED, DEFAULT_PROMPT_DETAILED
+
+        result = await self.answers.async_answer(
+            question,
+            reply_device,
+            is_followup=is_followup,
+            previous_answer=previous_answer,
+            start_time=start_time,
+            path=path,
         )
+        timing_text = result.timing_text
 
-        if is_followup:
-            prompt = prompt_detailed_tmpl
-            if "{question}" in prompt:
-                prompt = prompt.replace("{question}", question)
-            elif "[question]" in prompt:
-                prompt = prompt.replace("[question]", question)
-            else:
-                prompt = f"{prompt.strip()}: {question}"
-
-            prev_text = previous_answer if previous_answer else "Keine Vorabinformation"
-            if "{previous_answer}" in prompt:
-                prompt = prompt.replace("{previous_answer}", prev_text)
-            elif "[previous_answer]" in prompt:
-                prompt = prompt.replace("[previous_answer]", prev_text)
-            elif previous_answer:
-                prompt = (
-                    f"{prompt} Bereits gegebene Kurzantwort (nicht wiederholen, sondern neue Aspekte und wichtige Infos ergänzen): {previous_answer}"
-                )
-        elif short_answers:
-            if "{question}" in prompt_short_tmpl:
-                prompt = prompt_short_tmpl.replace("{question}", question)
-            elif "[question]" in prompt_short_tmpl:
-                prompt = prompt_short_tmpl.replace("[question]", question)
-            else:
-                prompt = f"{prompt_short_tmpl.strip()}: {question}"
-        else:
-            prompt = question
-
-        # Append compact Smart Home context (weather, time, location, presence) if enabled
-        context_str = self._get_ha_context_summary(reply_device)
-        if context_str:
-            prompt = f"{prompt} {context_str}"
-
-        raw_speech: str | None = None
-        used_agent: str = primary_agent
-        prompt_ready = time.monotonic()
-        agent_seconds: dict[str, float] = {}
-
-        # 1. Try primary agent
-        try:
-            res = await self.hass.services.async_call(
-                "conversation",
-                "process",
-                {"agent_id": primary_agent, "text": prompt},
-                blocking=True,
-                return_response=True,
-            )
-            if res and isinstance(res, dict):
-                raw_speech = (
-                    res.get("response", {})
-                    .get("speech", {})
-                    .get("plain", {})
-                    .get("speech")
-                )
-        except Exception as err:
-            _LOGGER.warning("Primary agent %s failed: %s", primary_agent, err)
-        agent_seconds[primary_agent] = time.monotonic() - prompt_ready
-
-        # 2. Check if primary agent output is an error or empty
-        is_error = False
-        if not raw_speech:
-            is_error = True
-        else:
-            speech_lower = raw_speech.lower()
-            if any(pattern in speech_lower for pattern in ERROR_PATTERNS):
-                is_error = True
-
-        # 3. Fallback agent if needed
-        if is_error and fallback_agent and fallback_agent != primary_agent:
-            _LOGGER.info(
-                "Primary agent returned error; invoking fallback agent %s",
-                fallback_agent,
-            )
-            fallback_start = time.monotonic()
-            try:
-                res_fb = await self.hass.services.async_call(
-                    "conversation",
-                    "process",
-                    {"agent_id": fallback_agent, "text": prompt},
-                    blocking=True,
-                    return_response=True,
-                )
-                if res_fb and isinstance(res_fb, dict):
-                    fb_speech = (
-                        res_fb.get("response", {})
-                        .get("speech", {})
-                        .get("plain", {})
-                        .get("speech")
-                    )
-                    if fb_speech and not any(
-                        p in fb_speech.lower() for p in ERROR_PATTERNS
-                    ):
-                        raw_speech = fb_speech
-                        used_agent = fallback_agent
-                        is_error = False
-            except Exception as err:
-                _LOGGER.error("Fallback agent %s also failed: %s", fallback_agent, err)
-            agent_seconds[fallback_agent] = time.monotonic() - fallback_start
-
-        llm_seconds = time.monotonic() - prompt_ready
-        timing_text = " → ".join(
-            f"{self._get_agent_display_name(agent)} {seconds:.1f}s"
-            for agent, seconds in agent_seconds.items()
-        )
-        _LOGGER.info(
-            "Timing (%s): before AI %.2fs, AI %.2fs [%s]",
-            path,
-            prompt_ready - start_time,
-            llm_seconds,
-            ", ".join(f"{agent} {seconds:.2f}s" for agent, seconds in agent_seconds.items()),
-        )
-
-        # 4. Error response
-        if is_error or not raw_speech:
-            final_speech = (
-                "Die KI ist im Moment leider überlastet. "
-                "Bitte versuche es in einem Moment noch einmal."
-            )
+        # Error response
+        if result.error:
+            final_speech = result.speech
             duration = time.monotonic() - start_time
             self.add_history_entry(
                 reply_device,
@@ -1407,16 +1247,8 @@ class SchlaueAntwortenManager:
                 _LOGGER.error("Failed to speak error via notify.alexa_media: %s", err)
             return
 
-        # 5. Check if AI deemed the query unclear or nonsensical
-        speech_stripped = raw_speech.strip()
-        speech_lower = speech_stripped.lower()
-        if not is_followup and (
-            CODEWORD_UNVERSTAENDLICH in speech_stripped
-            or speech_lower.startswith("unverständlich")
-            or "[unverständlich]" in speech_lower
-            or "ich habe die frage leider nicht verstanden" in speech_lower
-            or "das ergibt leider keinen sinn" in speech_lower
-        ):
+        # AI deemed the query unclear or nonsensical
+        if result.unclear:
             await self._async_handle_unclear_query(
                 reply_device, start_time=start_time
             )
@@ -1425,13 +1257,10 @@ class SchlaueAntwortenManager:
         # Query was successful and understood -> clear retry counter
         self._retry_counts.pop(reply_device, None)
 
-        # 6. Clean markdown formatting (*, #, `, _, ~)
-        cleaned = RE_MARKDOWN.sub("", raw_speech).strip()
-        if announce_model:
-            agent_name = self._get_agent_display_name(used_agent)
-            final_speech = f"{cleaned} Beantwortet von {agent_name}."
-        else:
-            final_speech = cleaned
+        cleaned = result.text
+        final_speech = result.speech
+        used_agent = result.agent
+        llm_seconds = result.llm_seconds
 
         # Check if user explicitly asked for mobile delivery in the question
         q_lower = question.lower()
@@ -1535,96 +1364,3 @@ class SchlaueAntwortenManager:
             )
         except Exception as err:
             _LOGGER.error("Failed to speak via notify.alexa_media: %s", err)
-
-    def _get_agent_display_name(self, agent_id: str) -> str:
-        """Get a human-friendly name for the conversation agent."""
-        if "google" in agent_id or "gemini" in agent_id:
-            return "Google Gemini"
-        if "claude" in agent_id or "anthropic" in agent_id:
-            return "Claude Sonnet"
-        if "auto_router" in agent_id:
-            return "Auto Router"
-        if "owl" in agent_id:
-            return "Owl Alpha"
-
-        state = self.hass.states.get(agent_id)
-        if state and state.attributes.get("friendly_name"):
-            return str(state.attributes["friendly_name"])
-
-        return "KI"
-
-    def _get_ha_context_summary(self, reply_device: str) -> str:
-        """Build a compact, single-line Smart Home context block for the LLM prompt."""
-        if not self.entry.options.get(
-            CONF_ENABLE_HA_CONTEXT, DEFAULT_ENABLE_HA_CONTEXT
-        ):
-            return ""
-
-        parts: list[str] = []
-
-        # 1. Date & Time
-        now = dt_util.now()
-        weekday = WEEKDAYS_DE[now.weekday()]
-        month_name = (
-            MONTHS_DE[now.month] if 1 <= now.month <= 12 else str(now.month)
-        )
-        parts.append(
-            f"Zeitpunkt: {weekday}, {now.day}. {month_name} {now.year}, {now.strftime('%H:%M')} Uhr"
-        )
-
-        # 2. Room / Location
-        dev_state = self.hass.states.get(reply_device)
-        room_name = (
-            dev_state.attributes.get("friendly_name")
-            if dev_state and dev_state.attributes.get("friendly_name")
-            else reply_device.replace("media_player.", "").replace("_", " ").title()
-        )
-        parts.append(f"Standort: {room_name}")
-
-        # 3. Weather
-        weather_entity = None
-        if self.hass.states.get("weather.hildesheim"):
-            weather_entity = "weather.hildesheim"
-        else:
-            weather_states = self.hass.states.async_all("weather")
-            if weather_states:
-                weather_entity = weather_states[0].entity_id
-
-        if weather_entity:
-            w = self.hass.states.get(weather_entity)
-            if w and w.state not in ("unavailable", "unknown"):
-                cond_de = WEATHER_TRANSLATIONS.get(w.state.lower(), w.state)
-                temp = w.attributes.get("temperature")
-                if temp is not None:
-                    parts.append(f"Wetter: {cond_de}, {temp}°C")
-                else:
-                    parts.append(f"Wetter: {cond_de}")
-
-        # 4. Presence (who is home)
-        person_states = self.hass.states.async_all("person")
-        if person_states:
-            home_persons = [
-                str(p.attributes.get("friendly_name") or p.entity_id.replace("person.", "").title())
-                for p in person_states
-                if p.state == "home" and not p.entity_id.endswith(".mcp")
-            ]
-            if home_persons:
-                parts.append(f"Zu Hause: {', '.join(home_persons)}")
-
-        # 5. Custom Knowledge / House Wiki
-        custom_knowledge = str(
-            self.entry.options.get(
-                CONF_CUSTOM_KNOWLEDGE, DEFAULT_CUSTOM_KNOWLEDGE
-            )
-            or ""
-        ).strip()
-        if custom_knowledge:
-            clean_lines = " | ".join(
-                line.strip()
-                for line in custom_knowledge.splitlines()
-                if line.strip()
-            )
-            parts.append(f"Haus-Fakten: {clean_lines}")
-
-        return f"[Smart-Home-Kontext: {' | '.join(parts)}]"
-
