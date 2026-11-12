@@ -29,6 +29,7 @@ CONF_PRIMARY_TIMEOUT = "primary_timeout"
 CONF_ANSWER_BUDGET = "answer_budget"
 CONF_LATE_TEXT = "late_text"
 CONF_VOICE_PATH = "voice_path"
+CONF_INVOCATION_NAME = "invocation_name"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
@@ -42,6 +43,9 @@ VOICE_PATH_SKILL = "skill"
 VOICE_PATH_BOTH = "both"
 VOICE_PATHS = [VOICE_PATH_COMMUNITY, VOICE_PATH_SKILL, VOICE_PATH_BOTH]
 DEFAULT_VOICE_PATH = VOICE_PATH_COMMUNITY
+DEFAULT_INVOCATION_NAME = "schlaufuchs"
+SKILL_HELP_TEXT = "Frag mich einfach etwas, zum Beispiel: Wie weit ist der Mond entfernt?"
+SKILL_PHONE_LATER_TEXT = "Das Senden aufs Handy kommt in einer der nächsten Versionen."
 DEFAULT_LATE_TEXT = "Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy."
 DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"

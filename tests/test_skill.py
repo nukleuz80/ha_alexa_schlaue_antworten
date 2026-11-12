@@ -229,3 +229,40 @@ async def test_unload_stops_the_webhook(
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert not manager.skill.is_active
+
+
+async def test_skill_actions(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """Launch, question intents and the built-in intents get the right reply."""
+    entry = await setup_entry(OPTIONS)
+    agents.answers[PRIMARY] = "Etwa 384.400 Kilometer."
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        assert response.status == 200
+        return await response.json()
+
+    launch = await post(action="launch")
+    assert launch["end_session"] is False and launch["reprompt"]
+
+    answer = await post(action="intent", intent="WieIntent", text="weit ist der mond")
+    assert answer == {"speech": "Etwa 384.400 Kilometer.", "end_session": True}
+    assert "wie weit ist der mond" in agents.calls[-1]["text"]
+
+    stop = await post(action="intent", intent="AMAZON.StopIntent")
+    assert stop["end_session"] is True
+    helping = await post(action="intent", intent="AMAZON.HelpIntent")
+    assert helping["end_session"] is False
+    unclear = await post(action="intent", intent="AMAZON.FallbackIntent")
+    assert unclear["end_session"] is False and "nicht verstanden" in unclear["speech"]
+    empty = await post(action="intent", intent="WasIntent", text="")
+    assert empty["end_session"] is False
+    phone = await post(action="intent", intent="HandyIntent")
+    assert phone["end_session"] is True
+    assert len(agents.calls) == 1

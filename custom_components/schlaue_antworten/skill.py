@@ -1,7 +1,7 @@
 """Connection between the user's own Alexa skill and Schlaue Antworten.
 
-The skill (Alexa-hosted, see get_skill_code in a later version) posts each
-question to a secret webhook. The answer goes straight back in the HTTP reply,
+The skill (Alexa-hosted, code from skill_model.py) posts each request to a
+secret webhook. The answer goes straight back in the HTTP reply,
 so Alexa speaks it at once, without a second trip through Alexa Media.
 """
 from __future__ import annotations
@@ -19,15 +19,30 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_DEFAULT_ECHO,
+    CONF_DIALOG_PROMPT,
+    CONF_GOODBYE_TEXT,
+    CONF_INVOCATION_NAME,
     CONF_LATE_TEXT,
     CONF_RETRY_PROMPT,
+    DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
+    DEFAULT_GOODBYE_TEXT,
+    DEFAULT_INVOCATION_NAME,
     DEFAULT_LATE_TEXT,
     DEFAULT_RETRY_PROMPT,
     DOMAIN,
+    SKILL_HELP_TEXT,
+    SKILL_PHONE_LATER_TEXT,
+)
+from .skill_model import (
+    INTENT_PHONE,
+    build_skill_code,
+    interaction_model_json,
+    question_from_intent,
 )
 
 if TYPE_CHECKING:
@@ -41,7 +56,13 @@ SKILL_STORAGE_VERSION = 1
 PATH_SKILL = "skill"
 
 ACTION_ASK = "ask"
-ACTIONS = (ACTION_ASK,)
+ACTION_LAUNCH = "launch"
+ACTION_INTENT = "intent"
+ACTIONS = (ACTION_ASK, ACTION_LAUNCH, ACTION_INTENT)
+MAX_INTENT_LENGTH = 100
+
+INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
+INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent", "AMAZON.YesIntent")
 
 MAX_TEXT_LENGTH = 500
 MAX_SPEECH_LENGTH = 7900
@@ -72,6 +93,7 @@ class SkillConnector:
         self._devices: dict[str, str] = {}
         self._requests: deque[float] = deque()
         self._active = False
+        self.last_request: dict[str, str] | None = None
 
     @property
     def is_linked(self) -> bool:
@@ -159,6 +181,20 @@ class SkillConnector:
         )
         return f"{base_url}{webhook.async_generate_path(self._webhook_id)}"
 
+    def get_skill_code(self) -> str:
+        """Return the skill code with the secret address filled in.
+
+        Raises NoURLAvailableError if Home Assistant has no public HTTPS address.
+        """
+        return build_skill_code(self.webhook_url())
+
+    def get_interaction_model(self) -> str:
+        """Return the voice model for the Alexa developer console."""
+        invocation = self.entry.options.get(
+            CONF_INVOCATION_NAME, DEFAULT_INVOCATION_NAME
+        )
+        return interaction_model_json(str(invocation or DEFAULT_INVOCATION_NAME))
+
     def _rate_limited(self) -> bool:
         """Return True if too many requests arrived within the last minute."""
         now = time.monotonic()
@@ -176,11 +212,21 @@ class SkillConnector:
         return str(self.entry.options.get(CONF_DEFAULT_ECHO, DEFAULT_ECHO))
 
     @staticmethod
-    def _speech(text: str, end_session: bool = True) -> web.Response:
+    def _speech(
+        text: str, end_session: bool = True, reprompt: str | None = None
+    ) -> web.Response:
         """Return the reply the skill code turns into Alexa speech."""
-        return web.json_response(
-            {"speech": text[:MAX_SPEECH_LENGTH], "end_session": end_session}
-        )
+        reply: dict[str, Any] = {
+            "speech": text[:MAX_SPEECH_LENGTH],
+            "end_session": end_session,
+        }
+        if reprompt and not end_session:
+            reply["reprompt"] = reprompt[:MAX_SPEECH_LENGTH]
+        return web.json_response(reply)
+
+    def _ask_again(self, text: str) -> web.Response:
+        """Say a text and keep the microphone open for the next question."""
+        return self._speech(text, end_session=False, reprompt=text)
 
     async def _async_handle_webhook(
         self, hass: HomeAssistant, webhook_id: str, request: web.Request
@@ -196,14 +242,17 @@ class SkillConnector:
 
         application_id = payload.get("application_id")
         action = payload.get("action", ACTION_ASK)
-        text = payload.get("text", "")
+        text = payload.get("text") or ""
         device_id = payload.get("device_id")
+        intent = payload.get("intent")
         if (
             not isinstance(application_id, str)
             or not application_id
             or action not in ACTIONS
             or not isinstance(text, str)
             or not isinstance(device_id, str | None)
+            or not isinstance(intent, str | None)
+            or (intent is not None and len(intent) > MAX_INTENT_LENGTH)
         ):
             return web.Response(status=400)
 
@@ -220,11 +269,36 @@ class SkillConnector:
             _LOGGER.warning("Too many skill requests, slowing down")
             return web.Response(status=429)
 
-        question = " ".join(text.split())[:MAX_TEXT_LENGTH]
+        if action == ACTION_LAUNCH:
+            return self._ask_again(
+                self._option(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
+            )
+
+        if action == ACTION_INTENT:
+            question = question_from_intent(intent, text)
+            if question is None:
+                return self._answer_other_intent(intent)
+        else:
+            question = text
+
+        question = " ".join(question.split())[:MAX_TEXT_LENGTH]
         if len(question) < 2:
-            return self._speech(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
+            return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
 
         return await self._async_ask(question, self._echo_for(device_id), start_time)
+
+    def _answer_other_intent(self, intent: str | None) -> web.Response:
+        """Answer intents that are not a question."""
+        if intent in INTENTS_GOODBYE:
+            return self._speech(self._option(CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT))
+        if intent == "AMAZON.HelpIntent":
+            return self._ask_again(SKILL_HELP_TEXT)
+        if intent == INTENT_PHONE:
+            return self._speech(SKILL_PHONE_LATER_TEXT)
+        if intent in INTENTS_SILENT_OK:
+            return self._speech("Okay.")
+        # AMAZON.FallbackIntent and anything unknown
+        return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
 
     def _option(self, key: str, default: str) -> str:
         """Return a text option, falling back to its default when empty."""
@@ -235,6 +309,10 @@ class SkillConnector:
     ) -> web.Response:
         """Answer a question within the skill's time limit."""
         manager = self.manager
+        self.last_request = {
+            "time": dt_util.now().strftime("%d.%m. %H:%M:%S"),
+            "text": question,
+        }
         result = await manager.async_answer_within_budget(
             question,
             device,
@@ -259,7 +337,7 @@ class SkillConnector:
             return self._speech(result.speech)
 
         if result.unclear:
-            return self._speech(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
+            return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
 
         manager.add_history_entry(
             device,

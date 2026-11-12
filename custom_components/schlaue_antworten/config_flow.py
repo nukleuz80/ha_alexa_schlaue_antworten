@@ -9,6 +9,7 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
+from homeassistant.helpers.network import NoURLAvailableError
 
 from .const import (
     CONF_ABORT_PROMPT,
@@ -26,6 +27,7 @@ from .const import (
     CONF_FOLLOWUP_PROMPT,
     CONF_GOODBYE_TEXT,
     CONF_INTERACTIVE_CONFIRM_PROMPT,
+    CONF_INVOCATION_NAME,
     CONF_LATE_TEXT,
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
@@ -51,6 +53,7 @@ from .const import (
     DEFAULT_FOLLOWUP_PROMPT,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
+    DEFAULT_INVOCATION_NAME,
     DEFAULT_LATE_TEXT,
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
@@ -64,6 +67,7 @@ from .const import (
     DOMAIN,
     VOICE_PATHS,
 )
+from .skill_model import is_valid_invocation
 
 
 class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -129,7 +133,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         """Show main options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["settings", "history"],
+            menu_options=["settings", "skill", "history"],
         )
 
     async def async_step_settings(
@@ -137,6 +141,10 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage configuration and prompts."""
         if user_input is not None:
+            # Options of the skill step live in the same entry and must survive
+            invocation = self.config_entry.options.get(CONF_INVOCATION_NAME)
+            if invocation:
+                user_input[CONF_INVOCATION_NAME] = invocation
             return self.async_create_entry(title="", data=user_input)
 
         opts = self.config_entry.options
@@ -319,6 +327,70 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="settings",
             data_schema=data_schema,
+        )
+
+    async def async_step_skill(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show the code and voice model for the own Alexa skill."""
+        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if manager is None:
+            return self.async_abort(reason="not_loaded")
+        skill = manager.skill
+        options = dict(self.config_entry.options)
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            invocation = " ".join(
+                str(user_input.get(CONF_INVOCATION_NAME, "")).lower().split()
+            )
+            if not is_valid_invocation(invocation):
+                errors[CONF_INVOCATION_NAME] = "invalid_invocation"
+            else:
+                if user_input.get("reset_skill"):
+                    await skill.async_reset()
+                options[CONF_INVOCATION_NAME] = invocation
+                return self.async_create_entry(title="", data=options)
+
+        copy_field = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
+        schema: dict[Any, Any] = {
+            vol.Required(
+                CONF_INVOCATION_NAME,
+                default=options.get(CONF_INVOCATION_NAME, DEFAULT_INVOCATION_NAME),
+            ): selector.TextSelector(),
+        }
+        try:
+            skill_code = skill.get_skill_code()
+        except NoURLAvailableError:
+            errors["base"] = "no_public_url"
+        else:
+            schema[
+                vol.Optional("skill_code", description={"suggested_value": skill_code})
+            ] = copy_field
+        schema[
+            vol.Optional(
+                "interaction_model",
+                description={"suggested_value": skill.get_interaction_model()},
+            )
+        ] = copy_field
+        schema[vol.Optional("reset_skill", default=False)] = selector.BooleanSelector()
+
+        last = skill.last_request
+        return self.async_show_form(
+            step_id="skill",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+            description_placeholders={
+                "active": "✅" if skill.is_active else "❌",
+                "linked": "✅" if skill.is_linked else "❌",
+                "last_request": (
+                    f"{last['time']}: {last['text']}".replace("{", "[").replace(
+                        "}", "]"
+                    )
+                    if last
+                    else "–"
+                ),
+            },
         )
 
     async def async_step_history(

@@ -37,6 +37,7 @@
         "description": "Wähle einen Bereich aus:",
         "menu_options": {
           "settings": "⚙️ Einstellungen & Prompts",
+          "skill": "🎙️ Eigener Alexa-Skill",
           "history": "📜 Dialog-Log (letzte Interaktionen)"
         }
       },
@@ -76,10 +77,31 @@
           "answer_budget": "Hat bis dahin kein Agent geantwortet, sagt Alexa den Text für zu langsame Antworten und die Antwort kommt per Push aufs Handy nach. 0 = kein Zeitbudget."
         }
       },
+      "skill": {
+        "title": "🎙️ Eigener Alexa-Skill",
+        "description": "Webhook aktiv: {active} · Skill gekoppelt: {linked}\nLetzte Frage über den Skill: {last_request}\n\nSo legst du den Skill an: In der Alexa-Entwicklerkonsole einen Custom-Skill mit „Alexa-hosted (Python)“ und Region EU (Irland) erstellen. Unter *Build → JSON Editor* das Sprachmodell einfügen, speichern und *Build* starten. Unter *Code* den Inhalt von `lambda_function.py` durch den Skill-Code ersetzen und *Deploy* drücken. Unter *Test* auf *Development* stellen. Der Webhook ist nur aktiv, wenn der Sprachweg unter *Einstellungen & Prompts* auf „Eigener Skill“ oder „Beide“ steht.\n\n**Der Skill-Code enthält deine geheime Adresse. Gib ihn nicht weiter.**",
+        "data": {
+          "invocation_name": "Aufrufname (z. B. schlaufuchs)",
+          "skill_code": "Skill-Code (lambda_function.py)",
+          "interaction_model": "Sprachmodell (JSON Editor)",
+          "reset_skill": "Kopplung zurücksetzen (neue geheime Adresse)"
+        },
+        "data_description": {
+          "invocation_name": "Nur Kleinbuchstaben und Leerzeichen. Nach einer Änderung das Sprachmodell neu einfügen und bauen.",
+          "reset_skill": "Danach muss der Skill-Code neu kopiert werden, der alte funktioniert nicht mehr."
+        }
+      },
       "history": {
         "title": "📜 Dialog-Log",
         "description": "### Letzte Interaktionen:\n\n{log_content}"
       }
+    },
+    "error": {
+      "no_public_url": "Home Assistant hat keine öffentliche HTTPS-Adresse (z. B. Nabu Casa). Ohne sie erreicht der Skill Home Assistant nicht.",
+      "invalid_invocation": "Der Aufrufname darf nur Kleinbuchstaben und Leerzeichen enthalten."
+    },
+    "abort": {
+      "not_loaded": "Schlaue Antworten ist gerade nicht geladen."
     }
   },
   "services": {
