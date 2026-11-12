@@ -43,6 +43,7 @@
         "data": {
           "primary_agent": "Primary AI agent",
           "fallback_agent": "Fallback AI agent (used during outage/high demand)",
+          "primary_timeout": "Time limit for the primary agent (seconds)",
           "default_echo": "Default Echo media player (fallback)",
           "dialog_prompt": "Greeting voice prompt",
           "announce_model": "Announce model name at the end of answers",
@@ -62,6 +63,9 @@
           "abort_prompt": "Abort announcement after second failed attempt",
           "prompt_short": "AI prompt for short answer (as-is, must include [question])",
           "prompt_detailed": "AI prompt for detailed explanation (as-is, use placeholders [question] and [previous_answer])"
+        },
+        "data_description": {
+          "primary_timeout": "If the primary agent has not answered by then, the fallback agent starts in parallel and the first valid answer wins. 0 = fallback agent only on an error."
         }
       },
       "history": {

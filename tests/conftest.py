@@ -1,6 +1,7 @@
 """Fixtures for Schlaue Antworten tests."""
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -52,10 +53,18 @@ class FakeAgents:
 
     def __init__(self) -> None:
         self.answers: dict[str, str | Exception] = {}
+        self.delays: dict[str, float] = {}
         self.calls: list[dict[str, Any]] = []
+        self.cancelled: list[str] = []
 
     async def handle(self, call: ServiceCall) -> dict[str, Any]:
         self.calls.append(dict(call.data))
+        agent_id = call.data["agent_id"]
+        try:
+            await asyncio.sleep(self.delays.get(agent_id, 0))
+        except asyncio.CancelledError:
+            self.cancelled.append(agent_id)
+            raise
         answer = self.answers.get(call.data["agent_id"], "")
         if isinstance(answer, Exception):
             raise answer

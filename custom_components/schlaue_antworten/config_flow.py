@@ -28,6 +28,7 @@ from .const import (
     CONF_MOBILE_CONFIRMATION,
     CONF_NOTIFY_TARGET,
     CONF_PRIMARY_AGENT,
+    CONF_PRIMARY_TIMEOUT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
     CONF_RETRY_PROMPT,
@@ -49,6 +50,7 @@ from .const import (
     DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_NOTIFY_TARGET,
     DEFAULT_PRIMARY_AGENT,
+    DEFAULT_PRIMARY_TIMEOUT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
     DEFAULT_RETRY_PROMPT,
@@ -76,6 +78,7 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 options={
                     CONF_PRIMARY_AGENT: DEFAULT_PRIMARY_AGENT,
                     CONF_FALLBACK_AGENT: DEFAULT_FALLBACK_AGENT,
+                    CONF_PRIMARY_TIMEOUT: DEFAULT_PRIMARY_TIMEOUT,
                     CONF_DEFAULT_ECHO: DEFAULT_ECHO,
                     CONF_DIALOG_PROMPT: DEFAULT_DIALOG_PROMPT,
                     CONF_ANNOUNCE_MODEL: DEFAULT_ANNOUNCE_MODEL,
@@ -141,6 +144,18 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     default=opts.get(CONF_FALLBACK_AGENT, DEFAULT_FALLBACK_AGENT),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="conversation")
+                ),
+                vol.Required(
+                    CONF_PRIMARY_TIMEOUT,
+                    default=opts.get(CONF_PRIMARY_TIMEOUT, DEFAULT_PRIMARY_TIMEOUT),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=15,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
                 ),
                 vol.Required(
                     CONF_DEFAULT_ECHO,

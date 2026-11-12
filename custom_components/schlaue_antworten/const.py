@@ -25,10 +25,13 @@ CONF_ENABLE_DIRECT_QUERY = "enable_direct_query"
 CONF_DIRECT_QUERY_PREFIXES = "direct_query_prefixes"
 CONF_PROMPT_SHORT = "prompt_short"
 CONF_PROMPT_DETAILED = "prompt_detailed"
+CONF_PRIMARY_TIMEOUT = "primary_timeout"
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
 DEFAULT_FALLBACK_AGENT = "conversation.google_ai_conversation"
+# Seconds after which the fallback agent races the primary one (0 = only on an error)
+DEFAULT_PRIMARY_TIMEOUT = 2.5
 DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"
 DEFAULT_ANNOUNCE_MODEL = True

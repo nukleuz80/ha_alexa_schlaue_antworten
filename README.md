@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.33-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.34-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -48,7 +48,7 @@ Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
 - 🔄 **2-Stufen-Fehlererkennung mit Schleifenschutz:** Fängt Gemurmel oder unverständliche Fragen ab, bittet einmalig höflich um Wiederholung und beendet bei erneutem Fehlschlag geräuschlos den Dialog.
 - 💬 **Optionale Vertiefung (Follow-up):** Fragt nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze), ohne die Kurzantwort zu wiederholen.
 - ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
-- 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen Ausweich-Agenten (z. B. Claude Sonnet).
+- 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen Ausweich-Agenten (z. B. Claude Sonnet). Ab v1.0.34 als Wettlauf: Antwortet der primäre Agent nicht innerhalb des Zeitlimits (Standard 2,5 s), startet der Ausweich-Agent parallel, und die erste gültige Antwort gewinnt.
 - 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI (z. B. für Fragen wie *„Brauche ich heute einen Schirm?“* oder *„Wie spät ist es?“*).
 - 📖 **Haus-Wiki & Familien-Fakten:** Erlaubt es, in den Einstellungen individuelle Notizen zu hinterlegen (z. B. WLAN-Gastpasswort, Müllabfuhr-Tage, Haustiernamen, Notfallnummern), auf die die KI bei Haushaltsfragen zugreift.
 - 🚨 **Proaktive Fragen für Automatisierungen:** Dienst `schlaue_antworten.interactive_question` stellt bei Ereignissen eine Ja/Nein-Frage über Alexa und feuert bei *„Ja“* bzw. *„Nein“* entsprechende Events (`schlaue_antworten_action_confirmed`/`declined`).
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.34** | 12.11.2026 | **Wettlauf statt Warteschlange:** Antwortet der primäre Agent nicht innerhalb des neuen Zeitlimits (Standard 2,5 s, einstellbar unter *Einstellungen & Prompts*), startet der Ausweich-Agent parallel. Die erste gültige Antwort gewinnt, der langsamere Agent wird abgebrochen. Bei einem Fehler (z. B. 503) startet der Ausweich-Agent sofort, ohne das Zeitlimit abzuwarten. 0 Sekunden stellt das alte Verhalten ein (Ausweich-Agent nur bei Fehler). Das Dialog-Log zeigt die Zeiten beider Agenten. |
 | **v1.0.33** | 12.11.2026 | **Neuer Antwort-Kern (Umbau ohne Verhaltensänderung):** Prompt-Bau, KI-Aufruf mit Fallback, Fehler- und Unklar-Erkennung, Bereinigung und Smart-Home-Kontext stecken jetzt im eigenen Modul `answer.py`. Die Sprachausgabe ist davon getrennt. Das ist die Grundlage für den kommenden eigenen Alexa-Skill und einen späteren Assist-Agenten. Neue Tests sichern das Verhalten ab. |
 | **v1.0.32** | 12.11.2026 | **Antwortzeiten messen:** Jede Anfrage misst jetzt getrennt, wie lange die KI gebraucht hat (je Agent, auch beim Fallback) und wie lange alles zusammen gedauert hat. Das Dialog-Log zeigt Agent, KI-Zeit und Sprachweg (direkt, Dialog, Dienst). Der Sensor `sensor.alexa_schlaue_antworten_ki_anfragen_heute` hat neue Attribute: `letzte_ki_dauer_sekunden`, `letzter_agent`, `letzter_weg` sowie die Mittelwerte `mittlere_ki_dauer_sekunden` und `mittlere_gesamtdauer_sekunden` über die letzten 20 Anfragen. |
 | **v1.0.31** | 29.10.2026 | **Vibe Coding Manifest & Badges:** Offizieller Hinweis und Badges zur leidenschaftlichen KI-gestützten Entwicklung (*„Vibe Coding mit voller Hingabe“*) in Dokumentation und Repository aufgenommen. |

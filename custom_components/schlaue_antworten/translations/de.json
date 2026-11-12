@@ -43,6 +43,7 @@
         "data": {
           "primary_agent": "Primärer KI-Agent",
           "fallback_agent": "Ausweich-Agent (Fallback bei Überlastung)",
+          "primary_timeout": "Zeitlimit für den primären Agenten (Sekunden)",
           "default_echo": "Standard-Echo (Fallback)",
           "dialog_prompt": "Begrüßungsansage",
           "announce_model": "Modellname am Ende der Antwort ansagen",
@@ -62,6 +63,9 @@
           "abort_prompt": "Abbruchansage nach zweitem Fehlversuch",
           "prompt_short": "KI-Prompt für Kurzantwort (ohne Gewähr, muss [question] enthalten)",
           "prompt_detailed": "KI-Prompt für Vertiefung (ohne Gewähr, Platzhalter [question] und [previous_answer] nutzen)"
+        },
+        "data_description": {
+          "primary_timeout": "Antwortet der primäre Agent bis dahin nicht, startet der Ausweich-Agent parallel und die erste gültige Antwort gewinnt. 0 = Ausweich-Agent nur bei einem Fehler."
         }
       },
       "history": {

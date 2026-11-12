@@ -5,6 +5,7 @@ Alexa skill and later an Assist agent all use the same AnswerEngine.
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import logging
 import re
@@ -22,6 +23,7 @@ from .const import (
     CONF_ENABLE_HA_CONTEXT,
     CONF_FALLBACK_AGENT,
     CONF_PRIMARY_AGENT,
+    CONF_PRIMARY_TIMEOUT,
     CONF_PROMPT_DETAILED,
     CONF_PROMPT_SHORT,
     CONF_SHORT_ANSWERS,
@@ -30,6 +32,7 @@ from .const import (
     DEFAULT_ENABLE_HA_CONTEXT,
     DEFAULT_FALLBACK_AGENT,
     DEFAULT_PRIMARY_AGENT,
+    DEFAULT_PRIMARY_TIMEOUT,
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
     DEFAULT_SHORT_ANSWERS,
@@ -189,6 +192,74 @@ class AnswerEngine:
             )
         return None
 
+    async def _async_timed_ask(
+        self, agent_id: str, prompt: str, started: float, seconds: dict[str, float]
+    ) -> str | None:
+        """Ask one agent, note how long it took and return a valid reply or None."""
+        try:
+            speech = await self._async_ask_agent(agent_id, prompt)
+        except Exception as err:  # noqa: BLE001 - any agent failure counts as no answer
+            _LOGGER.warning("Agent %s failed: %s", agent_id, err)
+            speech = None
+        seconds[agent_id] = time.monotonic() - started
+        return None if is_error_reply(speech) else speech
+
+    async def _async_race(
+        self,
+        prompt: str,
+        primary: str,
+        fallback: str | None,
+        timeout: float,
+        seconds: dict[str, float],
+    ) -> tuple[str | None, str | None]:
+        """Return the first valid reply and its agent.
+
+        The primary agent starts alone. The fallback joins as soon as the primary
+        agent fails, or after `timeout` seconds without an answer (0 = only on a
+        failure). The slower agent is cancelled once one has answered.
+        """
+        starts: dict[str, float] = {primary: time.monotonic()}
+        tasks: dict[asyncio.Task[str | None], str] = {
+            asyncio.create_task(
+                self._async_timed_ask(primary, prompt, starts[primary], seconds)
+            ): primary
+        }
+        fallback_started = False
+
+        def _start_fallback(reason: str) -> None:
+            nonlocal fallback_started
+            if fallback is None or fallback_started:
+                return
+            fallback_started = True
+            _LOGGER.info("Starting fallback agent %s (%s)", fallback, reason)
+            starts[fallback] = time.monotonic()
+            task = asyncio.create_task(
+                self._async_timed_ask(fallback, prompt, starts[fallback], seconds)
+            )
+            tasks[task] = fallback
+
+        try:
+            while tasks:
+                wait_for = timeout if timeout > 0 and not fallback_started else None
+                done, _pending = await asyncio.wait(
+                    tasks, timeout=wait_for, return_when=asyncio.FIRST_COMPLETED
+                )
+                if not done:
+                    _start_fallback(f"no answer after {timeout:.1f}s")
+                    continue
+                for task in done:
+                    agent = tasks.pop(task)
+                    speech = task.result()
+                    if speech:
+                        return speech, agent
+                    _start_fallback(f"{agent} gave no valid answer")
+            return None, None
+        finally:
+            # The slower agent is stopped; its time so far still shows in the log
+            for task, agent in tasks.items():
+                task.cancel()
+                seconds[agent] = time.monotonic() - starts[agent]
+
     async def async_answer(
         self,
         question: str,
@@ -199,7 +270,7 @@ class AnswerEngine:
         start_time: float | None = None,
         path: str = "",
     ) -> AnswerResult:
-        """Ask the primary agent, fall back on an error and clean the reply."""
+        """Race the primary and fallback agent and clean the winning reply."""
         if start_time is None:
             start_time = time.monotonic()
         opts = self.entry.options
@@ -211,29 +282,18 @@ class AnswerEngine:
         prompt_ready = time.monotonic()
         result.before_ai_seconds = prompt_ready - start_time
 
-        raw_speech: str | None = None
-        try:
-            raw_speech = await self._async_ask_agent(primary_agent, prompt)
-        except Exception as err:  # noqa: BLE001 - any agent failure leads to the fallback
-            _LOGGER.warning("Primary agent %s failed: %s", primary_agent, err)
-        result.agent_seconds[primary_agent] = time.monotonic() - prompt_ready
-
-        is_error = is_error_reply(raw_speech)
-        if is_error and fallback_agent and fallback_agent != primary_agent:
-            _LOGGER.info(
-                "Primary agent returned error; invoking fallback agent %s",
-                fallback_agent,
-            )
-            fallback_start = time.monotonic()
-            try:
-                fb_speech = await self._async_ask_agent(fallback_agent, prompt)
-                if not is_error_reply(fb_speech):
-                    raw_speech = fb_speech
-                    result.agent = fallback_agent
-                    is_error = False
-            except Exception as err:  # noqa: BLE001 - reported as overloaded below
-                _LOGGER.error("Fallback agent %s also failed: %s", fallback_agent, err)
-            result.agent_seconds[fallback_agent] = time.monotonic() - fallback_start
+        timeout = float(opts.get(CONF_PRIMARY_TIMEOUT, DEFAULT_PRIMARY_TIMEOUT) or 0)
+        use_fallback = bool(fallback_agent) and fallback_agent != primary_agent
+        raw_speech, winner = await self._async_race(
+            prompt,
+            primary_agent,
+            fallback_agent if use_fallback else None,
+            timeout,
+            result.agent_seconds,
+        )
+        is_error = raw_speech is None
+        if winner:
+            result.agent = winner
 
         result.llm_seconds = time.monotonic() - prompt_ready
         result.timing_text = " → ".join(
