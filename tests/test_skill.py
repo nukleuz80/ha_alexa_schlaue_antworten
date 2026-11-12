@@ -266,3 +266,36 @@ async def test_skill_actions(
     phone = await post(action="intent", intent="HandyIntent")
     assert phone["end_session"] is True
     assert len(agents.calls) == 1
+
+
+async def test_dialog_stays_open(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """With an open dialog three questions follow without saying Alexa again."""
+    entry = await setup_entry({**OPTIONS, "skill_keep_open": True})
+    agents.answers[PRIMARY] = "Antwort."
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        return await response.json()
+
+    assert (await post(action="launch"))["end_session"] is False
+    for word, rest in (("WerIntent", "war goethe"), ("WasIntent", "ist ein quark")):
+        reply = await post(action="intent", intent=word, text=rest)
+        assert reply == {
+            "speech": "Antwort. Noch eine Frage?",
+            "end_session": False,
+            "reprompt": "Noch eine Frage?",
+        }
+    yes = await post(action="intent", intent="AMAZON.YesIntent")
+    assert yes["speech"] == "Was möchtest du wissen?" and yes["end_session"] is False
+    third = await post(action="intent", intent="WieIntent", text="weit ist der mond")
+    assert third["end_session"] is False
+    no = await post(action="intent", intent="AMAZON.NoIntent")
+    assert no == {"speech": "Alles klar.", "end_session": True}
+    assert len(agents.calls) == 3

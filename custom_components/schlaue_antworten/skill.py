@@ -28,13 +28,17 @@ from .const import (
     CONF_INVOCATION_NAME,
     CONF_LATE_TEXT,
     CONF_RETRY_PROMPT,
+    CONF_SKILL_KEEP_OPEN,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_ECHO,
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INVOCATION_NAME,
     DEFAULT_LATE_TEXT,
     DEFAULT_RETRY_PROMPT,
+    DEFAULT_SKILL_KEEP_OPEN,
     DOMAIN,
+    SKILL_ANOTHER_TEXT,
+    SKILL_ASK_TEXT,
     SKILL_HELP_TEXT,
     SKILL_PHONE_LATER_TEXT,
 )
@@ -62,7 +66,7 @@ ACTIONS = (ACTION_ASK, ACTION_LAUNCH, ACTION_INTENT)
 MAX_INTENT_LENGTH = 100
 
 INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
-INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent", "AMAZON.YesIntent")
+INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
 
 MAX_TEXT_LENGTH = 500
 MAX_SPEECH_LENGTH = 7900
@@ -283,7 +287,7 @@ class SkillConnector:
 
         question = " ".join(question.split())[:MAX_TEXT_LENGTH]
         if len(question) < 2:
-            return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
+            return self._ask_again(self._retry_prompt())
 
         return await self._async_ask(question, self._echo_for(device_id), start_time)
 
@@ -293,12 +297,36 @@ class SkillConnector:
             return self._speech(self._option(CONF_GOODBYE_TEXT, DEFAULT_GOODBYE_TEXT))
         if intent == "AMAZON.HelpIntent":
             return self._ask_again(SKILL_HELP_TEXT)
+        if intent == "AMAZON.YesIntent":
+            # "Ja" to "Noch eine Frage?"
+            return self._ask_again(SKILL_ASK_TEXT)
         if intent == INTENT_PHONE:
             return self._speech(SKILL_PHONE_LATER_TEXT)
         if intent in INTENTS_SILENT_OK:
             return self._speech("Okay.")
         # AMAZON.FallbackIntent and anything unknown
-        return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
+        return self._ask_again(self._retry_prompt())
+
+    @property
+    def keeps_dialog_open(self) -> bool:
+        """Return whether the microphone stays open after an answer."""
+        return bool(
+            self.entry.options.get(CONF_SKILL_KEEP_OPEN, DEFAULT_SKILL_KEEP_OPEN)
+        )
+
+    def _answer(self, text: str) -> web.Response:
+        """Say an answer and, if wanted, offer the next question."""
+        if not self.keeps_dialog_open:
+            return self._speech(text)
+        return self._speech(
+            f"{text} {SKILL_ANOTHER_TEXT}",
+            end_session=False,
+            reprompt=SKILL_ANOTHER_TEXT,
+        )
+
+    def _retry_prompt(self) -> str:
+        """Return the text that asks to repeat the question."""
+        return self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT)
 
     def _option(self, key: str, default: str) -> str:
         """Return a text option, falling back to its default when empty."""
@@ -337,7 +365,7 @@ class SkillConnector:
             return self._speech(result.speech)
 
         if result.unclear:
-            return self._ask_again(self._option(CONF_RETRY_PROMPT, DEFAULT_RETRY_PROMPT))
+            return self._ask_again(self._retry_prompt())
 
         manager.add_history_entry(
             device,
@@ -356,4 +384,4 @@ class SkillConnector:
             agent=result.agent,
             path=PATH_SKILL,
         )
-        return self._speech(result.speech)
+        return self._answer(result.speech)

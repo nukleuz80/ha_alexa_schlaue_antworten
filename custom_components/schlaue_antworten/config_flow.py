@@ -37,6 +37,7 @@ from .const import (
     CONF_PROMPT_SHORT,
     CONF_RETRY_PROMPT,
     CONF_SHORT_ANSWERS,
+    CONF_SKILL_KEEP_OPEN,
     CONF_VOICE_PATH,
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
@@ -63,8 +64,10 @@ from .const import (
     DEFAULT_PROMPT_SHORT,
     DEFAULT_RETRY_PROMPT,
     DEFAULT_SHORT_ANSWERS,
+    DEFAULT_SKILL_KEEP_OPEN,
     DEFAULT_VOICE_PATH,
     DOMAIN,
+    SKILL_OPTION_KEYS,
     VOICE_PATHS,
 )
 from .skill_model import is_valid_invocation
@@ -142,9 +145,9 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         """Manage configuration and prompts."""
         if user_input is not None:
             # Options of the skill step live in the same entry and must survive
-            invocation = self.config_entry.options.get(CONF_INVOCATION_NAME)
-            if invocation:
-                user_input[CONF_INVOCATION_NAME] = invocation
+            for key in SKILL_OPTION_KEYS:
+                if key in self.config_entry.options:
+                    user_input[key] = self.config_entry.options[key]
             return self.async_create_entry(title="", data=user_input)
 
         opts = self.config_entry.options
@@ -350,6 +353,9 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                 if user_input.get("reset_skill"):
                     await skill.async_reset()
                 options[CONF_INVOCATION_NAME] = invocation
+                options[CONF_SKILL_KEEP_OPEN] = bool(
+                    user_input.get(CONF_SKILL_KEEP_OPEN, DEFAULT_SKILL_KEEP_OPEN)
+                )
                 return self.async_create_entry(title="", data=options)
 
         copy_field = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
@@ -358,6 +364,10 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                 CONF_INVOCATION_NAME,
                 default=options.get(CONF_INVOCATION_NAME, DEFAULT_INVOCATION_NAME),
             ): selector.TextSelector(),
+            vol.Optional(
+                CONF_SKILL_KEEP_OPEN,
+                default=options.get(CONF_SKILL_KEEP_OPEN, DEFAULT_SKILL_KEEP_OPEN),
+            ): selector.BooleanSelector(),
         }
         try:
             skill_code = skill.get_skill_code()

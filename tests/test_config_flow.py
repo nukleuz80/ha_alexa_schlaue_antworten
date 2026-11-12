@@ -58,7 +58,8 @@ async def test_skill_step_shows_code_and_model(
     assert result["errors"] == {}
     fields = {str(key): key for key in result["data_schema"].schema}
     code = fields["skill_code"].description["suggested_value"]
-    assert f"https://example.ui.nabu.casa/api/webhook/{manager.skill.webhook_id}" in code
+    secret = manager.skill.webhook_id
+    assert f"https://example.ui.nabu.casa/api/webhook/{secret}" in code
     model = fields["interaction_model"].description["suggested_value"]
     assert '"invocationName": "schlaufuchs"' in model
 
@@ -69,11 +70,17 @@ async def test_skill_step_shows_code_and_model(
 
     old_secret = manager.skill.webhook_id
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"invocation_name": "Schlauer  Fuchs", "reset_skill": True}
+        result["flow_id"],
+        {
+            "invocation_name": "Schlauer  Fuchs",
+            "reset_skill": True,
+            "skill_keep_open": True,
+        },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert entry.options["invocation_name"] == "schlauer fuchs"
+    assert entry.options["skill_keep_open"] is True
     assert entry.options["default_echo"]
     assert hass.data[DOMAIN][entry.entry_id].skill.webhook_id != old_secret
 

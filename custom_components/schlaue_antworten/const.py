@@ -30,6 +30,8 @@ CONF_ANSWER_BUDGET = "answer_budget"
 CONF_LATE_TEXT = "late_text"
 CONF_VOICE_PATH = "voice_path"
 CONF_INVOCATION_NAME = "invocation_name"
+CONF_SKILL_KEEP_OPEN = "skill_keep_open"
+SKILL_OPTION_KEYS = (CONF_INVOCATION_NAME, CONF_SKILL_KEEP_OPEN)
 
 # Default values
 DEFAULT_PRIMARY_AGENT = "conversation.google_ai_conversation_2"
@@ -44,6 +46,9 @@ VOICE_PATH_BOTH = "both"
 VOICE_PATHS = [VOICE_PATH_COMMUNITY, VOICE_PATH_SKILL, VOICE_PATH_BOTH]
 DEFAULT_VOICE_PATH = VOICE_PATH_COMMUNITY
 DEFAULT_INVOCATION_NAME = "schlaufuchs"
+DEFAULT_SKILL_KEEP_OPEN = False
+SKILL_ANOTHER_TEXT = "Noch eine Frage?"
+SKILL_ASK_TEXT = "Was möchtest du wissen?"
 SKILL_HELP_TEXT = "Frag mich einfach etwas, zum Beispiel: Wie weit ist der Mond entfernt?"
 SKILL_PHONE_LATER_TEXT = "Das Senden aufs Handy kommt in einer der nächsten Versionen."
 DEFAULT_LATE_TEXT = "Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy."

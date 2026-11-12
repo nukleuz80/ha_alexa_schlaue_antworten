@@ -82,13 +82,15 @@
         "description": "Webhook active: {active} · Skill linked: {linked}\nLast question via the skill: {last_request}\n\nHow to create the skill: in the Alexa developer console create a custom skill with “Alexa-hosted (Python)” in region EU (Ireland). Paste the voice model under *Build → JSON Editor*, save and start *Build*. Under *Code* replace the content of `lambda_function.py` with the skill code and press *Deploy*. Set *Test* to *Development*. The webhook is only active if the voice path under *Settings & prompts* is “Own skill” or “Both”.\n\n**The skill code contains your secret address. Do not share it.**",
         "data": {
           "invocation_name": "Invocation name (e.g. schlaufuchs)",
+          "skill_keep_open": "Keep the dialog open („Noch eine Frage?“)",
           "skill_code": "Skill code (lambda_function.py)",
           "interaction_model": "Voice model (JSON Editor)",
           "reset_skill": "Reset link (new secret address)"
         },
         "data_description": {
           "invocation_name": "Lower case letters and spaces only. After a change paste and build the voice model again.",
-          "reset_skill": "Afterwards the skill code must be copied again, the old one stops working."
+          "reset_skill": "Afterwards the skill code must be copied again, the old one stops working.",
+          "skill_keep_open": "After each answer Alexa asks „Noch eine Frage?“ (another question?) and keeps listening. „Nein“ or „Stopp“ ends the dialog."
         }
       },
       "history": {
