@@ -53,9 +53,14 @@ from .const import (
     SKILL_ASK_TEXT,
     SKILL_HELP_TEXT,
     SKILL_PHONE_NOTHING_TEXT,
+    SKILL_ROOM_NO_DEVICE_TEXT,
+    SKILL_ROOM_SET_TEXT,
+    SKILL_ROOM_UNKNOWN_TEXT,
 )
+from .echo_match import best_echo, echo_candidates
 from .skill_model import (
     INTENT_PHONE,
+    INTENT_ROOM,
     INTENT_START,
     build_skill_code,
     interaction_model_json,
@@ -96,6 +101,8 @@ MAX_TEXT_LENGTH = 500
 MAX_SPEECH_LENGTH = 7900
 # The skill code gives Home Assistant 6.5 seconds, Amazon waits about 8
 SKILL_BUDGET_SECONDS = 6.0
+SAVE_DELAY_SECONDS = 30.0
+MAX_SEEN_DEVICES = 20
 RATE_LIMIT_REQUESTS = 20
 RATE_LIMIT_WINDOW_SECONDS = 60.0
 
@@ -119,6 +126,8 @@ class SkillConnector:
         self._webhook_id = ""
         self._application_id: str | None = None
         self._devices: dict[str, str] = {}
+        # Alexa device id -> when it last asked, to assign it in the options
+        self._seen: dict[str, str] = {}
         self._requests: deque[float] = deque()
         self._active = False
         self.last_request: dict[str, str] | None = None
@@ -150,24 +159,31 @@ class SkillConnector:
         self._application_id = str(application_id) if application_id else None
         devices = data.get("devices")
         self._devices = dict(devices) if isinstance(devices, dict) else {}
+        seen = data.get("seen")
+        self._seen = dict(seen) if isinstance(seen, dict) else {}
         if not self._webhook_id:
             await self._async_new_webhook_id()
 
     async def _async_save(self) -> None:
         """Persist the secret, skill link and known Echos."""
-        await self._store.async_save(
-            {
-                "webhook_id": self._webhook_id,
-                "application_id": self._application_id,
-                "devices": self._devices,
-            }
-        )
+        await self._store.async_save(self._data())
+
+    @callback
+    def _data(self) -> dict[str, Any]:
+        """Return what is stored."""
+        return {
+            "webhook_id": self._webhook_id,
+            "application_id": self._application_id,
+            "devices": self._devices,
+            "seen": self._seen,
+        }
 
     async def _async_new_webhook_id(self) -> None:
         """Create a new secret, which invalidates the old skill code."""
         self._webhook_id = f"{DOMAIN}_{secrets.token_hex(24)}"
         self._application_id = None
         self._devices = {}
+        self._seen = {}
         await self._async_save()
 
     @callback
@@ -281,6 +297,54 @@ class SkillConnector:
         self._requests.append(now)
         return False
 
+    @property
+    def seen_devices(self) -> dict[str, str]:
+        """Return Alexa device id -> when it last asked, newest first."""
+        return dict(sorted(self._seen.items(), key=lambda item: item[1], reverse=True))
+
+    @property
+    def device_map(self) -> dict[str, str]:
+        """Return Alexa device id -> Echo entity."""
+        return dict(self._devices)
+
+    async def async_set_device_map(self, device_map: dict[str, str]) -> None:
+        """Replace the Echo assignment, as corrected in the options."""
+        self._devices = {
+            device_id: entity_id
+            for device_id, entity_id in device_map.items()
+            if device_id in self._seen and entity_id
+        }
+        await self._async_save()
+
+    @callback
+    def _note_device(self, device_id: str | None) -> None:
+        """Remember that a device asked, without slowing the answer down."""
+        if not device_id:
+            return
+        # Sortable, and readable in the options
+        self._seen[device_id] = dt_util.now().strftime("%Y-%m-%d %H:%M")
+        while len(self._seen) > MAX_SEEN_DEVICES:
+            oldest = min(self._seen, key=self._seen.__getitem__)
+            self._seen.pop(oldest)
+            self._devices.pop(oldest, None)
+        self._store.async_delay_save(self._data, SAVE_DELAY_SECONDS)
+
+    async def _async_assign_room(
+        self, device_id: str | None, spoken: str
+    ) -> web.Response:
+        """Assign this Echo by the room the user names."""
+        if not device_id:
+            return self._speech(SKILL_ROOM_NO_DEVICE_TEXT)
+        echo = best_echo(spoken, echo_candidates(self.hass))
+        if echo is None:
+            return self._speech(SKILL_ROOM_UNKNOWN_TEXT.format(room=spoken.strip()))
+        self._devices[device_id] = echo
+        await self._async_save()
+        state = self.hass.states.get(echo)
+        name = str(state.attributes.get("friendly_name") or echo) if state else echo
+        _LOGGER.info("Assigned an Alexa device to %s", echo)
+        return self._speech(SKILL_ROOM_SET_TEXT.format(echo=name))
+
     def _echo_for(self, device_id: str | None) -> str:
         """Return the Echo entity for an Alexa device id, or the default Echo."""
         if device_id and device_id in self._devices:
@@ -352,6 +416,7 @@ class SkillConnector:
             _LOGGER.warning("Too many skill requests, slowing down")
             return web.Response(status=429)
 
+        self._note_device(device_id)
         response = await self._async_dispatch(
             action, intent, text, device_id, session, start_time
         )
@@ -403,6 +468,8 @@ class SkillConnector:
                     previous_answer=followup[1],
                     answer_task=self._take_prefetched(session),
                 )
+            if intent == INTENT_ROOM:
+                return await self._async_assign_room(device_id, text)
             if intent == INTENT_PHONE:
                 return await self._async_send_to_phone(
                     self._echo_for(device_id), session

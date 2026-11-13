@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.42-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.43-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.43** | 13.11.2026 | **Echo-Zuordnung im eigenen Skill:** Sag am jeweiligen Echo einmal „Alexa, sag Schlaufuchs, du stehst in der Küche“ (auch „dieser Echo steht im Bad“, „ich bin im Wohnzimmer“) – Schlaue Antworten sucht den passenden Echo aus Alexa Media anhand von Name und Bereich und merkt sich die Zuordnung. Danach kennt die KI bei jeder Frage den richtigen Raum, und „Aufs Handy“ findet die letzte Antwort genau dieses Echos. Neuer Optionspunkt *🔊 Echo-Zuordnung* zeigt alle Echos, die den Skill benutzt haben, zum Zuordnen und Korrigieren. Ohne Zuordnung gilt weiter der Standard-Echo. Automatisches Lernen über „zuletzt angesprochen“ ist nicht möglich, weil Alexa Media Skill-Anfragen nicht meldet. Neues Sprachmodell einfügen und bauen, der Skill-Code bleibt. |
 | **v1.0.42** | 13.11.2026 | **Aufs Handy im eigenen Skill:** „Schick es mir aufs Handy“ sendet die letzte Antwort als Push-Nachricht und bestätigt mit dem eingestellten Satz – im Gespräch die Antwort aus der Sitzung (liegt die ausführliche Antwort schon bereit, kommt diese), danach noch 15 Minuten lang die letzte Antwort dieses Echos („Alexa, sag Schlaufuchs, schick es aufs Handy“). „… und schick es mir aufs Handy“ direkt in der Frage beantwortet und sendet zugleich. Neue Beispielsätze im Sprachmodell (Sprachmodell neu einfügen und bauen, der Skill-Code bleibt). |
 | **v1.0.41** | 13.11.2026 | **Ausführliche Antworten deutlich schneller:** Während Alexa „Ja oder Nein?“ fragt, rechnet die KI die ausführliche Antwort schon im Hintergrund; ein „Ja“ bekommt sie dann meist sofort, ein „Nein“ bricht die Berechnung ab. Für die Vertiefung starten beide KI-Agenten gleichzeitig, und der Standard-Prompt verlangt nur noch 2 bis 3 kurze Sätze (ein unveränderter alter Standard-Prompt wird automatisch ersetzt). Verspätet per Push zugestellte Vertiefungen zählen in der Statistik jetzt als ausführliche Antwort. |
 | **v1.0.40** | 12.11.2026 | **Keine Endlosschleife bei unverständlichen Sätzen im eigenen Skill:** Versteht Alexa einen Satz nicht, fragt der Skill genau einmal nach; beim zweiten Mal endet das Gespräch mit der Abbruchansage. Das Sprachmodell versteht jetzt auch im offenen Gespräch „frag schlaufuchs …“ und „öffne schlaufuchs“ (neues Sprachmodell einfügen und bauen, der Skill-Code bleibt). Der Sensor zeigt die letzte Skill-Anfrage mit Intent, Text und Antwort zur Fehlersuche. |

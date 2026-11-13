@@ -36,7 +36,7 @@ async def test_options_menu(hass: HomeAssistant, setup_entry: SetupEntry) -> Non
     entry = await setup_entry()
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
-    assert set(result["menu_options"]) == {"settings", "skill", "history"}
+    assert set(result["menu_options"]) == {"settings", "skill", "echos", "history"}
 
 
 async def test_skill_step_shows_code_and_model(
@@ -110,3 +110,35 @@ async def test_settings_keep_the_invocation_name(
     result = await hass.config_entries.options.async_configure(result["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["invocation_name"] == "schlauer fuchs"
+
+
+async def test_echo_assignment_step(
+    hass: HomeAssistant, setup_entry: SetupEntry
+) -> None:
+    """Echos that used the skill can be assigned and corrected in the options."""
+    entry = await setup_entry()
+    skill = hass.data[DOMAIN][entry.entry_id].skill
+    skill._note_device("amzn1.ask.device.AAAAAA111111")
+    skill._note_device("amzn1.ask.device.BBBBBB222222")
+    await skill.async_set_device_map(
+        {"amzn1.ask.device.AAAAAA111111": "media_player.alt"}
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "echos"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    fields = {str(key): key for key in result["data_schema"].schema}
+    label_a = next(label for label in fields if label.startswith("…111111"))
+    label_b = next(label for label in fields if label.startswith("…222222"))
+    assert fields[label_a].description == {"suggested_value": "media_player.alt"}
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {label_b: "media_player.kueche"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The cleared field removes the old assignment
+    assert skill.device_map == {
+        "amzn1.ask.device.BBBBBB222222": "media_player.kueche"
+    }

@@ -38,6 +38,7 @@
         "menu_options": {
           "settings": "⚙️ Settings & Prompts",
           "skill": "🎙️ Own Alexa skill",
+          "echos": "🔊 Echo assignment",
           "history": "📜 Dialog Log (Recent Interactions)"
         }
       },
@@ -96,6 +97,10 @@
       "history": {
         "title": "📜 Dialog Log",
         "description": "### Recent Interactions:\n\n{log_content}"
+      },
+      "echos": {
+        "title": "Echo assignment",
+        "description": "These are the Echos that already used the own skill ({count}), shown with the end of their Alexa device ID and the time of their last question. Pick the matching Echo for each. The AI then knows the room, and “send to phone” finds the last answer of exactly this Echo.\n\nThe easiest way is by voice: on each Echo say “Alexa, sag Schlaufuchs, du stehst in der Küche”. Without an assignment the default Echo is used."
       }
     },
     "error": {

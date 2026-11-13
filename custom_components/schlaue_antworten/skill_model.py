@@ -15,6 +15,7 @@ SLOT_QUESTION = "frage"
 INTENT_QUESTION = "FrageIntent"
 INTENT_PHONE = "HandyIntent"
 INTENT_START = "StartIntent"
+INTENT_ROOM = "RaumIntent"
 
 # Alexa's free-text slot needs a word in front of it. Each question word gets
 # its own intent, so Home Assistant can put the word back in front of the slot.
@@ -54,6 +55,19 @@ QUESTION_CARRIERS = [
     "ich will wissen",
     "sag mir",
     "weißt du",
+]
+# "Du stehst in der Küche": tells which Echo this is. The slot keeps the name
+# "frage", so the skill code needs no change
+ROOM_CARRIERS = [
+    "du stehst in",
+    "du stehst im",
+    "du stehst in der",
+    "dieser echo steht in",
+    "dieser echo steht im",
+    "dieser echo steht in der",
+    "ich bin in",
+    "ich bin im",
+    "ich bin in der",
 ]
 PHONE_SAMPLES = [
     "schick es aufs handy",
@@ -202,6 +216,13 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
         }
     )
     intents.append({"name": INTENT_PHONE, "samples": list(PHONE_SAMPLES)})
+    intents.append(
+        {
+            "name": INTENT_ROOM,
+            "slots": _question_slot(),
+            "samples": [f"{carrier} {{{SLOT_QUESTION}}}" for carrier in ROOM_CARRIERS],
+        }
+    )
     intents.append(
         {
             "name": INTENT_START,

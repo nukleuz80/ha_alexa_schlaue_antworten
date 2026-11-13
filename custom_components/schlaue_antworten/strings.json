@@ -38,6 +38,7 @@
         "menu_options": {
           "settings": "⚙️ Einstellungen & Prompts",
           "skill": "🎙️ Eigener Alexa-Skill",
+          "echos": "🔊 Echo-Zuordnung",
           "history": "📜 Dialog-Log (letzte Interaktionen)"
         }
       },
@@ -96,6 +97,10 @@
       "history": {
         "title": "📜 Dialog-Log",
         "description": "### Letzte Interaktionen:\n\n{log_content}"
+      },
+      "echos": {
+        "title": "Echo-Zuordnung",
+        "description": "Hier stehen die Echos, die den eigenen Skill schon benutzt haben ({count}), mit dem Ende ihrer Alexa-Geräte-ID und dem Zeitpunkt der letzten Frage. Wähle zu jedem den passenden Echo aus. Daraus kennt die KI den Raum, und „Aufs Handy“ findet die letzte Antwort genau dieses Echos.\n\nAm einfachsten geht es per Sprache: Sag am jeweiligen Echo „Alexa, sag Schlaufuchs, du stehst in der Küche“. Ohne Zuordnung gilt der Standard-Echo."
       }
     },
     "error": {

@@ -569,3 +569,52 @@ async def test_send_to_phone(
         "end_session": True,
     }
     assert pushes[-1]["message"] == "Johann Wolfgang von Goethe."
+
+
+async def test_assign_room_by_voice(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """"Du stehst in der Küche" assigns the asking Echo; questions then use it."""
+    from homeassistant.helpers import entity_registry as er
+
+    er.async_get(hass).async_get_or_create(
+        "media_player", "alexa_media", "kitchen", suggested_object_id="echo_kuche"
+    )
+    hass.states.async_set(
+        "media_player.echo_kuche", "idle", {"friendly_name": "Echo Show - Küche"}
+    )
+    entry = await setup_entry({**OPTIONS, "enable_ha_context": True})
+    skill = hass.data[DOMAIN][entry.entry_id].skill
+    url = f"/api/webhook/{skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        return await response.json()
+
+    kitchen = "amzn1.ask.device.KITCHEN123456"
+    unknown = await post(
+        action="intent", intent="RaumIntent", text="keller", device_id=kitchen
+    )
+    assert "keinen Echo zu keller" in unknown["speech"]
+    assigned = await post(
+        action="intent", intent="RaumIntent", text="der küche", device_id=kitchen
+    )
+    assert assigned == {
+        "speech": "Alles klar, ich merke mir: Hier steht Echo Show - Küche.",
+        "end_session": True,
+    }
+    assert skill.device_map == {kitchen: "media_player.echo_kuche"}
+    assert kitchen in skill.seen_devices
+
+    agents.answers[PRIMARY] = "Sonnig."
+    await post(
+        action="intent", intent="WieIntent", text="ist das wetter", device_id=kitchen
+    )
+    assert "Echo Show - Küche" in agents.calls[-1]["text"]
+
+    no_device = await post(action="intent", intent="RaumIntent", text="küche")
+    assert no_device["speech"] == "Dieses Gerät kann ich leider nicht erkennen."

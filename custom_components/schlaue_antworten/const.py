@@ -49,7 +49,16 @@ DEFAULT_INVOCATION_NAME = "schlaufuchs"
 DEFAULT_SKILL_KEEP_OPEN = False
 SKILL_ANOTHER_TEXT = "Noch eine Frage?"
 SKILL_ASK_TEXT = "Was möchtest du wissen?"
-SKILL_HELP_TEXT = "Frag mich einfach etwas, zum Beispiel: Wie weit ist der Mond entfernt?"
+SKILL_HELP_TEXT = (
+    "Frag mich einfach etwas, zum Beispiel: Wie weit ist der Mond entfernt? "
+    "Damit ich den Raum kenne, sag mir einmal: Du stehst in der Küche."
+)
+SKILL_ROOM_SET_TEXT = "Alles klar, ich merke mir: Hier steht {echo}."
+SKILL_ROOM_UNKNOWN_TEXT = (
+    "Ich finde keinen Echo zu {room}. Du kannst ihn in den Optionen von "
+    "Schlaue Antworten unter Echo-Zuordnung auswählen."
+)
+SKILL_ROOM_NO_DEVICE_TEXT = "Dieses Gerät kann ich leider nicht erkennen."
 SKILL_PHONE_NOTHING_TEXT = (
     "Ich habe gerade keine Antwort, die ich aufs Handy schicken kann. "
     "Frag mich zuerst etwas."

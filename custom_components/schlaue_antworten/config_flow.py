@@ -136,7 +136,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         """Show main options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["settings", "skill", "history"],
+            menu_options=["settings", "skill", "echos", "history"],
         )
 
     async def async_step_settings(
@@ -401,6 +401,49 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                     else "–"
                 ),
             },
+        )
+
+    async def async_step_echos(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Assign the Echos that used the own skill, or correct the assignment."""
+        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if manager is None:
+            return self.async_abort(reason="not_loaded")
+        skill = manager.skill
+        # The Alexa device ids are long and secret-looking; show their end only
+        labels = {
+            f"…{device_id[-6:]} · {seen}": device_id
+            for device_id, seen in skill.seen_devices.items()
+        }
+        if user_input is not None:
+            await skill.async_set_device_map(
+                {
+                    labels[label]: str(entity_id)
+                    for label, entity_id in user_input.items()
+                    if label in labels and entity_id
+                }
+            )
+            return self.async_create_entry(
+                title="", data=dict(self.config_entry.options)
+            )
+
+        device_map = skill.device_map
+        schema: dict[Any, Any] = {}
+        for label, device_id in labels.items():
+            current = device_map.get(device_id)
+            schema[
+                vol.Optional(
+                    label,
+                    description={"suggested_value": current} if current else None,
+                )
+            ] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="media_player")
+            )
+        return self.async_show_form(
+            step_id="echos",
+            data_schema=vol.Schema(schema),
+            description_placeholders={"count": str(len(labels))},
         )
 
     async def async_step_history(
