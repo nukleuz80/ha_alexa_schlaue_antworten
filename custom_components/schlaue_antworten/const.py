@@ -50,7 +50,10 @@ DEFAULT_SKILL_KEEP_OPEN = False
 SKILL_ANOTHER_TEXT = "Noch eine Frage?"
 SKILL_ASK_TEXT = "Was möchtest du wissen?"
 SKILL_HELP_TEXT = "Frag mich einfach etwas, zum Beispiel: Wie weit ist der Mond entfernt?"
-SKILL_PHONE_LATER_TEXT = "Das Senden aufs Handy kommt in einer der nächsten Versionen."
+SKILL_PHONE_NOTHING_TEXT = (
+    "Ich habe gerade keine Antwort, die ich aufs Handy schicken kann. "
+    "Frag mich zuerst etwas."
+)
 DEFAULT_LATE_TEXT = "Das dauert gerade zu lange, ich schicke dir die Antwort aufs Handy."
 DEFAULT_ECHO = "media_player.wohnzimmer_echo_dot"
 DEFAULT_DIALOG_PROMPT = "Schlaue Antworten: Was möchtest du wissen?"
@@ -121,6 +124,14 @@ SERVICE_START_DIALOG = "start_dialog"
 SERVICE_ASK_QUESTION = "ask_question"
 SERVICE_INTERACTIVE_QUESTION = "interactive_question"
 
+# Words inside a question that ask for the answer on the smartphone as well
+MOBILE_QUESTION_PHRASES = (
+    "aufs handy",
+    "auf mein handy",
+    "aufs smartphone",
+    "aufs telefon",
+    "per nachricht",
+)
 MOBILE_TRIGGER_PHRASES = (
     "handy",
     "smartphone",

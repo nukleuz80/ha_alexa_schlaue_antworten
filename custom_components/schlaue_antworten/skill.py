@@ -33,6 +33,7 @@ from .const import (
     CONF_GOODBYE_TEXT,
     CONF_INVOCATION_NAME,
     CONF_LATE_TEXT,
+    CONF_MOBILE_CONFIRMATION,
     CONF_RETRY_PROMPT,
     CONF_SKILL_KEEP_OPEN,
     DEFAULT_ABORT_PROMPT,
@@ -43,13 +44,15 @@ from .const import (
     DEFAULT_GOODBYE_TEXT,
     DEFAULT_INVOCATION_NAME,
     DEFAULT_LATE_TEXT,
+    DEFAULT_MOBILE_CONFIRMATION,
     DEFAULT_RETRY_PROMPT,
     DEFAULT_SKILL_KEEP_OPEN,
     DOMAIN,
+    MOBILE_QUESTION_PHRASES,
     SKILL_ANOTHER_TEXT,
     SKILL_ASK_TEXT,
     SKILL_HELP_TEXT,
-    SKILL_PHONE_LATER_TEXT,
+    SKILL_PHONE_NOTHING_TEXT,
 )
 from .skill_model import (
     INTENT_PHONE,
@@ -83,6 +86,8 @@ SESSION_RETRIES = "retries"
 SESSION_DETAIL = "detail"
 # A detailed answer computed ahead of "Ja" is kept this long
 PREFETCH_SECONDS = 120.0
+# How long "schick es aufs Handy" still finds the last answer of an Echo
+LAST_ANSWER_SECONDS = 15 * 60.0
 
 INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
 INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
@@ -119,6 +124,8 @@ class SkillConnector:
         self.last_request: dict[str, str] | None = None
         self.last_skill_request: dict[str, str] | None = None
         self._prefetched: dict[str, tuple[asyncio.Task[AnswerResult], float]] = {}
+        # Echo -> (question, answer, time) for "schick es aufs Handy"
+        self._last_answers: dict[str, tuple[str, str, float]] = {}
 
     @property
     def is_linked(self) -> bool:
@@ -396,6 +403,10 @@ class SkillConnector:
                     previous_answer=followup[1],
                     answer_task=self._take_prefetched(session),
                 )
+            if intent == INTENT_PHONE:
+                return await self._async_send_to_phone(
+                    self._echo_for(device_id), session
+                )
             question = question_from_intent(intent, text)
             if question is None:
                 return self._answer_other_intent(intent, session, retries)
@@ -467,8 +478,6 @@ class SkillConnector:
         if intent == "AMAZON.YesIntent":
             # "Ja" to "Noch eine Frage?"
             return self._ask_again(SKILL_ASK_TEXT)
-        if intent == INTENT_PHONE:
-            return self._speech(SKILL_PHONE_LATER_TEXT)
         if intent in INTENTS_SILENT_OK:
             return self._speech("Okay.")
         # AMAZON.FallbackIntent and anything unknown
@@ -498,6 +507,51 @@ class SkillConnector:
     def _option(self, key: str, default: str) -> str:
         """Return a text option, falling back to its default when empty."""
         return str(self.entry.options.get(key, default) or default)
+
+    def _mobile_confirmation(self) -> str:
+        """Return the sentence that confirms the push to the smartphone."""
+        return self._option(CONF_MOBILE_CONFIRMATION, DEFAULT_MOBILE_CONFIRMATION)
+
+    async def _async_push(self, question: str, answer: str, device: str) -> None:
+        """Send an answer to the smartphone and note it in the history."""
+        await self.manager.async_send_to_mobile(
+            question=question, answer=answer, reply_device=device, confirm=False
+        )
+        self.manager.add_history_entry(
+            device,
+            f"[Smartphone] {question}",
+            self._mobile_confirmation(),
+            char_count=len(answer),
+            mode="Push",
+            timing=PATH_SKILL,
+        )
+
+    async def _async_send_to_phone(
+        self, device: str, session: dict[str, Any]
+    ) -> web.Response:
+        """Send the last answer to the smartphone.
+
+        In the dialog the answer comes from the session. After the dialog has
+        ended, the last answer of this Echo is used for a while.
+        """
+        detail = self._take_prefetched(session)
+        question_answer: tuple[str, str] | None = self._followup_from(session)
+        if question_answer and detail is not None and detail.done():
+            # The detailed answer is ready already: send it instead
+            if not detail.cancelled() and detail.exception() is None:
+                result = detail.result()
+                if not result.error and not result.unclear and result.text:
+                    question_answer = (question_answer[0], result.text)
+        if detail is not None:
+            detail.cancel()
+        if question_answer is None:
+            last = self._last_answers.get(device)
+            if last and time.monotonic() - last[2] <= LAST_ANSWER_SECONDS:
+                question_answer = (last[0], last[1])
+        if question_answer is None:
+            return self._speech(SKILL_PHONE_NOTHING_TEXT)
+        await self._async_push(question_answer[0], question_answer[1], device)
+        return self._answer(self._mobile_confirmation())
 
     async def _async_ask(
         self,
@@ -566,6 +620,13 @@ class SkillConnector:
             agent=result.agent,
             path=PATH_SKILL,
         )
+        self._last_answers[device] = (question, result.text, time.monotonic())
+        if not is_followup and any(
+            phrase in question.lower() for phrase in MOBILE_QUESTION_PHRASES
+        ):
+            # "... und schick es mir aufs Handy": answer and send, no offer of more
+            await self._async_push(question, result.text, device)
+            return self._answer(f"{result.speech} {self._mobile_confirmation()}")
         if is_followup or not self.offers_detail:
             return self._answer(result.speech)
         prompt = self._option(CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT)

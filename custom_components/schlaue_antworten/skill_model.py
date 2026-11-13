@@ -57,6 +57,10 @@ QUESTION_CARRIERS = [
 ]
 PHONE_SAMPLES = [
     "schick es aufs handy",
+    "schick es mir aufs handy",
+    "schick das aufs handy",
+    "schick mir die antwort aufs handy",
+    "aufs handy bitte",
     "schick mir das aufs handy",
     "aufs handy",
     "sende es an mein handy",

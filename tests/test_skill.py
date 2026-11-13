@@ -506,3 +506,66 @@ async def test_start_intent_and_invocation_question(
     answer = await post(intent="FrageIntent", text="wer goethe war")
     assert answer["speech"] == "Ein Dichter."
     assert agents.calls[-1]["text"].count("wer goethe war") >= 1
+
+
+async def test_send_to_phone(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """"Schick es aufs Handy" sends the last answer as a push message."""
+    pushes: list[dict[str, Any]] = []
+
+    async def _push(call: Any) -> None:
+        pushes.append(dict(call.data))
+
+    hass.services.async_register("notify", "notify", _push)
+    entry = await setup_entry({**OPTIONS, "enable_detailed_followup": True})
+    manager = hass.data[DOMAIN][entry.entry_id]
+    url = f"/api/webhook/{manager.skill.webhook_id}"
+    client = await hass_client_no_auth()
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        return await response.json()
+
+    confirmation = "Ich habe dir die Antwort aufs Handy geschickt."
+    # Nothing asked yet: nothing to send
+    nothing = await post(action="intent", intent="HandyIntent")
+    assert "keine Antwort" in nothing["speech"] and nothing["end_session"] is True
+
+    agents.answers[PRIMARY] = lambda prompt: (
+        "Ausführlich über den Mond."
+        if "Ergänze" in prompt
+        else "Etwa 384.400 Kilometer."
+    )
+    short = await post(action="intent", intent="WieIntent", text="weit ist der mond")
+    await hass.async_block_till_done()
+    # Instead of "Ja": the detailed answer is ready and goes to the phone
+    phone = await post(action="intent", intent="HandyIntent", session=short["session"])
+    await hass.async_block_till_done()
+    assert phone == {"speech": confirmation, "end_session": True}
+    assert pushes[-1]["message"] == "Ausführlich über den Mond."
+    assert "wie weit ist der mond" in pushes[-1]["title"]
+
+    # After the dialog ended, the last answer of the Echo is still found
+    again = await post(action="intent", intent="HandyIntent")
+    await hass.async_block_till_done()
+    assert again["speech"] == confirmation
+    assert pushes[-1]["message"] == "Etwa 384.400 Kilometer."
+    assert "[Smartphone] wie weit ist der mond" in manager.get_history_markdown()
+
+    # "... und schick es mir aufs Handy" inside the question
+    agents.answers[PRIMARY] = "Johann Wolfgang von Goethe."
+    asked = await post(
+        action="intent",
+        intent="WerIntent",
+        text="schrieb den faust und schick es mir aufs handy",
+    )
+    await hass.async_block_till_done()
+    assert asked == {
+        "speech": f"Johann Wolfgang von Goethe. {confirmation}",
+        "end_session": True,
+    }
+    assert pushes[-1]["message"] == "Johann Wolfgang von Goethe."

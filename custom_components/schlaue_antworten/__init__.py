@@ -60,6 +60,7 @@ from .const import (
     EVENT_ID_INTERACTIVE,
     EVENT_ID_QUERY,
     FILLER_PHRASES,
+    MOBILE_QUESTION_PHRASES,
     MOBILE_TRIGGER_PHRASES,
     SERVICE_ASK_QUESTION,
     SERVICE_INTERACTIVE_QUESTION,
@@ -1433,7 +1434,7 @@ class SchlaueAntwortenManager:
 
         # Check if user explicitly asked for mobile delivery in the question
         q_lower = question.lower()
-        if any(p in q_lower for p in ("aufs handy", "auf mein handy", "aufs smartphone", "aufs telefon", "per nachricht")):
+        if any(p in q_lower for p in MOBILE_QUESTION_PHRASES):
             await self.async_send_to_mobile(
                 question=question,
                 answer=cleaned,
