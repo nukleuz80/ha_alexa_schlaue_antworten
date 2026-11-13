@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.40-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.0.41-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -198,6 +198,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.0.41** | 13.11.2026 | **Ausführliche Antworten deutlich schneller:** Während Alexa „Ja oder Nein?“ fragt, rechnet die KI die ausführliche Antwort schon im Hintergrund; ein „Ja“ bekommt sie dann meist sofort, ein „Nein“ bricht die Berechnung ab. Für die Vertiefung starten beide KI-Agenten gleichzeitig, und der Standard-Prompt verlangt nur noch 2 bis 3 kurze Sätze (ein unveränderter alter Standard-Prompt wird automatisch ersetzt). Verspätet per Push zugestellte Vertiefungen zählen in der Statistik jetzt als ausführliche Antwort. |
 | **v1.0.40** | 12.11.2026 | **Keine Endlosschleife bei unverständlichen Sätzen im eigenen Skill:** Versteht Alexa einen Satz nicht, fragt der Skill genau einmal nach; beim zweiten Mal endet das Gespräch mit der Abbruchansage. Das Sprachmodell versteht jetzt auch im offenen Gespräch „frag schlaufuchs …“ und „öffne schlaufuchs“ (neues Sprachmodell einfügen und bauen, der Skill-Code bleibt). Der Sensor zeigt die letzte Skill-Anfrage mit Intent, Text und Antwort zur Fehlersuche. |
 | **v1.0.39** | 12.11.2026 | **Vertiefung per Ja/Nein im eigenen Skill:** Ist *Nachfrage für ausführlichere Erklärung* eingeschaltet, hängt der Skill an die Kurzantwort die Nachfrage an und merkt sich Frage und Kurzantwort in der Alexa-Sitzung. „Ja“ holt sofort die ausführliche Antwort (mit dem Vertiefungs-Prompt), „Nein“ verabschiedet sich – bei offenem Dialog fragt Alexa stattdessen „Noch eine Frage?“. Kein Warten und keine geplante Folgefrage mehr wie beim Community-Weg. Der Skill-Code bleibt unverändert. |
 | **v1.0.38** | 12.11.2026 | **Dialogmodus im eigenen Skill:** Neue Option *Dialog offen halten* im Punkt *🎙️ Eigener Alexa-Skill*. Nach jeder Antwort fragt Alexa „Noch eine Frage?“ und hört weiter zu – so lassen sich mehrere Fragen hintereinander stellen, ohne jedes Mal „Alexa“ zu sagen. „Ja“ führt zur nächsten Frage, „Nein“ oder „Stopp“ beenden den Dialog mit dem Abschiedstext. Der Skill-Code bleibt unverändert. |

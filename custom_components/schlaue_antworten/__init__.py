@@ -430,6 +430,11 @@ class SchlaueAntwortenManager:
 
         return _remove
 
+    def track_task(self, task: asyncio.Task[Any]) -> None:
+        """Keep a background task until it ends; unloading cancels it."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
     def notify_stats_listeners(self) -> None:
         """Notify all registered stats listeners of a state change."""
         self._notify_stats_listeners()
@@ -709,21 +714,27 @@ class SchlaueAntwortenManager:
         start_time: float,
         path: str,
         budget: float | None = None,
+        answer_task: asyncio.Task[AnswerResult] | None = None,
     ) -> AnswerResult | None:
         """Answer within the time budget, or return None and push the answer later.
 
         The AI keeps working after the budget ran out. Its answer then goes to
         the phone, so the caller only has to say the late text. A given budget
         caps the configured one, as the own skill must reply within seconds.
+        A running answer task, started ahead of time, is awaited instead of
+        asking the AI again.
         """
-        answer = self.answers.async_answer(
-            question,
-            reply_device,
-            is_followup=is_followup,
-            previous_answer=previous_answer,
-            start_time=start_time,
-            path=path,
-        )
+        if answer_task is None:
+            answer_task = self.hass.async_create_task(
+                self.answers.async_answer(
+                    question,
+                    reply_device,
+                    is_followup=is_followup,
+                    previous_answer=previous_answer,
+                    start_time=start_time,
+                    path=path,
+                )
+            )
         configured = float(
             self.entry.options.get(CONF_ANSWER_BUDGET, DEFAULT_ANSWER_BUDGET) or 0
         )
@@ -731,10 +742,10 @@ class SchlaueAntwortenManager:
             budget = configured
         elif configured > 0:
             budget = min(budget, configured)
+        task = answer_task
         if budget <= 0:
-            return await answer
+            return await task
 
-        task = self.hass.async_create_task(answer)
         remaining = max(budget - (time.monotonic() - start_time), 0.1)
         done, _pending = await asyncio.wait({task}, timeout=remaining)
         if done:
@@ -746,12 +757,13 @@ class SchlaueAntwortenManager:
             path,
         )
         late = self.hass.async_create_task(
-            self._async_deliver_late(question, reply_device, task, start_time, path)
+            self._async_deliver_late(
+                question, reply_device, task, start_time, path, is_followup
+            )
         )
         # Both are tracked, so unloading stops the AI request as well
         for background in (task, late):
-            self._background_tasks.add(background)
-            background.add_done_callback(self._background_tasks.discard)
+            self.track_task(background)
         return None
 
     async def _async_deliver_late(
@@ -761,15 +773,17 @@ class SchlaueAntwortenManager:
         task: asyncio.Task[AnswerResult],
         start_time: float,
         path: str,
+        is_followup: bool = False,
     ) -> None:
         """Wait for an answer that missed the budget and push it to the phone."""
         result = await task
         duration = time.monotonic() - start_time
+        label = f"[Spät] {'[Vertiefung] ' if is_followup else ''}{question}"
         if result.error or result.unclear or not result.text:
             _LOGGER.info("The late answer to %r brought no usable text", question)
             self.add_history_entry(
                 reply_device,
-                f"[Spät] {question}",
+                label,
                 "Keine Antwort",
                 duration=duration,
                 mode="Fehler",
@@ -784,7 +798,7 @@ class SchlaueAntwortenManager:
         )
         self.add_history_entry(
             reply_device,
-            f"[Spät] {question}",
+            label,
             result.text,
             duration=duration,
             char_count=len(result.text),
@@ -794,6 +808,7 @@ class SchlaueAntwortenManager:
         self.record_query_stats(
             device=reply_device,
             query=question,
+            is_followup=is_followup,
             duration=duration,
             llm_seconds=result.llm_seconds,
             agent=result.agent,

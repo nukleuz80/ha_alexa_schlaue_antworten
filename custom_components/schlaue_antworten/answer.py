@@ -36,6 +36,7 @@ from .const import (
     DEFAULT_PROMPT_DETAILED,
     DEFAULT_PROMPT_SHORT,
     DEFAULT_SHORT_ANSWERS,
+    LEGACY_PROMPTS_DETAILED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,11 +148,10 @@ class AnswerEngine:
         """Build the prompt for the AI from the templates and the context."""
         opts = self.entry.options
         if is_followup:
-            prompt, found = _fill(
-                opts.get(CONF_PROMPT_DETAILED, DEFAULT_PROMPT_DETAILED),
-                "question",
-                question,
-            )
+            template = opts.get(CONF_PROMPT_DETAILED, DEFAULT_PROMPT_DETAILED)
+            if template in LEGACY_PROMPTS_DETAILED:
+                template = DEFAULT_PROMPT_DETAILED
+            prompt, found = _fill(template, "question", question)
             if not found:
                 prompt = f"{prompt.strip()}: {question}"
 
@@ -211,12 +211,15 @@ class AnswerEngine:
         fallback: str | None,
         timeout: float,
         seconds: dict[str, float],
+        *,
+        start_both: bool = False,
     ) -> tuple[str | None, str | None]:
         """Return the first valid reply and its agent.
 
         The primary agent starts alone. The fallback joins as soon as the primary
         agent fails, or after `timeout` seconds without an answer (0 = only on a
-        failure). The slower agent is cancelled once one has answered.
+        failure), or at once with `start_both`. The slower agent is cancelled
+        once one has answered.
         """
         starts: dict[str, float] = {primary: time.monotonic()}
         tasks: dict[asyncio.Task[str | None], str] = {
@@ -237,6 +240,9 @@ class AnswerEngine:
                 self._async_timed_ask(fallback, prompt, starts[fallback], seconds)
             )
             tasks[task] = fallback
+
+        if start_both:
+            _start_fallback("detailed answer, both agents race")
 
         try:
             while tasks:
@@ -292,6 +298,8 @@ class AnswerEngine:
             fallback_agent if use_fallback else None,
             timeout,
             result.agent_seconds,
+            # Detailed answers are long; the faster of both agents wins
+            start_both=is_followup,
         )
         is_error = raw_speech is None
         if winner:

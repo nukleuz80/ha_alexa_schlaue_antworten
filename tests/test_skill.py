@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -307,7 +308,10 @@ async def test_detail_on_yes(
     setup_entry: SetupEntry,
     agents: FakeAgents,
 ) -> None:
-    """After a short answer Alexa offers more; "Ja" brings the detailed answer."""
+    """After a short answer Alexa offers more; "Ja" brings the detailed answer.
+
+    The detailed answer is computed while Alexa asks "Ja oder Nein?".
+    """
     entry = await setup_entry({**OPTIONS, "enable_detailed_followup": True})
     manager = hass.data[DOMAIN][entry.entry_id]
     url = f"/api/webhook/{manager.skill.webhook_id}"
@@ -317,30 +321,92 @@ async def test_detail_on_yes(
         response = await client.post(url, json={"application_id": APP_ID, **payload})
         return await response.json()
 
-    agents.answers[PRIMARY] = "Etwa 384.400 Kilometer."
+    agents.answers[PRIMARY] = lambda prompt: (
+        "Der Mond kreist in etwa 384.400 Kilometern um uns."
+        if "Ergänze" in prompt
+        else "Etwa 384.400 Kilometer."
+    )
     short = await post(action="intent", intent="WieIntent", text="weit ist der mond")
     assert short["speech"].startswith("Etwa 384.400 Kilometer. Möchtest du")
     assert short["end_session"] is False
-    assert short["session"] == {
-        "stage": "followup",
-        "question": "wie weit ist der mond",
-        "answer": "Etwa 384.400 Kilometer.",
-    }
+    session = short["session"]
+    assert session["stage"] == "followup"
+    assert session["question"] == "wie weit ist der mond"
+    assert session["answer"] == "Etwa 384.400 Kilometer."
+    assert session["detail"]
 
-    agents.answers[PRIMARY] = "Der Mond kreist in etwa 384.400 Kilometern um uns."
-    detail = await post(
-        action="intent", intent="AMAZON.YesIntent", session=short["session"]
-    )
+    await hass.async_block_till_done()
+    calls_before_yes = len(agents.calls)
+    detail = await post(action="intent", intent="AMAZON.YesIntent", session=session)
     assert detail == {
         "speech": "Der Mond kreist in etwa 384.400 Kilometern um uns.",
         "end_session": True,
     }
-    assert "Etwa 384.400 Kilometer." in agents.calls[-1]["text"]
+    # The answer computed ahead was used; "Ja" did not ask the AI again
+    assert len(agents.calls) == calls_before_yes
+    # Both agents raced for the detailed answer, with the short answer as context
+    detail_calls = [call for call in agents.calls if "Ergänze" in call["text"]]
+    assert {call["agent_id"] for call in detail_calls} == {PRIMARY, FALLBACK}
+    assert "Etwa 384.400 Kilometer." in detail_calls[0]["text"]
     assert manager.stats["today_detailed"] == 1
 
+    # A "Ja" from an old session without a computed answer asks the AI itself
+    old = {key: value for key, value in session.items() if key != "detail"}
+    again = await post(action="intent", intent="AMAZON.YesIntent", session=old)
+    assert again["speech"] == "Der Mond kreist in etwa 384.400 Kilometern um uns."
+    assert len(agents.calls) > calls_before_yes
+
+
+async def test_no_cancels_the_detail(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    agents: FakeAgents,
+) -> None:
+    """"Nein" stops the detailed answer that was computed ahead."""
+    entry = await setup_entry({**OPTIONS, "enable_detailed_followup": True})
+    url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
+    client = await hass_client_no_auth()
+    agents.answers[PRIMARY] = "Etwa 384.400 Kilometer."
+    agents.delays[PRIMARY] = 0
+    agents.delays[FALLBACK] = 5
+
+    async def post(**payload: Any) -> dict[str, Any]:
+        response = await client.post(url, json={"application_id": APP_ID, **payload})
+        return await response.json()
+
+    short = await post(action="intent", intent="WieIntent", text="weit ist der mond")
+    agents.delays[PRIMARY] = 5
     no = await post(action="intent", intent="AMAZON.NoIntent", session=short["session"])
     assert no == {"speech": "Alles klar.", "end_session": True}
-    assert len(agents.calls) == 2
+    await hass.async_block_till_done()
+    assert PRIMARY in agents.cancelled or FALLBACK in agents.cancelled
+
+
+async def test_late_detail_counts_as_detailed(
+    hass: HomeAssistant, setup_entry: SetupEntry, agents: FakeAgents
+) -> None:
+    """A detailed answer that arrives late by push counts as a detailed answer."""
+    hass.services.async_register("notify", "notify", lambda call: None)
+    entry = await setup_entry({**OPTIONS, "answer_budget": 0.2})
+    manager = hass.data[DOMAIN][entry.entry_id]
+    agents.answers[PRIMARY] = "Ausführlich."
+    agents.delays[PRIMARY] = 0.5
+    result = await manager.async_answer_within_budget(
+        "wer war goethe",
+        "media_player.test_echo",
+        is_followup=True,
+        previous_answer="Ein Dichter.",
+        start_time=time.monotonic(),
+        path="skill",
+    )
+    assert result is None
+    for _ in range(30):
+        if manager.stats["today_detailed"]:
+            break
+        await asyncio.sleep(0.1)
+    assert manager.stats["today_detailed"] == 1
+    assert "[Spät] [Vertiefung] wer war goethe" in manager.get_history_markdown()
 
 
 async def test_no_detail_keeps_dialog_open(

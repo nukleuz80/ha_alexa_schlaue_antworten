@@ -98,9 +98,16 @@ DEFAULT_PROMPT_SHORT = (
     "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]"
 )
 DEFAULT_PROMPT_DETAILED = (
+    "Ergänze die bisherige Antwort zur Fragestellung '{question}' um die wichtigsten weiteren Informationen "
+    "in 2 bis 3 kurzen Sätzen auf Deutsch (höchstens 350 Zeichen) für direkte Sprachausgabe "
+    "(keine Aufzählungen oder Sonderzeichen). "
+    "Wiederhole den Inhalt nicht. Bereits gegebene Kurzantwort: {previous_answer}"
+)
+# Earlier defaults; an entry that still holds one of them gets the current default
+LEGACY_PROMPTS_DETAILED = (
     "Ergänze die bisherige Antwort zur Fragestellung '{question}' um weitere wichtige Informationen "
     "in 3 bis 4 prägnanten Sätzen auf Deutsch für direkte Sprachausgabe (keine Aufzählungen oder Sonderzeichen). "
-    "Wiederhole den Inhalt nicht. Bereits gegebene Kurzantwort: {previous_answer}"
+    "Wiederhole den Inhalt nicht. Bereits gegebene Kurzantwort: {previous_answer}",
 )
 
 # Events & Services

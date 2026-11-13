@@ -52,7 +52,8 @@ class FakeAgents:
     """Stand-in for conversation.process with one answer per agent."""
 
     def __init__(self) -> None:
-        self.answers: dict[str, str | Exception] = {}
+        # An answer may depend on the prompt: a callable gets the prompt text
+        self.answers: dict[str, str | Exception | Callable[[str], str]] = {}
         self.delays: dict[str, float] = {}
         self.calls: list[dict[str, Any]] = []
         self.cancelled: list[str] = []
@@ -66,6 +67,8 @@ class FakeAgents:
             self.cancelled.append(agent_id)
             raise
         answer = self.answers.get(call.data["agent_id"], "")
+        if callable(answer) and not isinstance(answer, Exception):
+            answer = answer(call.data["text"])
         if isinstance(answer, Exception):
             raise answer
         return {"response": {"speech": {"plain": {"speech": answer}}}}

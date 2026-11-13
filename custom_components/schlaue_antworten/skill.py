@@ -6,6 +6,7 @@ so Alexa speaks it at once, without a second trip through Alexa Media.
 """
 from __future__ import annotations
 
+import asyncio
 from collections import deque
 import json
 import logging
@@ -22,6 +23,7 @@ from homeassistant.helpers.network import get_url
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from .answer import AnswerResult
 from .const import (
     CONF_DEFAULT_ECHO,
     CONF_ABORT_PROMPT,
@@ -78,6 +80,9 @@ SESSION_QUESTION = "question"
 SESSION_ANSWER = "answer"
 STAGE_FOLLOWUP = "followup"
 SESSION_RETRIES = "retries"
+SESSION_DETAIL = "detail"
+# A detailed answer computed ahead of "Ja" is kept this long
+PREFETCH_SECONDS = 120.0
 
 INTENTS_GOODBYE = ("AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NoIntent")
 INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
@@ -113,6 +118,7 @@ class SkillConnector:
         self._active = False
         self.last_request: dict[str, str] | None = None
         self.last_skill_request: dict[str, str] | None = None
+        self._prefetched: dict[str, tuple[asyncio.Task[AnswerResult], float]] = {}
 
     @property
     def is_linked(self) -> bool:
@@ -179,6 +185,50 @@ class SkillConnector:
         if self._active:
             webhook.async_unregister(self.hass, self._webhook_id)
             self._active = False
+        for task, _started in self._prefetched.values():
+            task.cancel()
+        self._prefetched.clear()
+
+    def _prefetch_detail(self, question: str, answer: str, device: str) -> str:
+        """Start the detailed answer while Alexa still asks "Ja oder Nein?".
+
+        Returns the id the skill keeps in its session to collect it on "Ja".
+        """
+        self._drop_prefetched(older_than=PREFETCH_SECONDS)
+        detail_id = secrets.token_hex(8)
+        task = self.hass.async_create_task(
+            self.manager.answers.async_answer(
+                question,
+                device,
+                is_followup=True,
+                previous_answer=answer,
+                start_time=time.monotonic(),
+                path=PATH_SKILL,
+            )
+        )
+        self.manager.track_task(task)
+        self._prefetched[detail_id] = (task, time.monotonic())
+        return detail_id
+
+    def _drop_prefetched(self, older_than: float = 0.0) -> None:
+        """Cancel detailed answers nobody asked for."""
+        now = time.monotonic()
+        for detail_id, (task, started) in list(self._prefetched.items()):
+            if now - started >= older_than:
+                task.cancel()
+                del self._prefetched[detail_id]
+
+    def _take_prefetched(
+        self, session: dict[str, Any]
+    ) -> asyncio.Task[AnswerResult] | None:
+        """Return the detailed answer started for this dialog, if still running."""
+        detail_id = session.get(SESSION_DETAIL)
+        if not isinstance(detail_id, str) or detail_id not in self._prefetched:
+            return None
+        task, _started = self._prefetched.pop(detail_id)
+        if task.cancelled():
+            return None
+        return task
 
     async def async_reset(self) -> None:
         """Replace the secret and remove the skill link."""
@@ -344,6 +394,7 @@ class SkillConnector:
                     self._echo_for(device_id),
                     start_time,
                     previous_answer=followup[1],
+                    answer_task=self._take_prefetched(session),
                 )
             question = question_from_intent(intent, text)
             if question is None:
@@ -399,6 +450,9 @@ class SkillConnector:
         self, intent: str | None, session: dict[str, Any], retries: int
     ) -> web.Response:
         """Answer intents that are not a question."""
+        if (detail := self._take_prefetched(session)) is not None:
+            # "Nein", "Stopp" or anything else: the detailed answer is not needed
+            detail.cancel()
         if (
             intent == "AMAZON.NoIntent"
             and self.keeps_dialog_open
@@ -453,6 +507,7 @@ class SkillConnector:
         *,
         previous_answer: str | None = None,
         retries: int = 0,
+        answer_task: asyncio.Task[AnswerResult] | None = None,
     ) -> web.Response:
         """Answer a question within the skill's time limit.
 
@@ -472,6 +527,7 @@ class SkillConnector:
             start_time=start_time,
             path=PATH_SKILL,
             budget=SKILL_BUDGET_SECONDS,
+            answer_task=answer_task,
         )
         if result is None:
             return self._speech(self._option(CONF_LATE_TEXT, DEFAULT_LATE_TEXT))
@@ -521,5 +577,6 @@ class SkillConnector:
                 SESSION_STAGE: STAGE_FOLLOWUP,
                 SESSION_QUESTION: question,
                 SESSION_ANSWER: result.speech,
+                SESSION_DETAIL: self._prefetch_detail(question, result.speech, device),
             },
         )
