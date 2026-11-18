@@ -4,10 +4,13 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# Own tmux socket "alexa": the tmux server only holds this session, so it ends
+# with it and systemd notices. Attach with: tmux -L alexa attach -t alexa
 Type=forking
-ExecStart=/usr/bin/tmux new-session -d -s alexa -x 220 -y 50 %h/claude-alexa/run_session.sh
-ExecStop=/usr/bin/tmux kill-session -t alexa
-RemainAfterExit=yes
+ExecStart=/usr/bin/tmux -L alexa new-session -d -s alexa -x 220 -y 50 %h/claude-alexa/run_session.sh
+ExecStop=/usr/bin/tmux -L alexa kill-server
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=default.target

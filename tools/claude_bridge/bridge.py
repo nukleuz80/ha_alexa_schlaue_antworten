@@ -26,6 +26,8 @@ TOKEN_FILE = Path(
 STATE_DIR = Path(os.environ.get("CLAUDE_ALEXA_STATE", HOME / "claude-alexa/state"))
 PENDING_FILE = STATE_DIR / "pending.json"
 TMUX_SESSION = os.environ.get("CLAUDE_ALEXA_TMUX", "alexa")
+# Own tmux socket, as started by claude-alexa-session.service
+TMUX = ["tmux", "-L", os.environ.get("CLAUDE_ALEXA_TMUX_SOCKET", "alexa")]
 BIND = os.environ.get("CLAUDE_ALEXA_BIND", "0.0.0.0")
 PORT = int(os.environ.get("CLAUDE_ALEXA_PORT", "8765"))
 # Home Assistant's address (set by install.sh in ~/.config/claude-alexa/env)
@@ -52,7 +54,7 @@ def session_running() -> bool:
     """Return whether the tmux session with Claude exists."""
     return (
         subprocess.run(
-            ["tmux", "has-session", "-t", f"={TMUX_SESSION}"],
+            [*TMUX, "has-session", "-t", f"={TMUX_SESSION}"],
             capture_output=True,
             check=False,
         ).returncode
@@ -67,7 +69,7 @@ def _still_in_input(text: str) -> bool:
     follows; while unsent, the last input line still holds its beginning.
     """
     pane = subprocess.run(
-        ["tmux", "capture-pane", "-p", "-t", f"={TMUX_SESSION}:"],
+        [*TMUX, "capture-pane", "-p", "-t", f"={TMUX_SESSION}:"],
         capture_output=True,
         text=True,
         check=False,
@@ -83,11 +85,11 @@ def type_prompt(text: str) -> None:
     again while the prompt still sits there.
     """
     target = f"={TMUX_SESSION}:"
-    subprocess.run(["tmux", "send-keys", "-t", target, "-l", text], check=True)
+    subprocess.run([*TMUX, "send-keys", "-t", target, "-l", text], check=True)
     for _attempt in range(ENTER_ATTEMPTS):
         # Give the input box a moment, otherwise Enter can arrive before the text
         time.sleep(0.5)
-        subprocess.run(["tmux", "send-keys", "-t", target, "Enter"], check=True)
+        subprocess.run([*TMUX, "send-keys", "-t", target, "Enter"], check=True)
         time.sleep(1.0)
         if not _still_in_input(text):
             return
