@@ -27,10 +27,14 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CLAUDE_REST_TEXT,
+    CONF_CLAUDE_ALLOW_APP,
     CONF_CLAUDE_ECHOS,
     CONF_CLAUDE_TOKEN,
     CONF_CLAUDE_URL,
+    DEFAULT_CLAUDE_ALLOW_APP,
     DOMAIN,
+    PHONE_NAME,
+    PHONE_TARGET,
 )
 
 if TYPE_CHECKING:
@@ -175,6 +179,13 @@ class ClaudeBridge:
         return [str(echo) for echo in echos] if isinstance(echos, list) else []
 
     @property
+    def allows_app(self) -> bool:
+        """Return whether the Alexa app on the phone may send prompts."""
+        return bool(
+            self.entry.options.get(CONF_CLAUDE_ALLOW_APP, DEFAULT_CLAUDE_ALLOW_APP)
+        )
+
+    @property
     def is_set_up(self) -> bool:
         """Return whether address and secret are configured."""
         return bool(self.url and self.token)
@@ -247,6 +258,8 @@ class ClaudeBridge:
 
     def _echo_name(self, echo: str) -> str:
         """Return the friendly name of an Echo."""
+        if echo == PHONE_TARGET:
+            return PHONE_NAME
         state = self.hass.states.get(echo)
         return str(state.attributes.get("friendly_name") or echo) if state else echo
 
@@ -256,7 +269,10 @@ class ClaudeBridge:
             return SendResult.NOT_SET_UP
         if not self._enabled:
             return SendResult.OFF
-        if not echo or echo not in self.allowed_echos:
+        if echo == PHONE_TARGET:
+            if not self.allows_app:
+                return SendResult.NOT_ALLOWED
+        elif not echo or echo not in self.allowed_echos:
             return SendResult.NOT_ALLOWED
         if self._rate_limited():
             return SendResult.BUSY
@@ -431,6 +447,31 @@ class ClaudeBridge:
             return web.json_response({"spoken": False})
 
         text = text.strip()[:MAX_ANSWER_LENGTH]
+        if pending.echo == PHONE_TARGET:
+            # Asked in the Alexa app: the whole answer goes to the phone
+            speech = text
+            await self.manager.async_send_to_mobile(
+                question=f"Claude {session}: {pending.prompt}",
+                answer=text,
+                reply_device=PHONE_NAME,
+                confirm=False,
+            )
+        else:
+            speech = await self._async_speak(pending, session, text)
+        self.manager.add_history_entry(
+            PHONE_NAME if pending.echo == PHONE_TARGET else pending.echo,
+            f"[Claude {session}] {pending.prompt}",
+            speech,
+            duration=time.monotonic() - pending.sent,
+            char_count=len(text),
+            mode="Claude",
+        )
+        return web.json_response({"spoken": True})
+
+    async def _async_speak(
+        self, pending: PendingPrompt, session: str, text: str
+    ) -> str:
+        """Speak the first part on the Echo that asked; push the rest."""
         speech = spoken_part(text) or "Claude ist fertig."
         if session != MAIN_SESSION:
             speech = f"{session}: {speech}"
@@ -454,12 +495,4 @@ class ClaudeBridge:
                 reply_device=pending.echo,
                 confirm=False,
             )
-        self.manager.add_history_entry(
-            pending.echo,
-            f"[Claude {session}] {pending.prompt}",
-            speech,
-            duration=time.monotonic() - pending.sent,
-            char_count=len(text),
-            mode="Claude",
-        )
-        return web.json_response({"spoken": True})
+        return speech

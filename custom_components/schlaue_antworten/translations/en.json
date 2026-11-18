@@ -108,16 +108,18 @@
       },
       "claude": {
         "title": "Claude bridge",
-        "description": "Sends voice tasks to a running Claude Code session, e.g. \"Alexa, ask Schlaufuchs, Claude soll ...\". The Echo that asked speaks Claude's answer; long answers also go to the phone.\n\nOnly assigned Echos (see Echo assignment) selected here may send tasks. The \"Claude bridge\" switch turns it off at any time.\n\nSwitch: {enabled} · Last task: {last_prompt}",
+        "description": "Sends voice tasks to a running Claude Code session, e.g. \"Alexa, ask Schlaufuchs, Claude soll ...\". The Echo that asked speaks Claude's answer; long answers also go to the phone.\n\nOnly assigned Echos (see Echo assignment) selected here may send tasks. The \"Claude bridge\" switch turns it off at any time.\n\nSwitch: {enabled} · Last task: {last_prompt} · Alexa app linked: {phones}",
         "data": {
           "claude_url": "Bridge address",
           "claude_token": "Bridge token",
-          "claude_echos": "Allowed Echos"
+          "claude_echos": "Allowed Echos",
+          "claude_allow_app": "Allow the Alexa app"
         },
         "data_description": {
           "claude_url": "e.g. http://192.168.1.50:8765 – leave empty to turn the bridge off.",
           "claude_token": "The secret token of the bridge (~/.config/claude-alexa/token).",
-          "claude_echos": "Only these Echos may send tasks to Claude."
+          "claude_echos": "Only these Echos may send tasks to Claude.",
+          "claude_allow_app": "Tasks from the Alexa app on the phone (voice or typed) go to Claude; the answer arrives as a push on the phone. Say once in the app: \"Alexa, sag Schlaufuchs, das ist mein Handy\"."
         }
       }
     },

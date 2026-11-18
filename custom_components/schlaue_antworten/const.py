@@ -166,6 +166,11 @@ DEFAULT_COMMUNITY_SKILL_ID = "amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d
 CONF_CLAUDE_URL = "claude_url"
 CONF_CLAUDE_TOKEN = "claude_token"
 CONF_CLAUDE_ECHOS = "claude_echos"
+CONF_CLAUDE_ALLOW_APP = "claude_allow_app"
+DEFAULT_CLAUDE_ALLOW_APP = False
+# Stands for the Alexa app on the phone instead of an Echo entity
+PHONE_TARGET = "alexa_app"
+PHONE_NAME = "Alexa-App"
 DEFAULT_CLAUDE_URL = ""
 DEFAULT_CLAUDE_TOKEN = ""
 CLAUDE_SENT_TEXT = "Okay, ist bei Claude. Die Antwort kommt gleich hier."
@@ -196,7 +201,13 @@ CLAUDE_NOT_SET_UP_TEXT = (
 CLAUDE_NOT_ALLOWED_TEXT = "Von diesem Echo aus darf ich Claude nichts schicken."
 CLAUDE_UNKNOWN_ECHO_TEXT = (
     "Ich weiß noch nicht, welcher Echo das ist. Sag mir zuerst: Du stehst in der "
-    "Küche, oder in welchem Raum du gerade bist."
+    "Küche, oder in welchem Raum du gerade bist. In der Alexa-App sag: Das ist "
+    "mein Handy."
+)
+CLAUDE_SENT_APP_TEXT = "Okay, ist bei Claude. Die Antwort kommt aufs Handy."
+SKILL_PHONE_SET_TEXT = (
+    "Alles klar, ich merke mir: Das ist dein Handy. Antworten von Claude kommen "
+    "hier als Push."
 )
 CLAUDE_BUSY_TEXT = "Das sind gerade zu viele Aufträge für Claude. Warte bitte kurz."
 CLAUDE_UNREACHABLE_TEXT = "Claude ist gerade nicht erreichbar."

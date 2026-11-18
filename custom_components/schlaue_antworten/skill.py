@@ -40,6 +40,7 @@ from .const import (
     CLAUDE_OFF_TEXT,
     CLAUDE_RUNNING_TEXT,
     CLAUDE_SENT_SESSION_TEXT,
+    CLAUDE_SENT_APP_TEXT,
     CLAUDE_SENT_TEXT,
     CLAUDE_SWITCHED_MAIN_TEXT,
     CLAUDE_SWITCHED_TEXT,
@@ -74,7 +75,9 @@ from .const import (
     SKILL_ANOTHER_TEXT,
     SKILL_ASK_TEXT,
     SKILL_HELP_TEXT,
+    PHONE_TARGET,
     SKILL_PHONE_NOTHING_TEXT,
+    SKILL_PHONE_SET_TEXT,
     SKILL_ROOM_NO_DEVICE_TEXT,
     SKILL_ROOM_SET_TEXT,
     SKILL_ROOM_UNKNOWN_TEXT,
@@ -89,6 +92,7 @@ from .skill_model import (
     INTENT_PHONE,
     INTENT_ROOM,
     INTENT_START,
+    INTENT_THIS_PHONE,
     build_skill_code,
     interaction_model_json,
     question_from_intent,
@@ -215,6 +219,8 @@ class SkillConnector:
         self._webhook_id = ""
         self._application_id: str | None = None
         self._devices: dict[str, str] = {}
+        # Alexa device ids of the Alexa app on the phone
+        self._phones: set[str] = set()
         # Alexa device id -> when it last asked, to assign it in the options
         self._seen: dict[str, str] = {}
         self._requests: deque[float] = deque()
@@ -250,6 +256,8 @@ class SkillConnector:
         self._devices = dict(devices) if isinstance(devices, dict) else {}
         seen = data.get("seen")
         self._seen = dict(seen) if isinstance(seen, dict) else {}
+        phones = data.get("phones")
+        self._phones = {str(p) for p in phones} if isinstance(phones, list) else set()
         if not self._webhook_id:
             await self._async_new_webhook_id()
 
@@ -265,6 +273,7 @@ class SkillConnector:
             "application_id": self._application_id,
             "devices": self._devices,
             "seen": self._seen,
+            "phones": sorted(self._phones),
         }
 
     async def _async_new_webhook_id(self) -> None:
@@ -273,6 +282,7 @@ class SkillConnector:
         self._application_id = None
         self._devices = {}
         self._seen = {}
+        self._phones = set()
         await self._async_save()
 
     @callback
@@ -416,6 +426,7 @@ class SkillConnector:
             oldest = min(self._seen, key=self._seen.__getitem__)
             self._seen.pop(oldest)
             self._devices.pop(oldest, None)
+            self._phones.discard(oldest)
         self._store.async_delay_save(self._data, SAVE_DELAY_SECONDS)
 
     async def _async_assign_room(
@@ -428,11 +439,28 @@ class SkillConnector:
         if echo is None:
             return self._speech(SKILL_ROOM_UNKNOWN_TEXT.format(room=spoken.strip()))
         self._devices[device_id] = echo
+        self._phones.discard(device_id)
         await self._async_save()
         state = self.hass.states.get(echo)
         name = str(state.attributes.get("friendly_name") or echo) if state else echo
         _LOGGER.info("Assigned an Alexa device to %s", echo)
         return self._speech(SKILL_ROOM_SET_TEXT.format(echo=name))
+
+    async def _async_assign_phone(self, device_id: str | None) -> web.Response:
+        """Remember that this device is the Alexa app on the phone."""
+        if not device_id:
+            return self._speech(SKILL_ROOM_NO_DEVICE_TEXT)
+        self._phones.add(device_id)
+        # The app is no Echo: answers must not go to an Echo assigned before
+        self._devices.pop(device_id, None)
+        await self._async_save()
+        _LOGGER.info("Marked an Alexa device as the Alexa app on the phone")
+        return self._speech(SKILL_PHONE_SET_TEXT)
+
+    @property
+    def phone_devices(self) -> set[str]:
+        """Return the Alexa device ids of the Alexa app."""
+        return set(self._phones)
 
     def _echo_for(self, device_id: str | None) -> str:
         """Return the Echo entity for an Alexa device id, or the default Echo."""
@@ -559,6 +587,8 @@ class SkillConnector:
                 )
             if intent == INTENT_ROOM:
                 return await self._async_assign_room(device_id, text)
+            if intent == INTENT_THIS_PHONE:
+                return await self._async_assign_phone(device_id)
             if intent in CLAUDE_INTENTS:
                 return await self._async_to_claude(intent, device_id, text)
             if intent == INTENT_PHONE:
@@ -592,6 +622,8 @@ class SkillConnector:
             return self._ask_again(CLAUDE_EMPTY_TEXT)
         bridge = self.manager.claude
         echo = self._devices.get(device_id) if device_id else None
+        if echo is None and device_id in self._phones:
+            echo = PHONE_TARGET
         if echo is None and bridge.is_set_up:
             return self._speech(CLAUDE_UNKNOWN_ECHO_TEXT)
         if intent == INTENT_CLAUDE_NEW:
@@ -604,7 +636,10 @@ class SkillConnector:
             reply = await bridge.async_end(spoken, echo)
         else:
             reply = await bridge.async_send_reply(spoken, echo)
-        return self._speech(claude_speech(reply))
+        speech = claude_speech(reply)
+        if echo == PHONE_TARGET and speech == CLAUDE_SENT_TEXT:
+            speech = CLAUDE_SENT_APP_TEXT
+        return self._speech(speech)
 
     def _not_understood(self, retries: int) -> web.Response:
         """Ask once more to repeat, the second time end the dialog.

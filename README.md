@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -167,6 +167,8 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 | „… welche Claude-Sitzungen laufen?“ | Nennt alle Sitzungen und die aktive. |
 | „… beende Claude Heizung“ | Beendet die Sitzung; Aufträge gehen wieder an die Hauptsitzung. |
 
+**Aus der Alexa-App (ab v1.2.0):** Sag einmal in der Alexa-App auf dem Handy *„Alexa, sag Schlaufuchs, das ist mein Handy“* und schalte unter *🤖 Claude-Brücke* **Alexa-App erlauben** ein. Danach funktionieren alle Claude-Befehle auch aus der App, per Sprache oder Texteingabe; Claudes Antwort kommt vollständig als Push aufs Handy statt als Ansage.
+
 Höchstens 3 Sprach-Sitzungen neben der Hauptsitzung (`CLAUDE_ALEXA_MAX_SESSIONS`); nach 2 Stunden ohne Auftrag enden sie von selbst (`CLAUDE_ALEXA_IDLE_SECONDS`). Antworten einer Sprach-Sitzung beginnen mit ihrem Namen. Zum Zuschauen: `tmux -L alexa-x attach -t heizung`. Jede Sitzung verbraucht Claude-Kontingent.
 
 **Einrichtung:**
@@ -225,6 +227,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.2.0** | 18.11.2026 | **Claude-Aufträge aus der Alexa-App:** „Alexa, sag Schlaufuchs, das ist mein Handy“ (in der Alexa-App gesagt) merkt sich die App als Handy. Mit der neuen Option *Alexa-App erlauben* (Punkt *🤖 Claude-Brücke*, Standard aus) gehen Sprach- und Texteingaben aus der App an Claude; die Antwort kommt vollständig als Push aufs Handy. Neues Sprachmodell einfügen und bauen. |
 | **v1.1.0** | 18.11.2026 | **Claude-Sitzungen per Sprache:** „Alexa, sag Schlaufuchs, neue Claude-Sitzung Heizung prüf das Bad“ startet eine eigene Claude-Code-Sitzung (in der Claude-App sichtbar) mit erstem Auftrag. Dazu „wechsle zu Claude …“, „welche Claude-Sitzungen laufen“ und „beende Claude …“. Höchstens 3 Sprach-Sitzungen, Ende nach 2 Stunden ohne Auftrag, jede Sitzung meldet ihre Antwort mit ihrem Namen an den Echo, der gefragt hat. Die Brücke schließt Hinweisfenster von Claude vor dem Tippen und prüft, ob ein Auftrag wirklich angekommen ist, sonst tippt sie ihn erneut. Neues Sprachmodell einfügen und bauen; auf dem Claude-Rechner `install.sh` erneut ausführen. |
 | **v1.0.46** | 18.11.2026 | **Claude-Sitzung wird überwacht:** Die Sitzung „alexa“ läuft auf einem eigenen tmux-Socket (`tmux -L alexa attach -t alexa`), und systemd startet sie mit `Restart=always` neu, wenn tmux selbst wegfällt. Bisher startete nur die Schleife im Skript Claude neu, eine beendete tmux-Sitzung blieb weg. Nur `tools/claude_bridge` geändert; `install.sh` erneut ausführen. |
 | **v1.0.45** | 18.11.2026 | **Claude-Brücke robuster:** Die Sitzung „alexa“ läuft jetzt im Home-Assistant-Ordner (einstellbar über `CLAUDE_ALEXA_WORKDIR`) mit fester Session-ID, damit sie nach einem Neustart genau ihr Gespräch fortsetzt und nie eine andere Sitzung im selben Ordner übernimmt. Die Sprachregeln kommen als Zusatz zum System-Prompt. Die Brücke drückt Enter erneut, wenn ein Auftrag direkt nach dem Start im Eingabefeld hängen bleibt. Nur `tools/claude_bridge` geändert; dort `install.sh` erneut ausführen. |

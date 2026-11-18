@@ -366,3 +366,65 @@ def test_session_names() -> None:
     assert session_name("") == ""
     assert split_new_session("Heizung  prüf das Bad") == ("heizung", "prüf das Bad")
     assert split_new_session("Garten") == ("garten", "")
+
+
+async def test_alexa_app_sends_and_gets_push(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+    spoken: list[dict],
+    pushes: list[dict],
+) -> None:
+    """The Alexa app, once marked as the phone, may send; answers come as push."""
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"session": "alexa"})
+    manager = await _setup(hass, setup_entry, {**OPTIONS, "claude_allow_app": True})
+    client = await hass_client_no_auth()
+    app = "amzn1.ask.device.PHONEAPP"
+
+    async def post(intent: str, text: str = "") -> str:
+        response = await client.post(
+            f"/api/webhook/{manager.skill.webhook_id}",
+            json={
+                "application_id": APP_ID,
+                "action": "intent",
+                "intent": intent,
+                "text": text,
+                "device_id": app,
+            },
+        )
+        return (await response.json())["speech"]
+
+    assert "welcher Echo" in await post("ClaudeIntent", "mach was")
+    assert "dein Handy" in await post("MeinHandyIntent")
+    assert manager.skill.phone_devices == {app}
+    assert await post("ClaudeIntent", "prüf die Fenster") == (
+        "Okay, ist bei Claude. Die Antwort kommt aufs Handy."
+    )
+    data = aioclient_mock.mock_calls[-1][2]
+    assert data["text"] == "[Alexa · Alexa-App] prüf die Fenster"
+
+    response = await client.post(
+        data["reply_url"].removeprefix("http://192.168.1.10:8123"),
+        json={"text": "Alle Fenster sind zu."},
+    )
+    assert await response.json() == {"spoken": True}
+    await hass.async_block_till_done()
+    assert spoken == []
+    assert pushes[-1]["message"] == "Alle Fenster sind zu."
+
+
+async def test_alexa_app_needs_the_option(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """Without "Alexa-App erlauben" the app is refused."""
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    manager.skill._phones.add("amzn1.ask.device.PHONEAPP")
+    client = await hass_client_no_auth()
+    assert "darf ich Claude nichts" in await _say(
+        client, manager, "mach was", device="amzn1.ask.device.PHONEAPP"
+    )
+    assert aioclient_mock.call_count == 0

@@ -14,6 +14,7 @@ from homeassistant.helpers.network import NoURLAvailableError
 from .const import (
     CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
+    CONF_CLAUDE_ALLOW_APP,
     CONF_CLAUDE_ECHOS,
     CONF_CLAUDE_TOKEN,
     CONF_CLAUDE_URL,
@@ -45,6 +46,7 @@ from .const import (
     DEFAULT_ABORT_PROMPT,
     DEFAULT_ANNOUNCE_MODEL,
     DEFAULT_ANSWER_BUDGET,
+    DEFAULT_CLAUDE_ALLOW_APP,
     DEFAULT_CUSTOM_KNOWLEDGE,
     DEFAULT_DIALOG_PROMPT,
     DEFAULT_DIRECT_QUERY_PREFIXES,
@@ -472,6 +474,9 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                 options[CONF_CLAUDE_ECHOS] = [
                     str(echo) for echo in user_input.get(CONF_CLAUDE_ECHOS) or []
                 ]
+                options[CONF_CLAUDE_ALLOW_APP] = bool(
+                    user_input.get(CONF_CLAUDE_ALLOW_APP, DEFAULT_CLAUDE_ALLOW_APP)
+                )
                 return self.async_create_entry(title="", data=options)
 
         bridge = manager.claude
@@ -510,11 +515,18 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                             domain="media_player", multiple=True
                         )
                     ),
+                    vol.Optional(
+                        CONF_CLAUDE_ALLOW_APP,
+                        default=options.get(
+                            CONF_CLAUDE_ALLOW_APP, DEFAULT_CLAUDE_ALLOW_APP
+                        ),
+                    ): selector.BooleanSelector(),
                 }
             ),
             errors=errors,
             description_placeholders={
                 "enabled": "✅" if bridge.enabled else "❌",
+                "phones": str(len(manager.skill.phone_devices)),
                 "last_prompt": (
                     f"{last['echo']}: {last['text']}".replace("{", "[").replace(
                         "}", "]"

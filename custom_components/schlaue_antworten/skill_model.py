@@ -16,6 +16,7 @@ INTENT_QUESTION = "FrageIntent"
 INTENT_PHONE = "HandyIntent"
 INTENT_START = "StartIntent"
 INTENT_ROOM = "RaumIntent"
+INTENT_THIS_PHONE = "MeinHandyIntent"
 INTENT_CLAUDE = "ClaudeIntent"
 INTENT_CLAUDE_NEW = "ClaudeNeuIntent"
 INTENT_CLAUDE_SWITCH = "ClaudeWechselIntent"
@@ -113,6 +114,15 @@ CLAUDE_LIST_SAMPLES = [
     "liste die claude sitzungen",
     "welche claude sitzung ist aktiv",
     "zeig die claude sitzungen",
+]
+# Said in the Alexa app on the phone: this device is the phone, not an Echo
+THIS_PHONE_SAMPLES = [
+    "das ist mein handy",
+    "du bist mein handy",
+    "ich bin am handy",
+    "ich spreche über die app",
+    "das ist die alexa app",
+    "ich bin in der alexa app",
 ]
 PHONE_SAMPLES = [
     "schick es aufs handy",
@@ -261,6 +271,7 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
         }
     )
     intents.append({"name": INTENT_PHONE, "samples": list(PHONE_SAMPLES)})
+    intents.append({"name": INTENT_THIS_PHONE, "samples": list(THIS_PHONE_SAMPLES)})
     intents.append(
         {
             "name": INTENT_ROOM,

@@ -108,16 +108,18 @@
       },
       "claude": {
         "title": "Claude-Brücke",
-        "description": "Schickt Sprachaufträge an eine laufende Claude-Code-Sitzung, z. B. „Alexa, sag Schlaufuchs, Claude soll nachsehen, welche Fenster offen sind“. Claudes Antwort spricht danach genau der Echo, der gefragt hat; lange Antworten kommen zusätzlich aufs Handy.\n\nNur zugeordnete Echos (siehe Echo-Zuordnung), die hier ausgewählt sind, dürfen Aufträge schicken. Mit dem Schalter „Claude-Brücke“ lässt sich das jederzeit abschalten.\n\nSchalter: {enabled} · Letzter Auftrag: {last_prompt}",
+        "description": "Schickt Sprachaufträge an eine laufende Claude-Code-Sitzung, z. B. „Alexa, sag Schlaufuchs, Claude soll nachsehen, welche Fenster offen sind“. Claudes Antwort spricht danach genau der Echo, der gefragt hat; lange Antworten kommen zusätzlich aufs Handy.\n\nNur zugeordnete Echos (siehe Echo-Zuordnung), die hier ausgewählt sind, dürfen Aufträge schicken. Mit dem Schalter „Claude-Brücke“ lässt sich das jederzeit abschalten.\n\nSchalter: {enabled} · Letzter Auftrag: {last_prompt} · Alexa-App gekoppelt: {phones}",
         "data": {
           "claude_url": "Adresse der Brücke",
           "claude_token": "Token der Brücke",
-          "claude_echos": "Erlaubte Echos"
+          "claude_echos": "Erlaubte Echos",
+          "claude_allow_app": "Alexa-App erlauben"
         },
         "data_description": {
           "claude_url": "z. B. http://192.168.1.50:8765 – leer lassen schaltet die Brücke ab.",
           "claude_token": "Das geheime Token aus der Brücke (~/.config/claude-alexa/token).",
-          "claude_echos": "Nur diese Echos dürfen Aufträge an Claude schicken."
+          "claude_echos": "Nur diese Echos dürfen Aufträge an Claude schicken.",
+          "claude_allow_app": "Aufträge aus der Alexa-App auf dem Handy (Sprache oder Texteingabe) gehen an Claude; die Antwort kommt als Push aufs Handy. Einmal in der App sagen: „Alexa, sag Schlaufuchs, das ist mein Handy“."
         }
       }
     },
