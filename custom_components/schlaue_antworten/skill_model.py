@@ -17,6 +17,10 @@ INTENT_PHONE = "HandyIntent"
 INTENT_START = "StartIntent"
 INTENT_ROOM = "RaumIntent"
 INTENT_CLAUDE = "ClaudeIntent"
+INTENT_CLAUDE_NEW = "ClaudeNeuIntent"
+INTENT_CLAUDE_SWITCH = "ClaudeWechselIntent"
+INTENT_CLAUDE_LIST = "ClaudeListeIntent"
+INTENT_CLAUDE_END = "ClaudeEndeIntent"
 
 # Alexa's free-text slot needs a word in front of it. Each question word gets
 # its own intent, so Home Assistant can put the word back in front of the slot.
@@ -79,6 +83,36 @@ CLAUDE_CARRIERS = [
     "schick claude",
     "auftrag an claude",
     "claude bitte",
+]
+# "neue Claude-Sitzung Heizung prüf das Bad": first word is the name
+CLAUDE_NEW_CARRIERS = [
+    "neue claude sitzung",
+    "starte claude sitzung",
+    "starte eine claude sitzung",
+    "neue sitzung",
+    "öffne claude sitzung",
+]
+CLAUDE_SWITCH_CARRIERS = [
+    "wechsle zu claude",
+    "wechsel zu claude",
+    "wechsle zur claude sitzung",
+    "wechsle zu sitzung",
+    "nimm claude sitzung",
+    "zurück zu claude",
+]
+CLAUDE_END_CARRIERS = [
+    "beende claude",
+    "beende claude sitzung",
+    "beende die claude sitzung",
+    "schließe claude sitzung",
+    "stoppe claude sitzung",
+]
+CLAUDE_LIST_SAMPLES = [
+    "welche claude sitzungen laufen",
+    "welche sitzungen laufen",
+    "liste die claude sitzungen",
+    "welche claude sitzung ist aktiv",
+    "zeig die claude sitzungen",
 ]
 PHONE_SAMPLES = [
     "schick es aufs handy",
@@ -243,6 +277,21 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
             ],
         }
     )
+    for name, session_carriers in (
+        (INTENT_CLAUDE_NEW, CLAUDE_NEW_CARRIERS),
+        (INTENT_CLAUDE_SWITCH, CLAUDE_SWITCH_CARRIERS),
+        (INTENT_CLAUDE_END, CLAUDE_END_CARRIERS),
+    ):
+        intents.append(
+            {
+                "name": name,
+                "slots": _question_slot(),
+                "samples": [
+                    f"{carrier} {{{SLOT_QUESTION}}}" for carrier in session_carriers
+                ],
+            }
+        )
+    intents.append({"name": INTENT_CLAUDE_LIST, "samples": list(CLAUDE_LIST_SAMPLES)})
     intents.append(
         {
             "name": INTENT_START,

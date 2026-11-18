@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stop hook of the Claude "alexa" session.
+"""Stop hook of the Claude sessions started for Alexa.
 
 When Claude has finished a turn that started with a voice prompt
 ("[Alexa · ...] ..."), the answer is posted back to Home Assistant, which
@@ -18,7 +18,7 @@ import urllib.request
 STATE_DIR = Path(
     os.environ.get("CLAUDE_ALEXA_STATE", Path.home() / "claude-alexa/state")
 )
-PENDING_FILE = STATE_DIR / "pending.json"
+PENDING_DIR = STATE_DIR / "pending"
 PENDING_SECONDS = 30 * 60
 PREFIX = "[Alexa"
 
@@ -66,15 +66,20 @@ def main() -> None:
         hook = json.load(sys.stdin)
     except ValueError:
         return
-    if not PENDING_FILE.exists():
+    # Each session has its own pending file, named after its Claude session id
+    session_id = str(hook.get("session_id") or "")
+    if not session_id or "/" in session_id:
+        return
+    pending_file = PENDING_DIR / f"{session_id}.json"
+    if not pending_file.exists():
         return
     try:
-        pending = json.loads(PENDING_FILE.read_text(encoding="utf-8"))
+        pending = json.loads(pending_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        PENDING_FILE.unlink(missing_ok=True)
+        pending_file.unlink(missing_ok=True)
         return
     if time.time() - float(pending.get("time", 0)) > PENDING_SECONDS:
-        PENDING_FILE.unlink(missing_ok=True)
+        pending_file.unlink(missing_ok=True)
         return
 
     prompt, answer = "", ""
@@ -88,10 +93,12 @@ def main() -> None:
     if not answer:
         return
 
-    PENDING_FILE.unlink(missing_ok=True)
+    pending_file.unlink(missing_ok=True)
     request = urllib.request.Request(
         pending["reply_url"],
-        data=json.dumps({"text": answer}).encode(),
+        data=json.dumps(
+            {"text": answer, "session": pending.get("session") or "alexa"}
+        ).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )

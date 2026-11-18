@@ -1,5 +1,5 @@
 [Unit]
-Description=Claude-Brücke für Schlaue Antworten (HTTP -> tmux "alexa")
+Description=Claude-Brücke für Schlaue Antworten (HTTP -> tmux-Sitzungen)
 After=network-online.target claude-alexa-session.service
 Wants=network-online.target
 
@@ -9,6 +9,9 @@ EnvironmentFile=-%h/.config/claude-alexa/env
 ExecStart=/usr/bin/python3 %h/claude-alexa/bridge.py
 Restart=always
 RestartSec=10
+# Voice sessions run in a tmux server started by the bridge; a bridge restart
+# must not end them
+KillMode=process
 
 [Install]
 WantedBy=default.target

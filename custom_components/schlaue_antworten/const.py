@@ -169,6 +169,25 @@ CONF_CLAUDE_ECHOS = "claude_echos"
 DEFAULT_CLAUDE_URL = ""
 DEFAULT_CLAUDE_TOKEN = ""
 CLAUDE_SENT_TEXT = "Okay, ist bei Claude. Die Antwort kommt gleich hier."
+CLAUDE_SENT_SESSION_TEXT = "Okay, ist bei Claude {session}. Die Antwort kommt gleich hier."
+CLAUDE_CREATED_TEXT = "Okay, die Claude-Sitzung {session} startet. Die Antwort kommt gleich hier."
+CLAUDE_CREATED_EMPTY_TEXT = (
+    "Okay, die Claude-Sitzung {session} läuft. Aufträge gehen jetzt dorthin."
+)
+CLAUDE_SWITCHED_TEXT = "Okay, Aufträge gehen jetzt an Claude {session}."
+CLAUDE_SWITCHED_MAIN_TEXT = "Okay, Aufträge gehen wieder an die Hauptsitzung."
+CLAUDE_ENDED_TEXT = "Die Claude-Sitzung {session} ist beendet."
+CLAUDE_UNKNOWN_SESSION_TEXT = "Eine Claude-Sitzung {session} gibt es nicht. {running}"
+CLAUDE_TOO_MANY_TEXT = (
+    "Es laufen schon zu viele Claude-Sitzungen. Beende zuerst eine. {running}"
+)
+CLAUDE_MAIN_SESSION_TEXT = (
+    "Die Hauptsitzung bleibt immer an. Nimm einen anderen Namen."
+)
+CLAUDE_NO_NAME_TEXT = "Wie soll die Sitzung heißen?"
+CLAUDE_RUNNING_TEXT = "Es laufen: {sessions}."
+CLAUDE_LIST_TEXT = "Es laufen: {sessions}. Aufträge gehen an {active}."
+CLAUDE_MAIN_NAME = "die Hauptsitzung"
 CLAUDE_OFF_TEXT = "Die Claude-Brücke ist gerade ausgeschaltet."
 CLAUDE_NOT_SET_UP_TEXT = (
     "Die Claude-Brücke ist noch nicht eingerichtet. Das geht in den Optionen "

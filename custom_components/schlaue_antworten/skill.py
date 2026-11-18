@@ -24,15 +24,28 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .answer import AnswerResult
-from .claude_bridge import SendResult
+from .claude_bridge import MAIN_SESSION, BridgeReply, SendResult
 from .const import (
     CLAUDE_BUSY_TEXT,
+    CLAUDE_CREATED_EMPTY_TEXT,
+    CLAUDE_CREATED_TEXT,
     CLAUDE_EMPTY_TEXT,
+    CLAUDE_ENDED_TEXT,
+    CLAUDE_LIST_TEXT,
+    CLAUDE_MAIN_NAME,
+    CLAUDE_MAIN_SESSION_TEXT,
+    CLAUDE_NO_NAME_TEXT,
     CLAUDE_NOT_ALLOWED_TEXT,
     CLAUDE_NOT_SET_UP_TEXT,
     CLAUDE_OFF_TEXT,
+    CLAUDE_RUNNING_TEXT,
+    CLAUDE_SENT_SESSION_TEXT,
     CLAUDE_SENT_TEXT,
+    CLAUDE_SWITCHED_MAIN_TEXT,
+    CLAUDE_SWITCHED_TEXT,
+    CLAUDE_TOO_MANY_TEXT,
     CLAUDE_UNKNOWN_ECHO_TEXT,
+    CLAUDE_UNKNOWN_SESSION_TEXT,
     CLAUDE_UNREACHABLE_TEXT,
     CONF_DEFAULT_ECHO,
     CONF_ABORT_PROMPT,
@@ -69,6 +82,10 @@ from .const import (
 from .echo_match import best_echo, echo_candidates
 from .skill_model import (
     INTENT_CLAUDE,
+    INTENT_CLAUDE_END,
+    INTENT_CLAUDE_LIST,
+    INTENT_CLAUDE_NEW,
+    INTENT_CLAUDE_SWITCH,
     INTENT_PHONE,
     INTENT_ROOM,
     INTENT_START,
@@ -117,13 +134,66 @@ RATE_LIMIT_REQUESTS = 20
 RATE_LIMIT_WINDOW_SECONDS = 60.0
 
 CLAUDE_TEXTS: dict[SendResult, str] = {
-    SendResult.SENT: CLAUDE_SENT_TEXT,
     SendResult.OFF: CLAUDE_OFF_TEXT,
     SendResult.NOT_SET_UP: CLAUDE_NOT_SET_UP_TEXT,
     SendResult.NOT_ALLOWED: CLAUDE_NOT_ALLOWED_TEXT,
     SendResult.BUSY: CLAUDE_BUSY_TEXT,
     SendResult.UNREACHABLE: CLAUDE_UNREACHABLE_TEXT,
+    SendResult.ENDED: CLAUDE_ENDED_TEXT,
+    SendResult.MAIN_SESSION: CLAUDE_MAIN_SESSION_TEXT,
+    SendResult.NO_NAME: CLAUDE_NO_NAME_TEXT,
 }
+CLAUDE_INTENTS = (
+    INTENT_CLAUDE,
+    INTENT_CLAUDE_NEW,
+    INTENT_CLAUDE_SWITCH,
+    INTENT_CLAUDE_LIST,
+    INTENT_CLAUDE_END,
+)
+
+
+def _session_names(sessions: list[str] | None) -> str:
+    """Return session names for speech, the main session in words."""
+    names = [
+        CLAUDE_MAIN_NAME if name == MAIN_SESSION else name for name in sessions or []
+    ]
+    if len(names) <= 1:
+        return "".join(names)
+    return f"{', '.join(names[:-1])} und {names[-1]}"
+
+
+def claude_speech(reply: BridgeReply) -> str:
+    """Return what Alexa says about a request to the Claude bridge."""
+    result = reply.result
+    running = (
+        CLAUDE_RUNNING_TEXT.format(sessions=_session_names(reply.sessions))
+        if reply.sessions
+        else ""
+    )
+    if result == SendResult.SENT:
+        if reply.session in ("", MAIN_SESSION):
+            return CLAUDE_SENT_TEXT
+        return CLAUDE_SENT_SESSION_TEXT.format(session=reply.session)
+    if result == SendResult.CREATED:
+        text = CLAUDE_CREATED_TEXT if reply.with_prompt else CLAUDE_CREATED_EMPTY_TEXT
+        return text.format(session=reply.session)
+    if result == SendResult.SWITCHED:
+        if reply.session == MAIN_SESSION:
+            return CLAUDE_SWITCHED_MAIN_TEXT
+        return CLAUDE_SWITCHED_TEXT.format(session=reply.session)
+    if result == SendResult.UNKNOWN_SESSION:
+        return CLAUDE_UNKNOWN_SESSION_TEXT.format(
+            session=reply.session, running=running
+        ).strip()
+    if result == SendResult.TOO_MANY:
+        return CLAUDE_TOO_MANY_TEXT.format(running=running).strip()
+    if result == SendResult.LISTED:
+        active = reply.active
+        return CLAUDE_LIST_TEXT.format(
+            sessions=_session_names(reply.sessions),
+            active=CLAUDE_MAIN_NAME if active == MAIN_SESSION else active,
+        )
+    return CLAUDE_TEXTS[result].format(session=reply.session)
 
 
 class SkillConnector:
@@ -489,8 +559,8 @@ class SkillConnector:
                 )
             if intent == INTENT_ROOM:
                 return await self._async_assign_room(device_id, text)
-            if intent == INTENT_CLAUDE:
-                return await self._async_to_claude(device_id, text)
+            if intent in CLAUDE_INTENTS:
+                return await self._async_to_claude(intent, device_id, text)
             if intent == INTENT_PHONE:
                 return await self._async_send_to_phone(
                     self._echo_for(device_id), session
@@ -510,21 +580,31 @@ class SkillConnector:
         )
 
     async def _async_to_claude(
-        self, device_id: str | None, text: str
+        self, intent: str, device_id: str | None, text: str
     ) -> web.Response:
-        """Hand a spoken prompt to the Claude session.
+        """Hand a spoken prompt or session command to the Claude bridge.
 
         Only an Echo assigned to this exact Alexa device may send, never the
         default Echo, so an unknown device cannot reach Claude.
         """
-        prompt = " ".join(text.split())
-        if len(prompt) < 2:
+        spoken = " ".join(text.split())
+        if intent == INTENT_CLAUDE and len(spoken) < 2:
             return self._ask_again(CLAUDE_EMPTY_TEXT)
+        bridge = self.manager.claude
         echo = self._devices.get(device_id) if device_id else None
-        if echo is None and self.manager.claude.is_set_up:
+        if echo is None and bridge.is_set_up:
             return self._speech(CLAUDE_UNKNOWN_ECHO_TEXT)
-        result = await self.manager.claude.async_send(prompt, echo)
-        return self._speech(CLAUDE_TEXTS[result])
+        if intent == INTENT_CLAUDE_NEW:
+            reply = await bridge.async_new_session(spoken, echo)
+        elif intent == INTENT_CLAUDE_SWITCH:
+            reply = await bridge.async_switch(spoken, echo)
+        elif intent == INTENT_CLAUDE_LIST:
+            reply = await bridge.async_list(echo)
+        elif intent == INTENT_CLAUDE_END:
+            reply = await bridge.async_end(spoken, echo)
+        else:
+            reply = await bridge.async_send_reply(spoken, echo)
+        return self._speech(claude_speech(reply))
 
     def _not_understood(self, retries: int) -> web.Response:
         """Ask once more to repeat, the second time end the dialog.

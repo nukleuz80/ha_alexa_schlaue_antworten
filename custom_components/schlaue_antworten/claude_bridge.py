@@ -57,8 +57,16 @@ RE_MARKUP = re.compile(r"[#>|]+")
 RE_SENTENCE_END = re.compile(r"(?<=[.!?])\s")
 
 
+MAIN_SESSION = "alexa"
+MAX_NAME_LENGTH = 20
+# Spoken words that mean the main session
+MAIN_SESSION_WORDS = ("alexa", "haupt", "hauptsitzung", "standard")
+UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
+RE_NOT_NAME = re.compile(r"[^a-z0-9]+")
+
+
 class SendResult(StrEnum):
-    """Outcome of handing a prompt to Claude."""
+    """Outcome of a request to the Claude bridge."""
 
     SENT = "sent"
     OFF = "off"
@@ -66,6 +74,14 @@ class SendResult(StrEnum):
     NOT_ALLOWED = "not_allowed"
     BUSY = "busy"
     UNREACHABLE = "unreachable"
+    CREATED = "created"
+    SWITCHED = "switched"
+    ENDED = "ended"
+    UNKNOWN_SESSION = "unknown_session"
+    TOO_MANY = "too_many"
+    MAIN_SESSION = "main_session"
+    NO_NAME = "no_name"
+    LISTED = "listed"
 
 
 @dataclass
@@ -75,6 +91,35 @@ class PendingPrompt:
     echo: str
     prompt: str
     sent: float
+
+
+@dataclass
+class BridgeReply:
+    """What the bridge did, for the spoken reply."""
+
+    result: SendResult
+    session: str = ""
+    sessions: list[str] | None = None
+    active: str = ""
+    with_prompt: bool = False
+
+
+def session_name(spoken: str) -> str:
+    """Return a session name from spoken words ("Heizung" -> "heizung")."""
+    words = spoken.lower().split()
+    if not words:
+        return ""
+    if words[0] in MAIN_SESSION_WORDS:
+        return MAIN_SESSION
+    name = RE_NOT_NAME.sub("-", words[0].translate(UMLAUTS)).strip("-")
+    return name[:MAX_NAME_LENGTH]
+
+
+def split_new_session(spoken: str) -> tuple[str, str]:
+    """Split "heizung prüf das bad" into name and first prompt."""
+    words = " ".join(spoken.split()).split(" ", 1)
+    name = session_name(words[0]) if words[0] else ""
+    return name, words[1] if len(words) > 1 else ""
 
 
 def spoken_part(answer: str) -> str:
@@ -110,7 +155,7 @@ class ClaudeBridge:
         self._enabled = True
         self._active = False
         self._sent: deque[float] = deque()
-        self._pending: PendingPrompt | None = None
+        self._pending: dict[str, PendingPrompt] = {}
         self.last_prompt: dict[str, str] | None = None
 
     @property
@@ -143,7 +188,7 @@ class ClaudeBridge:
         """Turn the bridge on or off and remember it."""
         self._enabled = enabled
         if not enabled:
-            self._pending = None
+            self._pending.clear()
         await self._async_save()
 
     async def async_load(self) -> None:
@@ -183,7 +228,7 @@ class ClaudeBridge:
         if self._active:
             webhook.async_unregister(self.hass, self._webhook_id)
             self._active = False
-        self._pending = None
+        self._pending.clear()
 
     def reply_url(self) -> str:
         """Return the local address the Claude session posts answers to.
@@ -205,12 +250,8 @@ class ClaudeBridge:
         state = self.hass.states.get(echo)
         return str(state.attributes.get("friendly_name") or echo) if state else echo
 
-    async def async_send(self, prompt: str, echo: str | None) -> SendResult:
-        """Hand a spoken prompt to the Claude session.
-
-        Only Echos that are assigned and allowed may send; the answer later
-        goes back to the same Echo.
-        """
+    def _check(self, echo: str | None) -> SendResult | None:
+        """Return why an Echo may not reach Claude now, or None if it may."""
         if not self.is_set_up:
             return SendResult.NOT_SET_UP
         if not self._enabled:
@@ -219,38 +260,156 @@ class ClaudeBridge:
             return SendResult.NOT_ALLOWED
         if self._rate_limited():
             return SendResult.BUSY
-        prompt = " ".join(prompt.split())[:MAX_PROMPT_LENGTH]
-        try:
-            reply_url = self.reply_url()
-        except NoURLAvailableError:
-            _LOGGER.error("Home Assistant has no local address for Claude's answer")
-            return SendResult.UNREACHABLE
+        return None
 
+    async def _async_request(
+        self, method: str, path: str, payload: dict[str, Any] | None = None
+    ) -> tuple[int, dict[str, Any]]:
+        """Call the bridge; status 0 means it was not reachable."""
         session = async_get_clientsession(self.hass)
         try:
-            async with session.post(
-                f"{self.url}/prompt",
-                json={
-                    "text": f"[Alexa · {self._echo_name(echo)}] {prompt}",
-                    "reply_url": reply_url,
-                },
+            async with session.request(
+                method,
+                f"{self.url}{path}",
+                json=payload,
                 headers={hdrs.AUTHORIZATION: f"Bearer {self.token}"},
                 timeout=aiohttp.ClientTimeout(total=SEND_TIMEOUT_SECONDS),
             ) as response:
-                if response.status != 200:
-                    _LOGGER.warning("Claude bridge answered HTTP %s", response.status)
-                    return SendResult.UNREACHABLE
+                try:
+                    data = await response.json(content_type=None)
+                except ValueError:
+                    data = {}
+                return response.status, data if isinstance(data, dict) else {}
         except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.warning("Claude bridge not reachable: %s", err)
-            return SendResult.UNREACHABLE
+            return 0, {}
 
+    def _prompt_payload(self, prompt: str, echo: str) -> dict[str, Any]:
+        """Return text and reply address for a prompt.
+
+        Raises NoURLAvailableError if Home Assistant has no local address.
+        """
+        return {
+            "text": f"[Alexa · {self._echo_name(echo)}] {prompt}",
+            "reply_url": self.reply_url(),
+        }
+
+    def _note_prompt(self, session: str, prompt: str, echo: str) -> None:
+        """Remember that an Echo waits for the answer of a session."""
         self._sent.append(time.monotonic())
-        self._pending = PendingPrompt(echo, prompt, time.monotonic())
-        self.last_prompt = {"echo": echo, "text": prompt}
+        self._pending[session] = PendingPrompt(echo, prompt, time.monotonic())
+        self.last_prompt = {"echo": echo, "text": f"[{session}] {prompt}"}
         self.manager.add_history_entry(
-            echo, f"[Claude] {prompt}", "An Claude geschickt", mode="Claude"
+            echo, f"[Claude {session}] {prompt}", "An Claude geschickt", mode="Claude"
         )
-        return SendResult.SENT
+
+    async def async_send(self, prompt: str, echo: str | None) -> SendResult:
+        """Hand a spoken prompt to the active Claude session.
+
+        Only Echos that are assigned and allowed may send; the answer later
+        goes back to the same Echo.
+        """
+        return (await self.async_send_reply(prompt, echo)).result
+
+    async def async_send_reply(self, prompt: str, echo: str | None) -> BridgeReply:
+        """Hand a spoken prompt to the active session and say where it went."""
+        if (refused := self._check(echo)) is not None or echo is None:
+            return BridgeReply(refused or SendResult.NOT_ALLOWED)
+        prompt = " ".join(prompt.split())[:MAX_PROMPT_LENGTH]
+        try:
+            payload = self._prompt_payload(prompt, echo)
+        except NoURLAvailableError:
+            _LOGGER.error("Home Assistant has no local address for Claude's answer")
+            return BridgeReply(SendResult.UNREACHABLE)
+        status, data = await self._async_request("POST", "/prompt", payload)
+        if status != 200:
+            _LOGGER.warning("Claude bridge answered HTTP %s", status)
+            return BridgeReply(SendResult.UNREACHABLE)
+        session = str(data.get("session") or MAIN_SESSION)
+        self._note_prompt(session, prompt, echo)
+        return BridgeReply(SendResult.SENT, session=session)
+
+    async def async_new_session(self, spoken: str, echo: str | None) -> BridgeReply:
+        """Start a new Claude session, optionally with a first prompt."""
+        if (refused := self._check(echo)) is not None or echo is None:
+            return BridgeReply(refused or SendResult.NOT_ALLOWED)
+        name, prompt = split_new_session(spoken)
+        prompt = prompt[:MAX_PROMPT_LENGTH]
+        if not name:
+            return BridgeReply(SendResult.NO_NAME)
+        if name == MAIN_SESSION:
+            return BridgeReply(SendResult.MAIN_SESSION, session=name)
+        payload: dict[str, Any] = {"name": name}
+        if prompt:
+            try:
+                payload.update(self._prompt_payload(prompt, echo))
+            except NoURLAvailableError:
+                return BridgeReply(SendResult.UNREACHABLE)
+        status, data = await self._async_request("POST", "/sessions", payload)
+        if status == 409:
+            return BridgeReply(
+                SendResult.TOO_MANY, sessions=list(data.get("sessions") or [])
+            )
+        if status != 200:
+            return BridgeReply(SendResult.UNREACHABLE)
+        name = str(data.get("session") or name)
+        if prompt:
+            self._note_prompt(name, prompt, echo)
+        else:
+            self._sent.append(time.monotonic())
+        return BridgeReply(SendResult.CREATED, session=name, with_prompt=bool(prompt))
+
+    async def async_switch(self, spoken: str, echo: str | None) -> BridgeReply:
+        """Send the following prompts to another session."""
+        if (refused := self._check(echo)) is not None:
+            return BridgeReply(refused)
+        name = session_name(spoken)
+        if not name:
+            return BridgeReply(SendResult.NO_NAME)
+        status, data = await self._async_request("POST", "/switch", {"name": name})
+        if status == 404:
+            return BridgeReply(
+                SendResult.UNKNOWN_SESSION,
+                session=name,
+                sessions=list(data.get("sessions") or []),
+            )
+        if status != 200:
+            return BridgeReply(SendResult.UNREACHABLE)
+        return BridgeReply(SendResult.SWITCHED, session=name)
+
+    async def async_list(self, echo: str | None) -> BridgeReply:
+        """Return the running sessions and the active one."""
+        if (refused := self._check(echo)) is not None:
+            return BridgeReply(refused)
+        status, data = await self._async_request("GET", "/sessions")
+        if status != 200:
+            return BridgeReply(SendResult.UNREACHABLE)
+        return BridgeReply(
+            SendResult.LISTED,
+            sessions=list(data.get("sessions") or []),
+            active=str(data.get("active") or MAIN_SESSION),
+        )
+
+    async def async_end(self, spoken: str, echo: str | None) -> BridgeReply:
+        """End a voice session; the main session stays."""
+        if (refused := self._check(echo)) is not None:
+            return BridgeReply(refused)
+        name = session_name(spoken)
+        if not name:
+            return BridgeReply(SendResult.NO_NAME)
+        if name == MAIN_SESSION:
+            return BridgeReply(SendResult.MAIN_SESSION, session=name)
+        status, data = await self._async_request("POST", "/end", {"name": name})
+        if status == 404:
+            return BridgeReply(
+                SendResult.UNKNOWN_SESSION,
+                session=name,
+                sessions=list(data.get("sessions") or []),
+            )
+        if status != 200:
+            return BridgeReply(SendResult.UNREACHABLE)
+        self._pending.pop(name, None)
+        return BridgeReply(SendResult.ENDED, session=name)
 
     async def _async_handle_answer(
         self, hass: HomeAssistant, webhook_id: str, request: web.Request
@@ -264,15 +423,17 @@ class ClaudeBridge:
         if not isinstance(text, str) or not text.strip():
             return web.Response(status=400)
 
-        pending = self._pending
+        session = payload.get("session")
+        session = session if isinstance(session, str) and session else MAIN_SESSION
+        pending = self._pending.pop(session, None)
         if pending is None or time.monotonic() - pending.sent > PENDING_SECONDS:
-            # Nobody asked by voice (or too long ago): keep quiet
-            self._pending = None
+            # Nobody asked this session by voice (or too long ago): keep quiet
             return web.json_response({"spoken": False})
-        self._pending = None
 
         text = text.strip()[:MAX_ANSWER_LENGTH]
         speech = spoken_part(text) or "Claude ist fertig."
+        if session != MAIN_SESSION:
+            speech = f"{session}: {speech}"
         has_more = len(" ".join(text.split())) > len(speech) + 20
         if has_more:
             speech = f"{speech} {CLAUDE_REST_TEXT}"
@@ -288,14 +449,14 @@ class ClaudeBridge:
         )
         if has_more:
             await self.manager.async_send_to_mobile(
-                question=f"Claude: {pending.prompt}",
+                question=f"Claude {session}: {pending.prompt}",
                 answer=text,
                 reply_device=pending.echo,
                 confirm=False,
             )
         self.manager.add_history_entry(
             pending.echo,
-            f"[Claude] {pending.prompt}",
+            f"[Claude {session}] {pending.prompt}",
             speech,
             duration=time.monotonic() - pending.sent,
             char_count=len(text),

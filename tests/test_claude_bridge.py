@@ -226,3 +226,143 @@ def test_interaction_model_has_claude_intent() -> None:
         ]["intents"]
     }
     assert "claude soll {frage}" in intents["ClaudeIntent"]["samples"]
+
+
+async def _intent(client: Any, manager: Any, intent: str, text: str = "") -> str:
+    response = await client.post(
+        f"/api/webhook/{manager.skill.webhook_id}",
+        json={
+            "application_id": APP_ID,
+            "action": "intent",
+            "intent": intent,
+            "text": text,
+            "device_id": KITCHEN,
+        },
+    )
+    return (await response.json())["speech"]
+
+
+async def test_new_session_by_voice(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+    spoken: list[dict],
+) -> None:
+    """ "Neue Claude-Sitzung Heizung prüf das Bad" starts it with a first prompt."""
+    aioclient_mock.post(f"{BRIDGE}/sessions", json={"session": "heizung"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+
+    speech = await _intent(client, manager, "ClaudeNeuIntent", "Heizung prüf das Bad")
+    assert speech == (
+        "Okay, die Claude-Sitzung heizung startet. Die Antwort kommt gleich hier."
+    )
+    data = aioclient_mock.mock_calls[0][2]
+    assert data["name"] == "heizung"
+    assert data["text"] == "[Alexa · Test Echo] prüf das Bad"
+
+    # The answer of that session is spoken with its name in front
+    reply_url = data["reply_url"].removeprefix("http://192.168.1.10:8123")
+    response = await client.post(
+        reply_url, json={"text": "Das Ventil klemmt.", "session": "heizung"}
+    )
+    assert await response.json() == {"spoken": True}
+    assert spoken[-1]["message"] == "heizung: Das Ventil klemmt."
+    # An answer of the main session is not awaited
+    response = await client.post(reply_url, json={"text": "Hallo"})
+    assert await response.json() == {"spoken": False}
+
+
+async def test_new_session_without_prompt_and_limits(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """Only a name starts an empty session; too many and the main one are refused."""
+    aioclient_mock.post(f"{BRIDGE}/sessions", json={"session": "kueche"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+    assert "kueche läuft" in await _intent(client, manager, "ClaudeNeuIntent", "Küche")
+    assert "text" not in aioclient_mock.mock_calls[0][2]
+    assert "Hauptsitzung bleibt" in await _intent(
+        client, manager, "ClaudeNeuIntent", "alexa mach was"
+    )
+    assert "Wie soll" in await _intent(client, manager, "ClaudeNeuIntent", "")
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.post(
+        f"{BRIDGE}/sessions",
+        status=409,
+        json={"sessions": ["alexa", "a", "b", "c"]},
+    )
+    assert await _intent(client, manager, "ClaudeNeuIntent", "d") == (
+        "Es laufen schon zu viele Claude-Sitzungen. Beende zuerst eine. "
+        "Es laufen: die Hauptsitzung, a, b und c."
+    )
+
+
+async def test_switch_list_and_end(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """Switching, listing and ending sessions by voice."""
+    aioclient_mock.post(f"{BRIDGE}/switch", json={"active": "heizung"})
+    aioclient_mock.get(
+        f"{BRIDGE}/sessions", json={"sessions": ["alexa", "heizung"], "active": "heizung"}
+    )
+    aioclient_mock.post(f"{BRIDGE}/end", json={"ok": True})
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"session": "heizung"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+
+    assert await _intent(client, manager, "ClaudeWechselIntent", "Heizung") == (
+        "Okay, Aufträge gehen jetzt an Claude heizung."
+    )
+    assert await _intent(client, manager, "ClaudeWechselIntent", "Hauptsitzung") == (
+        "Okay, Aufträge gehen wieder an die Hauptsitzung."
+    )
+    assert await _intent(client, manager, "ClaudeListeIntent") == (
+        "Es laufen: die Hauptsitzung und heizung. Aufträge gehen an heizung."
+    )
+    assert await _intent(client, manager, "ClaudeIntent", "mach weiter") == (
+        "Okay, ist bei Claude heizung. Die Antwort kommt gleich hier."
+    )
+    assert await _intent(client, manager, "ClaudeEndeIntent", "Heizung") == (
+        "Die Claude-Sitzung heizung ist beendet."
+    )
+    assert "Hauptsitzung bleibt" in await _intent(
+        client, manager, "ClaudeEndeIntent", "alexa"
+    )
+
+
+async def test_unknown_session(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """An unknown name gets the list of running sessions."""
+    aioclient_mock.post(f"{BRIDGE}/switch", status=404, json={"sessions": ["alexa"]})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+    assert await _intent(client, manager, "ClaudeWechselIntent", "garten") == (
+        "Eine Claude-Sitzung garten gibt es nicht. Es laufen: die Hauptsitzung."
+    )
+
+
+def test_session_names() -> None:
+    """Spoken names become short, plain session names."""
+    from custom_components.schlaue_antworten.claude_bridge import (
+        session_name,
+        split_new_session,
+    )
+
+    assert session_name("Küche bitte") == "kueche"
+    assert session_name("Hauptsitzung") == "alexa"
+    assert session_name("") == ""
+    assert split_new_session("Heizung  prüf das Bad") == ("heizung", "prüf das Bad")
+    assert split_new_session("Garten") == ("garten", "")
