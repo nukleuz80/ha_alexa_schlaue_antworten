@@ -161,3 +161,25 @@ TRIGGER_BOOLEAN_ENTITY = "input_boolean.alexa_ki_trigger"
 ENTITY_ID_ACTIONABLE_INPUT_TEXT = "input_text.alexa_actionable_notification"
 DEFAULT_COMMUNITY_SKILL_ID = "amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40"
 
+
+# Claude bridge: voice prompts from the own skill into a Claude Code session
+CONF_CLAUDE_URL = "claude_url"
+CONF_CLAUDE_TOKEN = "claude_token"
+CONF_CLAUDE_ECHOS = "claude_echos"
+DEFAULT_CLAUDE_URL = ""
+DEFAULT_CLAUDE_TOKEN = ""
+CLAUDE_SENT_TEXT = "Okay, ist bei Claude. Die Antwort kommt gleich hier."
+CLAUDE_OFF_TEXT = "Die Claude-Brücke ist gerade ausgeschaltet."
+CLAUDE_NOT_SET_UP_TEXT = (
+    "Die Claude-Brücke ist noch nicht eingerichtet. Das geht in den Optionen "
+    "von Schlaue Antworten."
+)
+CLAUDE_NOT_ALLOWED_TEXT = "Von diesem Echo aus darf ich Claude nichts schicken."
+CLAUDE_UNKNOWN_ECHO_TEXT = (
+    "Ich weiß noch nicht, welcher Echo das ist. Sag mir zuerst: Du stehst in der "
+    "Küche, oder in welchem Raum du gerade bist."
+)
+CLAUDE_BUSY_TEXT = "Das sind gerade zu viele Aufträge für Claude. Warte bitte kurz."
+CLAUDE_UNREACHABLE_TEXT = "Claude ist gerade nicht erreichbar."
+CLAUDE_EMPTY_TEXT = "Was soll ich Claude sagen?"
+CLAUDE_REST_TEXT = "Den Rest schicke ich dir aufs Handy."

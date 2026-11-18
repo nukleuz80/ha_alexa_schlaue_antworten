@@ -14,6 +14,9 @@ from homeassistant.helpers.network import NoURLAvailableError
 from .const import (
     CONF_ABORT_PROMPT,
     CONF_ANNOUNCE_MODEL,
+    CONF_CLAUDE_ECHOS,
+    CONF_CLAUDE_TOKEN,
+    CONF_CLAUDE_URL,
     CONF_ANSWER_BUDGET,
     CONF_CUSTOM_KNOWLEDGE,
     CONF_DEFAULT_ECHO,
@@ -136,7 +139,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         """Show main options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["settings", "skill", "echos", "history"],
+            menu_options=["settings", "skill", "echos", "claude", "history"],
         )
 
     async def async_step_settings(
@@ -444,6 +447,82 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
             step_id="echos",
             data_schema=vol.Schema(schema),
             description_placeholders={"count": str(len(labels))},
+        )
+
+    async def async_step_claude(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Set up the bridge that hands voice prompts to a Claude session."""
+        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if manager is None:
+            return self.async_abort(reason="not_loaded")
+        options = dict(self.config_entry.options)
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            url = str(user_input.get(CONF_CLAUDE_URL) or "").strip().rstrip("/")
+            token = str(user_input.get(CONF_CLAUDE_TOKEN) or "").strip()
+            if url and not url.startswith(("http://", "https://")):
+                errors[CONF_CLAUDE_URL] = "invalid_url"
+            elif url and not token:
+                errors[CONF_CLAUDE_TOKEN] = "token_required"
+            else:
+                options[CONF_CLAUDE_URL] = url
+                options[CONF_CLAUDE_TOKEN] = token
+                options[CONF_CLAUDE_ECHOS] = [
+                    str(echo) for echo in user_input.get(CONF_CLAUDE_ECHOS) or []
+                ]
+                return self.async_create_entry(title="", data=options)
+
+        bridge = manager.claude
+        try:
+            bridge.reply_url()
+        except NoURLAvailableError:
+            errors["base"] = "no_local_url"
+        last = bridge.last_prompt
+        return self.async_show_form(
+            step_id="claude",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_CLAUDE_URL,
+                        description={
+                            "suggested_value": options.get(CONF_CLAUDE_URL, "")
+                        },
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.URL)
+                    ),
+                    vol.Optional(
+                        CONF_CLAUDE_TOKEN,
+                        description={
+                            "suggested_value": options.get(CONF_CLAUDE_TOKEN, "")
+                        },
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    ),
+                    vol.Optional(
+                        CONF_CLAUDE_ECHOS,
+                        default=options.get(CONF_CLAUDE_ECHOS, []),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain="media_player", multiple=True
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "enabled": "✅" if bridge.enabled else "❌",
+                "last_prompt": (
+                    f"{last['echo']}: {last['text']}".replace("{", "[").replace(
+                        "}", "]"
+                    )
+                    if last
+                    else "–"
+                ),
+            },
         )
 
     async def async_step_history(

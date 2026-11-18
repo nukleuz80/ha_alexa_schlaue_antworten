@@ -36,7 +36,7 @@ async def test_options_menu(hass: HomeAssistant, setup_entry: SetupEntry) -> Non
     entry = await setup_entry()
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
-    assert set(result["menu_options"]) == {"settings", "skill", "echos", "history"}
+    assert set(result["menu_options"]) == {"settings", "skill", "echos", "claude", "history"}
 
 
 async def test_skill_step_shows_code_and_model(
@@ -142,3 +142,38 @@ async def test_echo_assignment_step(
     assert skill.device_map == {
         "amzn1.ask.device.BBBBBB222222": "media_player.kueche"
     }
+
+
+async def test_claude_step_saves_bridge(
+    hass: HomeAssistant, setup_entry: SetupEntry
+) -> None:
+    """The Claude step checks and saves address, token and allowed Echos."""
+    hass.config.internal_url = "http://192.168.1.10:8123"
+    entry = await setup_entry()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "claude"}
+    )
+    assert result["step_id"] == "claude"
+    assert result["errors"] == {}
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"claude_url": "192.168.1.50:8765"}
+    )
+    assert result["errors"] == {"claude_url": "invalid_url"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"claude_url": "http://192.168.1.50:8765"}
+    )
+    assert result["errors"] == {"claude_token": "token_required"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            "claude_url": "http://192.168.1.50:8765/",
+            "claude_token": " geheim ",
+            "claude_echos": ["media_player.test_echo"],
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options["claude_url"] == "http://192.168.1.50:8765"
+    assert entry.options["claude_token"] == "geheim"
+    assert entry.options["claude_echos"] == ["media_player.test_echo"]

@@ -24,7 +24,16 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .answer import AnswerResult
+from .claude_bridge import SendResult
 from .const import (
+    CLAUDE_BUSY_TEXT,
+    CLAUDE_EMPTY_TEXT,
+    CLAUDE_NOT_ALLOWED_TEXT,
+    CLAUDE_NOT_SET_UP_TEXT,
+    CLAUDE_OFF_TEXT,
+    CLAUDE_SENT_TEXT,
+    CLAUDE_UNKNOWN_ECHO_TEXT,
+    CLAUDE_UNREACHABLE_TEXT,
     CONF_DEFAULT_ECHO,
     CONF_ABORT_PROMPT,
     CONF_DIALOG_PROMPT,
@@ -59,6 +68,7 @@ from .const import (
 )
 from .echo_match import best_echo, echo_candidates
 from .skill_model import (
+    INTENT_CLAUDE,
     INTENT_PHONE,
     INTENT_ROOM,
     INTENT_START,
@@ -105,6 +115,15 @@ SAVE_DELAY_SECONDS = 30.0
 MAX_SEEN_DEVICES = 20
 RATE_LIMIT_REQUESTS = 20
 RATE_LIMIT_WINDOW_SECONDS = 60.0
+
+CLAUDE_TEXTS: dict[SendResult, str] = {
+    SendResult.SENT: CLAUDE_SENT_TEXT,
+    SendResult.OFF: CLAUDE_OFF_TEXT,
+    SendResult.NOT_SET_UP: CLAUDE_NOT_SET_UP_TEXT,
+    SendResult.NOT_ALLOWED: CLAUDE_NOT_ALLOWED_TEXT,
+    SendResult.BUSY: CLAUDE_BUSY_TEXT,
+    SendResult.UNREACHABLE: CLAUDE_UNREACHABLE_TEXT,
+}
 
 
 class SkillConnector:
@@ -470,6 +489,8 @@ class SkillConnector:
                 )
             if intent == INTENT_ROOM:
                 return await self._async_assign_room(device_id, text)
+            if intent == INTENT_CLAUDE:
+                return await self._async_to_claude(device_id, text)
             if intent == INTENT_PHONE:
                 return await self._async_send_to_phone(
                     self._echo_for(device_id), session
@@ -487,6 +508,23 @@ class SkillConnector:
         return await self._async_ask(
             question, self._echo_for(device_id), start_time, retries=retries
         )
+
+    async def _async_to_claude(
+        self, device_id: str | None, text: str
+    ) -> web.Response:
+        """Hand a spoken prompt to the Claude session.
+
+        Only an Echo assigned to this exact Alexa device may send, never the
+        default Echo, so an unknown device cannot reach Claude.
+        """
+        prompt = " ".join(text.split())
+        if len(prompt) < 2:
+            return self._ask_again(CLAUDE_EMPTY_TEXT)
+        echo = self._devices.get(device_id) if device_id else None
+        if echo is None and self.manager.claude.is_set_up:
+            return self._speech(CLAUDE_UNKNOWN_ECHO_TEXT)
+        result = await self.manager.claude.async_send(prompt, echo)
+        return self._speech(CLAUDE_TEXTS[result])
 
     def _not_understood(self, retries: int) -> web.Response:
         """Ask once more to repeat, the second time end the dialog.

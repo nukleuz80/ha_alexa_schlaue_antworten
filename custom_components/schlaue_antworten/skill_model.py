@@ -16,6 +16,7 @@ INTENT_QUESTION = "FrageIntent"
 INTENT_PHONE = "HandyIntent"
 INTENT_START = "StartIntent"
 INTENT_ROOM = "RaumIntent"
+INTENT_CLAUDE = "ClaudeIntent"
 
 # Alexa's free-text slot needs a word in front of it. Each question word gets
 # its own intent, so Home Assistant can put the word back in front of the slot.
@@ -68,6 +69,16 @@ ROOM_CARRIERS = [
     "ich bin in",
     "ich bin im",
     "ich bin in der",
+]
+# "Claude soll ...": the prompt goes to the Claude bridge, not to the AI answer
+CLAUDE_CARRIERS = [
+    "claude soll",
+    "sag claude",
+    "frag claude",
+    "an claude",
+    "schick claude",
+    "auftrag an claude",
+    "claude bitte",
 ]
 PHONE_SAMPLES = [
     "schick es aufs handy",
@@ -221,6 +232,15 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
             "name": INTENT_ROOM,
             "slots": _question_slot(),
             "samples": [f"{carrier} {{{SLOT_QUESTION}}}" for carrier in ROOM_CARRIERS],
+        }
+    )
+    intents.append(
+        {
+            "name": INTENT_CLAUDE,
+            "slots": _question_slot(),
+            "samples": [
+                f"{carrier} {{{SLOT_QUESTION}}}" for carrier in CLAUDE_CARRIERS
+            ],
         }
     )
     intents.append(

@@ -69,6 +69,7 @@ from .const import (
     VOICE_PATH_COMMUNITY,
     VOICE_PATH_SKILL,
 )
+from .claude_bridge import ClaudeBridge
 from .skill import SkillConnector
 
 _LOGGER = logging.getLogger(__name__)
@@ -212,6 +213,7 @@ class SchlaueAntwortenManager:
         self.uses_community = voice_path != VOICE_PATH_SKILL
         self.uses_skill = voice_path != VOICE_PATH_COMMUNITY
         self.skill = SkillConnector(hass, entry, self)
+        self.claude = ClaudeBridge(hass, entry, self)
 
     def _cancel_pending_followup(self, device: str | None = None) -> None:
         """Cancel running delayed follow-up timer(s) immediately."""
@@ -354,6 +356,9 @@ class SchlaueAntwortenManager:
         await self.skill.async_load()
         if self.uses_skill:
             self.skill.async_start()
+        await self.claude.async_load()
+        if self.uses_skill and self.claude.is_set_up:
+            self.claude.async_start()
 
         # 4. Load persistent daily statistics
         stored_stats = await self._stats_store.async_load()
@@ -405,6 +410,7 @@ class SchlaueAntwortenManager:
 
         self._cancel_pending_followup()
         self.skill.async_stop()
+        self.claude.async_stop()
 
         for task in list(self._background_tasks):
             task.cancel()

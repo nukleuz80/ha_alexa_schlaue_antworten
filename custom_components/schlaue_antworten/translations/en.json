@@ -19,6 +19,9 @@
     "switch": {
       "dialog_trigger": {
         "name": "Dialogue trigger"
+      },
+      "claude_bridge": {
+        "name": "Claude bridge"
       }
     },
     "button": {
@@ -39,6 +42,7 @@
           "settings": "⚙️ Settings & Prompts",
           "skill": "🎙️ Own Alexa skill",
           "echos": "🔊 Echo assignment",
+          "claude": "🤖 Claude bridge",
           "history": "📜 Dialog Log (Recent Interactions)"
         }
       },
@@ -101,11 +105,28 @@
       "echos": {
         "title": "Echo assignment",
         "description": "These are the Echos that already used the own skill ({count}), shown with the end of their Alexa device ID and the time of their last question. Pick the matching Echo for each. The AI then knows the room, and “send to phone” finds the last answer of exactly this Echo.\n\nThe easiest way is by voice: on each Echo say “Alexa, sag Schlaufuchs, du stehst in der Küche”. Without an assignment the default Echo is used."
+      },
+      "claude": {
+        "title": "Claude bridge",
+        "description": "Sends voice tasks to a running Claude Code session, e.g. \"Alexa, ask Schlaufuchs, Claude soll ...\". The Echo that asked speaks Claude's answer; long answers also go to the phone.\n\nOnly assigned Echos (see Echo assignment) selected here may send tasks. The \"Claude bridge\" switch turns it off at any time.\n\nSwitch: {enabled} · Last task: {last_prompt}",
+        "data": {
+          "claude_url": "Bridge address",
+          "claude_token": "Bridge token",
+          "claude_echos": "Allowed Echos"
+        },
+        "data_description": {
+          "claude_url": "e.g. http://192.168.1.50:8765 – leave empty to turn the bridge off.",
+          "claude_token": "The secret token of the bridge (~/.config/claude-alexa/token).",
+          "claude_echos": "Only these Echos may send tasks to Claude."
+        }
       }
     },
     "error": {
       "no_public_url": "Home Assistant has no public HTTPS address (e.g. Nabu Casa). Without it the skill cannot reach Home Assistant.",
-      "invalid_invocation": "The invocation name may only contain lower case letters and spaces."
+      "invalid_invocation": "The invocation name may only contain lower case letters and spaces.",
+      "invalid_url": "The address must start with http:// or https://.",
+      "token_required": "The bridge accepts no tasks without a token.",
+      "no_local_url": "Home Assistant has no local address. Set it under Settings → System → Network."
     },
     "abort": {
       "not_loaded": "Schlaue Antworten is not loaded right now."

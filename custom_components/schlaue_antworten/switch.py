@@ -19,7 +19,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Schlaue Antworten switch."""
     manager = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SchlaueAntwortenTriggerSwitch(manager, entry)])
+    async_add_entities(
+        [
+            SchlaueAntwortenTriggerSwitch(manager, entry),
+            SchlaueAntwortenClaudeSwitch(manager, entry),
+        ]
+    )
 
 
 class SchlaueAntwortenTriggerSwitch(SwitchEntity):
@@ -58,4 +63,38 @@ class SchlaueAntwortenTriggerSwitch(SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off switch (no-op, automatically off)."""
         self._attr_is_on = False
+        self.async_write_ha_state()
+
+
+class SchlaueAntwortenClaudeSwitch(SwitchEntity):
+    """Switch that lets voice prompts through to the Claude session, or not."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "claude_bridge"
+    _attr_icon = "mdi:robot-outline"
+
+    def __init__(self, manager: Any, entry: ConfigEntry) -> None:
+        """Initialize the switch."""
+        self.manager = manager
+        self._attr_unique_id = f"{entry.entry_id}_claude_bridge"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether prompts go through to Claude."""
+        return bool(self.manager.claude.enabled)
+
+    @property
+    def available(self) -> bool:
+        """Return whether the bridge is set up in the options."""
+        return bool(self.manager.claude.is_set_up)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Let voice prompts through to Claude."""
+        await self.manager.claude.async_set_enabled(True)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Stop voice prompts to Claude."""
+        await self.manager.claude.async_set_enabled(False)
         self.async_write_ha_state()
