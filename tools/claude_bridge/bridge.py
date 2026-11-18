@@ -37,6 +37,7 @@ ALLOWED_HOSTS = {
 }
 MAX_TEXT = 600
 MAX_BODY = 8192
+ENTER_ATTEMPTS = 4
 
 _LOGGER = logging.getLogger("claude-alexa-bridge")
 
@@ -59,13 +60,38 @@ def session_running() -> bool:
     )
 
 
+def _still_in_input(text: str) -> bool:
+    """Return whether the prompt still sits unsent in Claude's input box.
+
+    After sending, the prompt shows up in the history and an empty input line
+    follows; while unsent, the last input line still holds its beginning.
+    """
+    pane = subprocess.run(
+        ["tmux", "capture-pane", "-p", "-t", f"={TMUX_SESSION}:"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
+    inputs = [line for line in pane.splitlines() if line.lstrip().startswith("❯")]
+    return bool(inputs) and text[:30] in inputs[-1]
+
+
 def type_prompt(text: str) -> None:
-    """Type the prompt into the Claude session and press Enter."""
+    """Type the prompt into the Claude session and press Enter.
+
+    Right after a (re)start the input box may swallow Enter, so it is pressed
+    again while the prompt still sits there.
+    """
     target = f"={TMUX_SESSION}:"
     subprocess.run(["tmux", "send-keys", "-t", target, "-l", text], check=True)
-    # Give the input box a moment, otherwise Enter can arrive before the text
-    time.sleep(0.3)
-    subprocess.run(["tmux", "send-keys", "-t", target, "Enter"], check=True)
+    for _attempt in range(ENTER_ATTEMPTS):
+        # Give the input box a moment, otherwise Enter can arrive before the text
+        time.sleep(0.5)
+        subprocess.run(["tmux", "send-keys", "-t", target, "Enter"], check=True)
+        time.sleep(1.0)
+        if not _still_in_input(text):
+            return
+    _LOGGER.warning("The prompt may still sit unsent in the Claude input box")
 
 
 def write_pending(reply_url: str, text: str) -> None:
