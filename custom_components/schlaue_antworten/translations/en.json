@@ -84,7 +84,7 @@
       },
       "skill": {
         "title": "🎙️ Own Alexa skill",
-        "description": "**[📋 Open voice model and skill code with copy buttons]({copy_link})** (link valid for 30 minutes)\n\nWebhook active: {active} · Skill linked: {linked}\nLast question via the skill: {last_request}\n\nHow to create the skill: in the Alexa developer console create a custom skill with “Alexa-hosted (Python)” in region EU (Ireland). Paste the voice model under *Build → JSON Editor*, save and start *Build*. Under *Code* replace the content of `lambda_function.py` with the skill code and press *Deploy*. Set *Test* to *Development*. The webhook is only active if the voice path under *Settings & prompts* is “Own skill” or “Both”.\n\n**The skill code contains your secret address. Do not share it.**",
+        "description": "<a href=\"{copy_link}\" target=\"_blank\"><b>📋 Open voice model and skill code with copy buttons</b></a> (new tab, link valid for 30 minutes)\n\nWebhook active: {active} · Skill linked: {linked}\nLast question via the skill: {last_request}\n\nHow to create the skill: in the Alexa developer console create a custom skill with “Alexa-hosted (Python)” in region EU (Ireland). Paste the voice model under *Build → JSON Editor*, save and start *Build*. Under *Code* replace the content of `lambda_function.py` with the skill code and press *Deploy*. Set *Test* to *Development*. The webhook is only active if the voice path under *Settings & prompts* is “Own skill” or “Both”.\n\n**The skill code contains your secret address. Do not share it.**",
         "data": {
           "invocation_name": "Invocation name (e.g. schlaufuchs)",
           "skill_keep_open": "Keep the dialog open („Noch eine Frage?“)",

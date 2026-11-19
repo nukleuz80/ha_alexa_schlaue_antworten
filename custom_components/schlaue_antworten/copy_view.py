@@ -53,6 +53,7 @@ PAGE = """<!DOCTYPE html>
 <p>Knopf drücken, dann in der Alexa-Entwicklerkonsole einfügen.</p>
 {sections}
 <p class="warn">Der Skill-Code enthält deine geheime Adresse. Gib ihn nicht weiter.</p>
+<p><button type="button" onclick="window.close()">Fertig – Tab schließen</button></p>
 <script>
 async function copyText(id, button) {{
   const field = document.getElementById(id);
