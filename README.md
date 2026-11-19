@@ -3,95 +3,120 @@
 </p>
 
 <h1 align="center">ALEXA - Schlaue Antworten</h1>
-<p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
+<p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b><br>
+<i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.1-blue.svg" alt="Version"></a>
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
+  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
-  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
+  <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/issues/new"><img src="https://img.shields.io/badge/Ideen%20%26%20W%C3%BCnsche-willkommen-brightgreen.svg" alt="Ideen willkommen"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
 </p>
 
-**Schlaue Antworten** verbindet deine Amazon Echo-Lautsprecher nahtlos mit modernen KI-Sprachmodellen (z. B. Google Gemini, Anthropic Claude, OpenAI oder lokalen LLMs) in Home Assistant.
-
-Du hast die Wahl zwischen zwei komfortablen Sprachwegen:
-- ⚡ **Ein-Satz-Direktabfrage:** *„Alexa, schlaue Frage: Wie weit ist der Mond entfernt?“* (Direkte Antwort in einem Rutsch)
-- 🗣️ **Interaktiver Dialog:** *„Alexa, öffne Schlaue Antworten“* ➔ *„Schlaue Antworten: Was möchtest du wissen?“* (Offenes Mikrofon mit blauem Leuchtring)
-
-> [!TIP]
-> 🚀 **Welche KI-Modelle sind am schnellsten & besten für Alexa?**  
-> Siehe unseren ausführlichen Praxis-Guide: [**⚡ KI-Modelle & Speed-Guide: Die besten & schnellsten LLMs für Alexa**](docs/KI_MODELLE_SPEED_GUIDE.md) mit Latenz-Benchmarks, Free-Tier-Tipps (Google Gemini, OpenRouter) und Hardware-Speed-Champions (Llama 3.3 via Cerebras/Groq)!
+<p align="center">
+  <a href="#-zwei-wege-zu-alexa">Zwei Wege</a> ·
+  <a href="#-schnellstart">Schnellstart</a> ·
+  <a href="#️-ablauf-im-alltag">Im Alltag</a> ·
+  <a href="#-variante-3-sprachaufträge-an-claude-code-claude-brücke-eigener-skill">Claude-Brücke</a> ·
+  <a href="#️-konfiguration-ui-options-flow">Konfiguration</a> ·
+  <a href="#-ideen-wünsche--mitmachen">Ideen &amp; Wünsche</a> ·
+  <a href="#-versionshistorie--changelog">Changelog</a>
+</p>
 
 ---
 
-## 🔒 100 % Privat, Lokal & Zero-YAML – Kein Entwicklerkonto nötig!
+**Schlaue Antworten** verbindet deine Amazon-Echo-Lautsprecher mit den KI-Agenten in Home Assistant (z. B. Google Gemini, Anthropic Claude, OpenAI, OpenRouter oder lokale LLMs). Komplett per Oberfläche eingerichtet – ohne YAML.
 
-Im Gegensatz zu vielen herkömmlichen Alexa-Custom-Skill-Lösungen:
-- ❌ **Kein** Amazon Developer Account erforderlich
-- ❌ **Keine** AWS-Lambda-Funktionen oder Cloud-Proxies
-- ❌ **Kein YAML-Code nötig:** Keine manuellen Skripte (`scripts.yaml`), keine Helfer (`input_text`, `input_boolean`) und keine Template-Sensoren
-- ❌ **Keine** sensiblen URLs, Tokens oder Zugangsdaten, die irgendwo extern eingetragen werden müssen
-- ✅ **100 % isoliert:** Alle Dialoge, KI-Abfragen und Antworten verbleiben vollständig in deiner eigenen Home-Assistant-Instanz.
+> [!TIP]
+> 🚀 **Welche KI-Modelle sind am schnellsten für Alexa?** → [**⚡ KI-Modelle & Speed-Guide**](docs/KI_MODELLE_SPEED_GUIDE.md) mit Latenz-Messungen, Free-Tier-Tipps und den schnellsten Anbietern.
+
+---
+
+## 🧭 Zwei Wege zu Alexa
+
+| | 🎙️ **Eigener Skill** *(empfohlen)* | 🔔 **Community-Skill** *(ohne Entwicklerkonto)* |
+| :--- | :--- | :--- |
+| **Einrichtung** | ~10 Minuten: Skill in der kostenlosen Alexa-Entwicklerkonsole anlegen, Sprachmodell und Code per 📋-Knopf einfügen | ~3 Minuten: Community-Skill aktivieren, Alexa-Routine anlegen |
+| **Geschwindigkeit** | ⚡ Antwort direkt als Skill-Antwort – kein Umweg über Routine, Schalter und Ansage | Umweg über Routine → Home Assistant → Ansage, spürbar langsamer |
+| **Spracherkennung** | 🗣️ Ganze Sätze in einem Rutsch: *„Alexa, frag Schlaufuchs, wie weit ist der Mond?“* – auch mit Fragewörtern, Freitext und Folgefragen | Feste Auslöser über Routine, Frage im zweiten Schritt |
+| **Richtiger Echo** | 🎯 Antwortet immer auf dem Echo, der gefragt wurde (eindeutige Geräte-ID) | Ermittelt den Echo über „zuletzt benutzt“ – kann danebenliegen |
+| **Dialog** | 💬 Mikrofon bleibt offen, Vertiefung mit „Ja“, „aufs Handy“ | Vertiefung mit „Ja“, „aufs Handy“ |
+| **Alexa-App** | 📱 Funktioniert auch in der Alexa-App (Sprache **und** Texteingabe) | – |
+| **Claude Code** | 🤖 Sprachaufträge an Claude Code, Sitzungen per Sprache, Rückfragen per Push-Knopf | – |
+| **Voraussetzung** | Öffentliche HTTPS-Adresse (z. B. Nabu Casa) | Alexa Media Player |
+
+**Kurz:** Der Community-Skill ist der schnellste Einstieg. Wer Alexa täglich nutzt, wechselt zum **eigenen Skill** – er ist schneller, versteht mehr und kann deutlich mehr. Beide Wege lassen sich parallel betreiben (Sprachweg *„Beide“*).
+
+<details>
+<summary>🔒 <b>Datenschutz & Sicherheit (Klick zum Ausklappen)</b></summary>
+
+- ✅ **Alles bleibt in deinem Home Assistant:** Fragen und Antworten laufen über deine eigenen KI-Agenten, kein fremder Server dazwischen.
+- ✅ **Kein YAML:** keine Skripte, Helfer oder Template-Sensoren nötig.
+- ✅ **Eigener Skill:** Er kennt nur eine geheime, zufällige Webhook-Adresse und ist an genau deinen Skill gekoppelt; fremde Skills werden abgewiesen. Der Code ist ein paar Zeilen Python ohne Abhängigkeiten.
+- ✅ **Claude-Brücke:** nur im lokalen Netz, mit Token, nur für ausdrücklich erlaubte Echos, Rate-Limit und Ein/Aus-Schalter.
+</details>
 
 ---
 
 ## ✨ Features
 
-- 📊 **Nativer Statistik-Sensor (Tageszähler ab v1.0.26):** Stellt `sensor.alexa_schlaue_antworten_ki_anfragen_heute` bereit; zählt alle KI-Anfragen des aktuellen Tages, setzt sich um Mitternacht automatisch auf 0 zurück, speichert Daten persistent im HA-Speicher (`.storage`) und liefert nützliche Attribute (Kurz- vs. Lang-Antworten, Gesamtzahl, letztes Echo, Zeitstempel & Dauer). Ab v1.0.32 zusätzlich KI-Dauer, Agent, Sprachweg und Mittelwerte der letzten 20 Anfragen.
-- ⚡ **Native Ein-Satz-Direktabfrage (ab v1.0.24):** Stelle deine Frage direkt in einem Satz (*„Alexa, schlaue Frage: ...“* oder *„Alexa, frage KI: ...“*), ohne dass zuvor eine Zwischenfrage abgewartet werden muss – 100 % nativ ohne YAML-Automationen!
-- 🚀 **100 % Zero-YAML Setup (ab v1.0.23):** Vollständige Integration out-of-the-box ohne YAML-Konfiguration.
-- 🔘 **Native Schalter- & Taster-Entitäten:** Stellt `switch.alexa_schlaue_antworten_dialog_starten` bereit, der direkt in Alexa-Routinen geschaltet werden kann, sowie einen praktischen Button für Dashboards.
-- 🗣️ **Interaktiver Sprachdialog:** Startet mit *„Schlaue Antworten: Was möchtest du wissen?“* und lässt das Mikrofon offen für deine Frage.
-- 🎯 **Dynamische Raum-Erkennung:** Erkennt automatisch das aktive Echo-Gerät anhand des `last_called`-Status der `alexa_media`-Geräte (oder optional via `sensor.last_alexa`).
-- 📜 **Kompaktes Dialog-Log:** Protokolliert die letzten Interaktionen (Gerät, Input, Output, Latenz und Zeichenanzahl) direkt in den Optionen.
-- 🔄 **2-Stufen-Fehlererkennung mit Schleifenschutz:** Fängt Gemurmel oder unverständliche Fragen ab, bittet einmalig höflich um Wiederholung und beendet bei erneutem Fehlschlag geräuschlos den Dialog.
-- 💬 **Optionale Vertiefung (Follow-up):** Fragt nach der Kurzantwort automatisch nach (*„Möchtest du mehr darüber erfahren?“*). Sagst du *„Ja“*, liefert die KI eine ausführlichere Erklärung (3–5 Sätze), ohne die Kurzantwort zu wiederholen.
-- ⚡ **Blitzschnelle Antwortzeiten:** Optimiert für kompakte Sprachausgaben (1–2 prägnante Sätze) in ca. 1–2 Sekunden.
-- 🛡️ **Intelligenter Ausweich-Mechanismus (Fallback):** Fängt Serverüberlastungen (wie Google 503 High Demand) automatisch ab und wechselt unterbrechungsfrei auf deinen Ausweich-Agenten (z. B. Claude Sonnet). Ab v1.0.34 als Wettlauf: Antwortet der primäre Agent nicht innerhalb des Zeitlimits (Standard 2,5 s), startet der Ausweich-Agent parallel, und die erste gültige Antwort gewinnt.
-- 🏠 **Smart-Home-Kontext im Prompt:** Übergibt optional Wetter, Außentemperatur, genaue Uhrzeit/Wochentag, den aktuellen Raum sowie die Anwesenheit an die KI (z. B. für Fragen wie *„Brauche ich heute einen Schirm?“* oder *„Wie spät ist es?“*).
-- 📖 **Haus-Wiki & Familien-Fakten:** Erlaubt es, in den Einstellungen individuelle Notizen zu hinterlegen (z. B. WLAN-Gastpasswort, Müllabfuhr-Tage, Haustiernamen, Notfallnummern), auf die die KI bei Haushaltsfragen zugreift.
-- 🚨 **Proaktive Fragen für Automatisierungen:** Dienst `schlaue_antworten.interactive_question` stellt bei Ereignissen eine Ja/Nein-Frage über Alexa und feuert bei *„Ja“* bzw. *„Nein“* entsprechende Events (`schlaue_antworten_action_confirmed`/`declined`).
-- 📱 **Auf mein Handy senden:** Sage im Dialog *„Aufs Handy senden“* oder frage direkt *„... und schick es mir aufs Smartphone“*, um die Antwort als Push-Mitteilung an die Home Assistant Companion App zu erhalten.
-- 🧹 **Perfekt für die Sprachausgabe aufbereitet:** Bereinigt automatisch störende Markdown-Sterne (`*`), Rauten (`#`) und Sonderzeichen.
-- 🏷️ **Transparente Modellnennung:** Nennt auf Wunsch am Ende der Antwort automatisch das Modell (*„Beantwortet von Google Gemini.“*).
-- ⚙️ **Vollständige UI-Konfiguration:** Alle Modelle, Prompts und Standardwerte werden direkt in der Benutzeroberfläche verwaltet.
+**🗣️ Sprechen & Antworten**
+- ⚡ **Ein Satz genügt:** *„Alexa, frag Schlaufuchs, …“* (eigener Skill) bzw. *„Alexa, schlaue Frage: …“* (Community-Skill) – Antwort ohne Zwischenfrage.
+- 💬 **Echter Dialog:** offenes Mikrofon, Folgefragen, auf Wunsch eine ausführlichere Vertiefung mit *„Ja“*.
+- 🎯 **Antwort auf dem richtigen Echo** – per Geräte-ID (eigener Skill) oder „zuletzt benutzt“.
+- 📱 **„Aufs Handy“:** schickt die Antwort als Push an die Companion-App.
+- 🧹 **Für Sprache aufbereitet:** kurze Antworten, ohne Markdown-Sternchen und Sonderzeichen.
+
+**🧠 KI & Zuverlässigkeit**
+- 🤖 **Jeder KI-Agent aus Home Assistant:** Gemini, Claude, OpenAI, OpenRouter, lokale LLMs.
+- 🛡️ **Ausweich-Agent im Wettlauf:** Antwortet der primäre Agent nicht schnell genug (Standard 2,5 s), startet der zweite parallel – die erste gute Antwort gewinnt.
+- 🏠 **Smart-Home-Kontext:** Wetter, Uhrzeit, Raum und Anwesenheit fließen auf Wunsch in die Antwort ein.
+- 📖 **Haus-Wiki:** eigene Notizen (Gäste-WLAN, Müllabfuhr, Notfallnummern), die die KI kennt.
+- 🔄 **Schleifenschutz:** fragt bei Unverständlichem einmal nach und beendet dann leise.
+
+**🤖 Claude Code per Sprache** *(eigener Skill)*
+- 🗣️ **Aufträge an eine Claude-Code-Sitzung:** *„Alexa, frag Schlaufuchs, Claude soll nachsehen, welche Fenster offen sind.“* – die Antwort spricht derselbe Echo.
+- 🗂️ **Sitzungen per Sprache:** neu starten, wechseln, auflisten, beenden.
+- 🔘 **Rückfragen per Push-Knopf:** *Ja* / *Nein* / eigene Antwort direkt aus der Benachrichtigung.
+- 📱 **Auch aus der Alexa-App** – per Sprache oder Texteingabe, Antwort als Push.
+
+**⚙️ Einrichtung & Betrieb**
+- 🚀 **Zero-YAML:** alles in der Oberfläche, inklusive 📋-Kopier-Knöpfen für Skill-Code und Sprachmodell.
+- 📊 **Statistik-Sensor:** Anfragen heute, Dauer, Agent, Sprachweg und Mittelwerte.
+- 📜 **Dialog-Verlauf** direkt in den Optionen.
+- 🚨 **Ja/Nein-Fragen für Automationen:** `schlaue_antworten.interactive_question` feuert Events für deine Folge-Automationen.
 
 ---
 
-## 📋 Schnellstart (Zero-YAML)
+## 📋 Schnellstart
 
-In nur 3 einfachen Schritten ist *Schlaue Antworten* einsatzbereit:
+### 1. Voraussetzungen
+1. **Alexa Media Player (HACS)** – für Ansagen und die Echo-Erkennung.
+2. **Ein KI-Agent in Home Assistant**, zum Beispiel:
+   - 💡 **OpenRouter** *(Einstieg)*: kostenlose Modelle wie `meta-llama/llama-3.3-70b-instruct:free` – keine Kreditkarte nötig.
+   - 🚀 **Google Generative AI (Gemini 2.5 Flash)**: sehr schnell, kostenloses Kontingent, exzellentes Deutsch.
+   - 📖 Mehr dazu im [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md).
 
-### 1. Voraussetzungen in Home Assistant
-1. **Alexa Media Player (HACS):** Muss installiert und eingerichtet sein (wird für Sprachausgabe und Echo-Erkennung benötigt).
-2. **Community-Skill aktivieren:** Aktiviere in deinem Amazon-Konto den kostenlosen Actionable-Notification-Skill mit der ID:  
-   `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40`  
-   *(Kein Developer-Account und keine Lambda-Konfiguration nötig!)*
-3. **Ein KI-Agent:** Mindestens eine aktive Sprach-KI-Integration in Home Assistant:
-   - 💡 **OpenRouter (⭐ Unsere Empfehlung für den Einstieg):**  
-     Nutze OpenRouter mit kostenlosen Modellen (z. B. `meta-llama/llama-3.3-70b-instruct:free` oder `openrouter/free`).  
-     *Keine Kreditkarte, keine Vorabkosten, keine Monatsgebühren – sofort startklar!*
-   - 🚀 **Google Generative AI (Gemini 2.5 Flash):** Extrem schnell (< 0,8s), kostenlos und exzellentes Deutsch.
-   - 📖 *Ausführliche Modell-Empfehlungen, Latenz-Messungen und Vergleiche findest du in unserem [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md).*
+### 2. Integration installieren
+1. **HACS** → nach **Schlaue Antworten** suchen → installieren → Home Assistant neu starten.
+2. **Einstellungen ➔ Geräte & Dienste ➔ + Integration hinzufügen ➔ Schlaue Antworten**.
+3. Primären KI-Agenten und Standard-Echo wählen.
 
----
+### 3a. 🎙️ Eigener Skill *(empfohlen)*
+1. In der [Alexa-Entwicklerkonsole](https://developer.amazon.com/alexa/console/ask) (kostenloses Konto) einen **Custom Skill** anlegen: Sprache *Deutsch*, **Alexa-hosted (Python)**, Region *EU (Irland)*.
+2. In Schlaue Antworten: **Konfigurieren ➔ 🎙️ Eigener Alexa-Skill** → Link **„📋 … mit Kopier-Knöpfen öffnen“**.
+3. **Sprachmodell kopieren** → *Build → JSON Editor* einfügen → *Save* → *Build*.
+4. **Skill-Code kopieren** → *Code → lambda_function.py* ersetzen → *Deploy*.
+5. *Test* auf **Development** stellen, unter *⚙️ Einstellungen* den Sprachweg auf **„Eigener Skill“** (oder „Beide“) setzen.
+6. Fertig: *„Alexa, frag Schlaufuchs, wie weit ist der Mond?“* – einmal pro Echo *„Alexa, sag Schlaufuchs, du stehst in der Küche“* sorgt für die richtige Zuordnung.
 
-### 2. Integration installieren & einrichten
-1. Installiere **Schlaue Antworten** über HACS (Custom Repository) oder manuell.
-2. Gehe in Home Assistant auf **Einstellungen ➔ Geräte & Dienste ➔ + Integration hinzufügen** und wähle **Schlaue Antworten**.
-3. Wähle deinen primären KI-Agenten und dein Standard-Echo-Gerät aus.
-
----
-
-### 3. Alexa-Routine erstellen (für interaktiven Dialog)
-Erstelle in der Alexa-Smartphone-App eine neue Routine:
-- **Wenn Folgendes passiert (Stimme):** `öffne schlaue antworten`
-- **Aktion hinzufügen (Smart Home ➔ Geräte):** Schalter **`Schlaue Antworten: Dialog starten`** auf **AN** stellen.
-
-*Fertig! Sobald du „Alexa, öffne Schlaue Antworten“ sagst, leuchtet dein Echo blau und erwartet deine Frage. Für Ein-Satz-Fragen („Alexa, schlaue Frage: ...“) ist nicht einmal eine Routine nötig!*
-
----
+### 3b. 🔔 Community-Skill *(ohne Entwicklerkonto)*
+1. In der Alexa-App den kostenlosen Actionable-Notification-Skill aktivieren:  
+   `amzn1.ask.skill.77bf0c24-791b-4993-9aaa-236298a83d40`
+2. Alexa-Routine anlegen: **Wenn** *(Stimme)* `öffne schlaue antworten` → **Aktion** *Smart Home* → Schalter **„Schlaue Antworten: Dialog starten“** auf **AN**.
+3. Fertig: *„Alexa, öffne Schlaue Antworten“* – oder ohne Routine direkt *„Alexa, schlaue Frage: …“*.
 
 <details>
 <summary>📦 <b>Für bestehende Setups / Legacy-YAML-Modus (Klick zum Ausklappen)</b></summary>
@@ -105,7 +130,17 @@ Falls du bereits ein bestehendes Setup aus früheren Versionen nutzt, bleibt all
 
 ## ⚙️ Konfiguration (UI Options Flow)
 
-Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf **Konfigurieren**:
+Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf **Konfigurieren**. Das Menü hat fünf Punkte:
+
+| Menüpunkt | Inhalt |
+| :--- | :--- |
+| ⚙️ **Einstellungen & Prompts** | KI-Agenten, Sprachweg, Texte, Prompts, Push-Ziel (Details unten) |
+| 🎙️ **Eigener Alexa-Skill** | Aufrufname, Sprachmodell und Skill-Code mit 📋-Kopier-Knöpfen, Skill neu koppeln |
+| 🔊 **Echo-Zuordnung** | Welche Alexa-Geräte-ID zu welchem Echo gehört (per Sprache: „du stehst in der Küche“) |
+| 🤖 **Claude-Brücke** | Adresse, Token, erlaubte Echos, Alexa-App erlauben |
+| 📜 **Verlauf** | Die letzten Dialoge mit Gerät, Frage, Antwort und Dauer |
+
+**⚙️ Einstellungen & Prompts im Detail:**
 
 - **Primärer KI-Agent:** Hauptmodell für Antworten (z. B. Google Gemini 2 oder OpenRouter Llama 3.3).
 - **Ausweich-Agent (Fallback):** Modell, das bei 503-Überlastung automatisch einspringt (z. B. Claude Sonnet).
@@ -118,7 +153,7 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 - **Dialog-Log aktivieren:** Schaltet die Protokollierung der letzten Dialoge an/aus.
 - **Smart-Home-Kontext an KI übergeben:** Schaltet die Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus.
 - **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
-- **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy (z. B. `notify.notify` oder `notify.mobile_app_...`).
+- **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy. Empfohlen: `notify.mobile_app_<dein_handy>` – nur damit funktionieren die Antwort-Knöpfe bei Claude-Rückfragen.
 - **Sprachbestätigung beim Senden aufs Smartphone:** Was Alexa sagen soll (Standard: *„Ich habe dir die Antwort aufs Handy geschickt.“*).
 - **Bestätigungsansage bei Automatisierungs-Freigabe ('Ja'):** Text, wenn eine interaktive Automatisierungsfrage mit *„Ja“* beantwortet wird (Standard: *„Wird erledigt.“*).
 - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
@@ -132,7 +167,7 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 ## 🗣️ Ablauf im Alltag
 
-### ⚡ Variante 1: Direktabfrage in einem Satz (Neu)
+### ⚡ Variante 1: Direktabfrage in einem Satz
 1. **Du sagst:**  
    > *„Alexa, schlaue Frage: Wie weit ist der Mond entfernt?“*  
    *(oder „Alexa, frage KI: ...“ bzw. „Alexa, KI: ...“)*
@@ -237,6 +272,12 @@ action:
 | **v1.3.2** | 19.11.2026 | **Fix:** Speichern der *Einstellungen* löschte die Optionen der Claude-Brücke (URL, Token, Echos, Alexa-App) – jetzt bleiben alle anderen Optionen erhalten. Hinweis: Knöpfe für Claude-Rückfragen brauchen als Push-Ziel die Companion-App (`notify.mobile_app_…`), nicht `notify.notify`. |
 | **v1.3.1** | 19.11.2026 | Rückfragen robuster: Auswahldialoge (AskUserQuestion) in den Alexa-Sitzungen gesperrt (`settings.json`), eine Frage mit 2–3 kurzen Listenpunkten wird ebenfalls zu Knöpfen. Brücke bestätigt Aufträge sofort und tippt im Hintergrund (kein Abbruch mehr direkt nach einem Sitzungs-Neustart). Brücke neu installieren. |
 | **v1.3.0** | 19.11.2026 | **Rückfragen per Knopf:** Claude beendet Rückfragen mit `Optionen: Ja \| Nein`; daraus werden Knöpfe (max. 3) plus Freitext-Feld in der Push-Nachricht. Die Antwort geht per `mobile_app_notification_action` in die fragende Sitzung (Brücke: `/prompt` mit `session`). Neue Sprachbefehle „antworte Claude …“ / „Antwort an Claude …“. Brücke (`tools/claude_bridge`) neu installieren, Sprachmodell neu bauen. |
+
+<details>
+<summary>📚 <b>Ältere Versionen (51) anzeigen</b></summary>
+
+| Version | Datum | Highlights |
+| :--- | :--- | :--- |
 | **v1.2.2** | 19.11.2026 | Claude-Antworten ohne 📊-Statistikzeile (wird aus Ansage und Push gefiltert, Sitzungsregel ergänzt). |
 | **v1.2.1** | 19.11.2026 | **„Claude“ besser erkannt:** Alexa schreibt „Claude“ oft als „Cloud“, „Coth“, „Klod“ o. ä. – alle Claude-Befehle haben jetzt diese Schreibvarianten im Sprachmodell. Neues Sprachmodell einfügen und bauen. |
 | **v1.2.0** | 18.11.2026 | **Claude-Aufträge aus der Alexa-App:** „Alexa, sag Schlaufuchs, das ist mein Handy“ (in der Alexa-App gesagt) merkt sich die App als Handy. Mit der neuen Option *Alexa-App erlauben* (Punkt *🤖 Claude-Brücke*, Standard aus) gehen Sprach- und Texteingaben aus der App an Claude; die Antwort kommt vollständig als Push aufs Handy. Neues Sprachmodell einfügen und bauen. |
@@ -289,16 +330,28 @@ action:
 | **v1.0.1** | 23.10.2026 | Offizielles Logo hinzugefügt (SVG- und PNG-Assets) und Dokumentations-Update. |
 | **v1.0.0** | 23.10.2026 | Erstveröffentlichung als native Custom Integration mit vollständigem Options Flow, dynamischer Raum-Erkennung via `sensor.last_alexa`, 503-Ausweich-Logik (Fallback) und nahtloser Alexa Actionable Notifications Anbindung. |
 
+</details>
+
 ---
 
-## ✨ 🚀 Vibe Coding mit voller Hingabe
+## 💡 Ideen, Wünsche & Mitmachen
 
-> *„Vibe Coding ist die Kunst, reine Ideen durch fließenden Dialog, menschliche Kreativität und KI-Superkräfte in funktionierende Realität zu verwandeln.“*
+**Feature-Wünsche, Ideen, Fehlerberichte und Verbesserungsvorschläge sind ausdrücklich erwünscht!** Viele Funktionen dieser Integration sind aus genau solchen Wünschen entstanden – jede Idee wird gelesen.
 
-Dieses Projekt wurde und wird mit voller Hingabe durch **Vibe Coding** erschaffen. Wir verstecken uns nicht hinter KI, sondern stehen mit Stolz und voller Transparenz dazu:
-- **Menschliche Produkt- & Sprach-Vision:** Jede Dialog-Verfeinerung, jeder Prompt-Kniff und jeder Latenz-Boost entstammt echter Praxis-Nutzung im eigenen smarten Zuhause.
-- **High-Velocity AI Pair-Programming:** Durch den Einsatz moderner agentischer KI-Entwicklung (Google Antigravity & Claude/Gemini) entstehen saubere Architekturen und fortlaufende Innovation in Rekordzeit.
-- **100 % Open Source & Community First:** Transparent, erweiterbar und für jeden in der Home Assistant Community frei nutzbar.
+- 💡 **Idee oder Wunsch?** → [Issue eröffnen](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/issues/new) und kurz beschreiben, was du dir wünschst. Kein Formular-Zwang, ein Satz reicht.
+- 🐞 **Etwas klappt nicht?** → [Issue eröffnen](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/issues/new) – hilfreich sind Version, Sprachweg (eigener Skill / Community) und der Text aus dem *📜 Verlauf*.
+- ⭐ **Gefällt dir das Projekt?** Ein Stern auf GitHub hilft anderen, es zu finden.
+- 🔧 **Pull Requests** sind willkommen – die Testsuite (`pytest`) sollte grün bleiben.
+
+---
+
+## 🤖 Mit KI entwickelt
+
+Dieses Projekt entsteht **offen und mit Stolz mit KI-Unterstützung** („Vibe Coding“): Ideen, Anforderungen und Praxistests kommen aus dem echten Alltag eines Smart Homes, der Code entsteht im Dialog mit KI-Assistenten (u. a. Claude Code, Google Gemini/Antigravity).
+
+- 🧑‍💻 **Mensch entscheidet:** Jede Funktion wird im eigenen Zuhause an echten Echos ausprobiert, bevor sie veröffentlicht wird.
+- ✅ **Abgesichert durch Tests:** Über 80 automatische Tests laufen vor jeder Version.
+- 🔍 **Transparent:** Der komplette Code und jede Änderung sind öffentlich nachvollziehbar.
 
 ---
 
