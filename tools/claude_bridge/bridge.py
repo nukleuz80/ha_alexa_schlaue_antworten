@@ -222,6 +222,19 @@ def write_pending(session_id: str, name: str, reply_url: str, text: str) -> None
     tmp.replace(target)
 
 
+_TYPE_LOCK = threading.Lock()
+
+
+def _deliver_logged(name: str, session_id: str, text: str, reply_url: str) -> None:
+    """Type a prompt and log the outcome (runs in its own thread)."""
+    with _TYPE_LOCK:  # one prompt at a time, or keystrokes would mix
+        ok = deliver(name, session_id, text, reply_url)
+    if ok:
+        _LOGGER.info("Prompt typed into session %s (%d chars)", name, len(text))
+    else:
+        _LOGGER.error("Could not type the prompt into session %s", name)
+
+
 def deliver(name: str, session_id: str, text: str, reply_url: str) -> bool:
     """Note the reply address and type the prompt; False if tmux failed."""
     write_pending(session_id, name, reply_url, text)
@@ -386,10 +399,11 @@ class Handler(BaseHTTPRequestHandler):
         if not running(name):
             self._reply(503, {"error": "claude session not running"})
             return
-        if not deliver(name, session_id, *prompt):
-            self._reply(503, {"error": "tmux failed"})
-            return
-        _LOGGER.info("Prompt typed into session %s (%d chars)", name, len(prompt[0]))
+        # Alexa waits only a few seconds: confirm now, type in the background
+        # (right after a restart the session may need a while to get ready)
+        threading.Thread(
+            target=_deliver_logged, args=(name, session_id, *prompt), daemon=True
+        ).start()
         self._reply(200, {"ok": True, "session": name})
 
     def _new_session(self, payload: dict) -> None:

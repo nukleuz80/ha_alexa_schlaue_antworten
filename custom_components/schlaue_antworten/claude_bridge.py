@@ -62,6 +62,7 @@ MAX_OPTIONS = 3
 MAX_OPTION_LENGTH = 40
 ACTION_PREFIX = "SA_CLAUDE_"
 EVENT_NOTIFICATION_ACTION = "mobile_app_notification_action"
+RE_BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.+?)\s*$")
 RE_OPTIONS = re.compile(r"^\s*\**\s*optionen\s*:\**\s*(.+?)\s*$", re.IGNORECASE)
 MAX_ANSWER_LENGTH = 20000
 MAX_SPOKEN_LENGTH = 400
@@ -183,7 +184,28 @@ def split_options(text: str) -> tuple[str, list[str]]:
         options = [option for option in options if option][:MAX_OPTIONS]
         rest = "\n".join(lines[:index] + lines[index + 1 :]).strip()
         return rest, options
-    return text, []
+    return _split_bullet_options(lines) or (text, [])
+
+
+def _split_bullet_options(lines: list[str]) -> tuple[str, list[str]] | None:
+    """Read a question followed by two or three short list items as options."""
+    while lines and not lines[-1].strip():
+        lines = lines[:-1]
+    options: list[str] = []
+    index = len(lines) - 1
+    while index >= 0 and (match := RE_BULLET.match(lines[index])):
+        options.insert(0, match.group(1).strip(" *`"))
+        index -= 1
+    while index >= 0 and not lines[index].strip():
+        index -= 1
+    if (
+        not 2 <= len(options) <= MAX_OPTIONS
+        or any(len(option) > MAX_OPTION_LENGTH for option in options)
+        or index < 0
+        or not lines[index].rstrip().endswith("?")
+    ):
+        return None
+    return "\n".join(lines[: index + 1]).strip(), options
 
 
 class ClaudeBridge:

@@ -440,6 +440,13 @@ def test_split_options() -> None:
         [],
     )
     assert split_options("Keine Frage.") == ("Keine Frage.", [])
+    assert split_options("Hat alles geklappt?\n- Ja\n- Nein\n") == (
+        "Hat alles geklappt?",
+        ["Ja", "Nein"],
+    )
+    # A plain list without a question stays text
+    text = "Offen sind:\n- Büro\n- Bad"
+    assert split_options(text) == (text, [])
 
 
 async def test_question_buttons_answer_goes_back(
