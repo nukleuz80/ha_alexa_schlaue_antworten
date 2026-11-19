@@ -3,7 +3,7 @@
 
 Home Assistant posts spoken prompts and session commands here:
 
-- POST /prompt    {text, reply_url}        type into the active session
+- POST /prompt    {text, reply_url[, session]}  type into the active (or named) session
 - POST /sessions  {name, text?, reply_url?} start a voice session (and switch)
 - POST /switch    {name}                    send following prompts there
 - POST /end       {name}                    end a voice session
@@ -372,6 +372,13 @@ class Handler(BaseHTTPRequestHandler):
             state = load_state()
             prune(state)
             name = state["active"]
+            wanted = str(payload.get("session") or "")
+            if wanted:
+                # An answer to a question goes to the session that asked
+                if wanted != MAIN_SESSION and wanted not in state["sessions"]:
+                    self._reply(404, {"sessions": session_names(state)})
+                    return
+                name = wanted
             if name != MAIN_SESSION:
                 state["sessions"][name]["last"] = time.time()
             save_state(state)

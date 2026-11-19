@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.2.2-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.3.0-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -169,6 +169,8 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 **Aus der Alexa-App (ab v1.2.0):** Sag einmal in der Alexa-App auf dem Handy *„Alexa, sag Schlaufuchs, das ist mein Handy“* und schalte unter *🤖 Claude-Brücke* **Alexa-App erlauben** ein. Danach funktionieren alle Claude-Befehle auch aus der App, per Sprache oder Texteingabe; Claudes Antwort kommt vollständig als Push aufs Handy statt als Ansage.
 
+**Rückfragen von Claude (ab v1.3.0):** Braucht Claude eine Entscheidung, kommt die Frage mit **Knöpfen in der Push-Nachricht** (z. B. *Ja* / *Nein*, bis zu drei Vorschläge) und – wenn Platz ist – einem Feld **Antworten** für eigenen Text. Ein Tipp schickt die Antwort in genau die Sitzung, die gefragt hat; Claudes nächste Antwort kommt wieder auf den Echo bzw. aufs Handy. Per Sprache geht es auch: *„Alexa, sag Schlaufuchs, antworte Claude ja.“* Voraussetzung: Push-Ziel ist die Companion-App (`notify.mobile_app_…` oder eine Gruppe daraus).
+
 Höchstens 3 Sprach-Sitzungen neben der Hauptsitzung (`CLAUDE_ALEXA_MAX_SESSIONS`); nach 2 Stunden ohne Auftrag enden sie von selbst (`CLAUDE_ALEXA_IDLE_SECONDS`). Antworten einer Sprach-Sitzung beginnen mit ihrem Namen. Zum Zuschauen: `tmux -L alexa-x attach -t heizung`. Jede Sitzung verbraucht Claude-Kontingent.
 
 **Einrichtung:**
@@ -227,6 +229,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.3.0** | 19.11.2026 | **Rückfragen per Knopf:** Claude beendet Rückfragen mit `Optionen: Ja \| Nein`; daraus werden Knöpfe (max. 3) plus Freitext-Feld in der Push-Nachricht. Die Antwort geht per `mobile_app_notification_action` in die fragende Sitzung (Brücke: `/prompt` mit `session`). Neue Sprachbefehle „antworte Claude …“ / „Antwort an Claude …“. Brücke (`tools/claude_bridge`) neu installieren, Sprachmodell neu bauen. |
 | **v1.2.2** | 19.11.2026 | Claude-Antworten ohne 📊-Statistikzeile (wird aus Ansage und Push gefiltert, Sitzungsregel ergänzt). |
 | **v1.2.1** | 19.11.2026 | **„Claude“ besser erkannt:** Alexa schreibt „Claude“ oft als „Cloud“, „Coth“, „Klod“ o. ä. – alle Claude-Befehle haben jetzt diese Schreibvarianten im Sprachmodell. Neues Sprachmodell einfügen und bauen. |
 | **v1.2.0** | 18.11.2026 | **Claude-Aufträge aus der Alexa-App:** „Alexa, sag Schlaufuchs, das ist mein Handy“ (in der Alexa-App gesagt) merkt sich die App als Handy. Mit der neuen Option *Alexa-App erlauben* (Punkt *🤖 Claude-Brücke*, Standard aus) gehen Sprach- und Texteingaben aus der App an Claude; die Antwort kommt vollständig als Push aufs Handy. Neues Sprachmodell einfügen und bauen. |

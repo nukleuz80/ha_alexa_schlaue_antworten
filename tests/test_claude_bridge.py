@@ -9,6 +9,7 @@ import pytest
 
 from custom_components.schlaue_antworten.claude_bridge import (
     RATE_LIMIT_PROMPTS,
+    split_options,
     spoken_part,
 )
 from custom_components.schlaue_antworten.const import DOMAIN
@@ -428,3 +429,87 @@ async def test_alexa_app_needs_the_option(
         client, manager, "mach was", device="amzn1.ask.device.PHONEAPP"
     )
     assert aioclient_mock.call_count == 0
+
+
+def test_split_options() -> None:
+    """The last "Optionen:" line becomes buttons and leaves the text."""
+    assert split_options("Soll ich?\n\nOptionen: Ja | Nein") == ("Soll ich?", ["Ja", "Nein"])
+    assert split_options("Text\n**Optionen:** A | B | C | D\n") == ("Text", ["A", "B", "C"])
+    assert split_options("Optionen: Ja | Nein\nNoch was") == (
+        "Optionen: Ja | Nein\nNoch was",
+        [],
+    )
+    assert split_options("Keine Frage.") == ("Keine Frage.", [])
+
+
+async def test_question_buttons_answer_goes_back(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+    spoken: list[dict],
+    pushes: list[dict],
+) -> None:
+    """A question gets buttons; a tap sends the answer to the asking session."""
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"session": "alexa"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+    await _say(client, manager, "schalte das Licht aus")
+    reply_url = aioclient_mock.mock_calls[-1][2]["reply_url"]
+
+    response = await client.post(
+        reply_url.removeprefix("http://192.168.1.10:8123"),
+        json={"text": "Alle Lichter ausschalten?\n\nOptionen: Ja | Nein"},
+    )
+    assert await response.json() == {"spoken": True}
+    await hass.async_block_till_done()
+    assert spoken[-1]["message"].startswith("Alle Lichter ausschalten? Antworte")
+    push = pushes[-1]
+    assert push["message"] == "Alle Lichter ausschalten?"
+    actions = push["data"]["actions"]
+    assert [a["title"] for a in actions] == ["Ja", "Nein", "Antworten"]
+    assert actions[2]["behavior"] == "textInput"
+
+    hass.bus.async_fire(
+        "mobile_app_notification_action", {"action": actions[0]["action"]}
+    )
+    await hass.async_block_till_done()
+    data = aioclient_mock.mock_calls[-1][2]
+    assert data["text"] == "[Alexa · Test Echo] Ja"
+    assert data["session"] == "alexa"
+
+    # The question is answered: a second tap does nothing
+    calls = aioclient_mock.call_count
+    hass.bus.async_fire(
+        "mobile_app_notification_action", {"action": actions[1]["action"]}
+    )
+    await hass.async_block_till_done()
+    assert aioclient_mock.call_count == calls
+
+
+async def test_question_typed_answer(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+    spoken: list[dict],
+    pushes: list[dict],
+) -> None:
+    """The text field of the push sends what was typed."""
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"session": "alexa"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+    await _say(client, manager, "räum auf")
+    reply_url = aioclient_mock.mock_calls[-1][2]["reply_url"]
+    await client.post(
+        reply_url.removeprefix("http://192.168.1.10:8123"),
+        json={"text": "Was genau?\nOptionen: Küche"},
+    )
+    await hass.async_block_till_done()
+    reply = pushes[-1]["data"]["actions"][-1]["action"]
+    hass.bus.async_fire(
+        "mobile_app_notification_action",
+        {"action": reply, "reply_text": "nur das Bad"},
+    )
+    await hass.async_block_till_done()
+    assert aioclient_mock.mock_calls[-1][2]["text"] == "[Alexa · Test Echo] nur das Bad"

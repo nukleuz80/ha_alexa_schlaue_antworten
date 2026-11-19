@@ -20,12 +20,15 @@ from aiohttp import hdrs, web
 
 from homeassistant.components import webhook
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    CLAUDE_ANSWER_FAILED_TEXT,
+    CLAUDE_OPTIONS_HINT,
+    CLAUDE_REPLY_BUTTON,
     CLAUDE_REST_TEXT,
     CONF_CLAUDE_ALLOW_APP,
     CONF_CLAUDE_ECHOS,
@@ -51,6 +54,15 @@ PENDING_SECONDS = 30 * 60.0
 RATE_LIMIT_PROMPTS = 6
 RATE_LIMIT_WINDOW_SECONDS = 10 * 60.0
 MAX_PROMPT_LENGTH = 500
+# Buttons of an open question from Claude stay usable this long
+QUESTION_SECONDS = 24 * 3600.0
+MAX_QUESTIONS = 20
+# Android shows at most three buttons
+MAX_OPTIONS = 3
+MAX_OPTION_LENGTH = 40
+ACTION_PREFIX = "SA_CLAUDE_"
+EVENT_NOTIFICATION_ACTION = "mobile_app_notification_action"
+RE_OPTIONS = re.compile(r"^\s*\**\s*optionen\s*:\**\s*(.+?)\s*$", re.IGNORECASE)
 MAX_ANSWER_LENGTH = 20000
 MAX_SPOKEN_LENGTH = 400
 
@@ -141,6 +153,39 @@ def spoken_part(answer: str) -> str:
     return cut[: ends[-1]] if ends else cut.rsplit(" ", 1)[0] + " …"
 
 
+@dataclass
+class OpenQuestion:
+    """A question from Claude that can be answered by a push button."""
+
+    session: str
+    echo: str
+    options: list[str]
+    asked: float
+
+
+def split_options(text: str) -> tuple[str, list[str]]:
+    """Take the "Optionen: Ja | Nein" line off Claude's answer.
+
+    Claude ends a question with this line (see its session rules); the options
+    become buttons in the push message.
+    """
+    lines = text.splitlines()
+    for index in range(len(lines) - 1, -1, -1):
+        if not lines[index].strip():
+            continue
+        match = RE_OPTIONS.match(lines[index])
+        if not match:
+            break
+        options = [
+            option.strip(" *`")[:MAX_OPTION_LENGTH]
+            for option in match.group(1).split("|")
+        ]
+        options = [option for option in options if option][:MAX_OPTIONS]
+        rest = "\n".join(lines[:index] + lines[index + 1 :]).strip()
+        return rest, options
+    return text, []
+
+
 class ClaudeBridge:
     """Send prompts to the Claude bridge and speak the answers."""
 
@@ -160,6 +205,8 @@ class ClaudeBridge:
         self._active = False
         self._sent: deque[float] = deque()
         self._pending: dict[str, PendingPrompt] = {}
+        self._questions: dict[str, OpenQuestion] = {}
+        self._unsub_action: Any = None
         self.last_prompt: dict[str, str] | None = None
 
     @property
@@ -231,6 +278,9 @@ class ClaudeBridge:
             local_only=True,
             allowed_methods=[hdrs.METH_POST],
         )
+        self._unsub_action = self.hass.bus.async_listen(
+            EVENT_NOTIFICATION_ACTION, self._async_handle_action
+        )
         self._active = True
 
     @callback
@@ -239,7 +289,11 @@ class ClaudeBridge:
         if self._active:
             webhook.async_unregister(self.hass, self._webhook_id)
             self._active = False
+        if self._unsub_action is not None:
+            self._unsub_action()
+            self._unsub_action = None
         self._pending.clear()
+        self._questions.clear()
 
     def reply_url(self) -> str:
         """Return the local address the Claude session posts answers to.
@@ -327,8 +381,10 @@ class ClaudeBridge:
         """
         return (await self.async_send_reply(prompt, echo)).result
 
-    async def async_send_reply(self, prompt: str, echo: str | None) -> BridgeReply:
-        """Hand a spoken prompt to the active session and say where it went."""
+    async def async_send_reply(
+        self, prompt: str, echo: str | None, session: str | None = None
+    ) -> BridgeReply:
+        """Hand a spoken prompt to the active (or given) session."""
         if (refused := self._check(echo)) is not None or echo is None:
             return BridgeReply(refused or SendResult.NOT_ALLOWED)
         prompt = " ".join(prompt.split())[:MAX_PROMPT_LENGTH]
@@ -337,7 +393,11 @@ class ClaudeBridge:
         except NoURLAvailableError:
             _LOGGER.error("Home Assistant has no local address for Claude's answer")
             return BridgeReply(SendResult.UNREACHABLE)
+        if session:
+            payload["session"] = session
         status, data = await self._async_request("POST", "/prompt", payload)
+        if status == 404:
+            return BridgeReply(SendResult.UNKNOWN_SESSION, session=session)
         if status != 200:
             _LOGGER.warning("Claude bridge answered HTTP %s", status)
             return BridgeReply(SendResult.UNREACHABLE)
@@ -450,7 +510,9 @@ class ClaudeBridge:
         text = "\n".join(
             line for line in text.splitlines() if not line.lstrip().startswith("📊")
         )
-        text = text.strip()[:MAX_ANSWER_LENGTH] or "Claude ist fertig."
+        text, options = split_options(text.strip())
+        text = text[:MAX_ANSWER_LENGTH] or "Claude ist fertig."
+        buttons = self._question_buttons(session, pending.echo, options)
         if pending.echo == PHONE_TARGET:
             # Asked in the Alexa app: the whole answer goes to the phone
             speech = text
@@ -459,9 +521,10 @@ class ClaudeBridge:
                 answer=text,
                 reply_device=PHONE_NAME,
                 confirm=False,
+                data=buttons,
             )
         else:
-            speech = await self._async_speak(pending, session, text)
+            speech = await self._async_speak(pending, session, text, buttons)
         self.manager.add_history_entry(
             PHONE_NAME if pending.echo == PHONE_TARGET else pending.echo,
             f"[Claude {session}] {pending.prompt}",
@@ -473,14 +536,22 @@ class ClaudeBridge:
         return web.json_response({"spoken": True})
 
     async def _async_speak(
-        self, pending: PendingPrompt, session: str, text: str
+        self,
+        pending: PendingPrompt,
+        session: str,
+        text: str,
+        buttons: dict[str, Any] | None = None,
     ) -> str:
         """Speak the first part on the Echo that asked; push the rest."""
         speech = spoken_part(text) or "Claude ist fertig."
         if session != MAIN_SESSION:
             speech = f"{session}: {speech}"
         has_more = len(" ".join(text.split())) > len(speech) + 20
-        if has_more:
+        if buttons:
+            # A question: the push carries the buttons, even for a short text
+            speech = f"{speech} {CLAUDE_OPTIONS_HINT}"
+            has_more = True
+        elif has_more:
             speech = f"{speech} {CLAUDE_REST_TEXT}"
         await self.hass.services.async_call(
             "notify",
@@ -498,5 +569,63 @@ class ClaudeBridge:
                 answer=text,
                 reply_device=pending.echo,
                 confirm=False,
+                data=buttons,
             )
         return speech
+
+    def _question_buttons(
+        self, session: str, echo: str, options: list[str]
+    ) -> dict[str, Any] | None:
+        """Remember an open question and return the push buttons for it."""
+        if not options:
+            return None
+        now = time.monotonic()
+        for tag, question in list(self._questions.items()):
+            if now - question.asked > QUESTION_SECONDS or question.session == session:
+                self._questions.pop(tag)
+        while len(self._questions) >= MAX_QUESTIONS:
+            self._questions.pop(next(iter(self._questions)))
+        tag = secrets.token_hex(4)
+        self._questions[tag] = OpenQuestion(session, echo, options, now)
+        actions: list[dict[str, Any]] = [
+            {"action": f"{ACTION_PREFIX}{tag}_{index}", "title": option}
+            for index, option in enumerate(options)
+        ]
+        if len(actions) < MAX_OPTIONS:
+            actions.append(
+                {
+                    "action": f"{ACTION_PREFIX}{tag}_R",
+                    "title": CLAUDE_REPLY_BUTTON,
+                    "behavior": "textInput",
+                }
+            )
+        return {"actions": actions, "tag": f"claude_{session}"}
+
+    async def _async_handle_action(self, event: Event) -> None:
+        """Send the button (or typed answer) of a push back to Claude."""
+        action = str(event.data.get("action") or "")
+        if not action.startswith(ACTION_PREFIX):
+            return
+        tag, _, choice = action.removeprefix(ACTION_PREFIX).partition("_")
+        question = self._questions.get(tag)
+        if question is None:
+            _LOGGER.info("Ignored a button of an old Claude question")
+            return
+        if choice == "R":
+            answer = str(event.data.get("reply_text") or "").strip()
+        elif choice.isdigit() and int(choice) < len(question.options):
+            answer = question.options[int(choice)]
+        else:
+            return
+        if not answer:
+            return
+        self._questions.pop(tag, None)
+        reply = await self.async_send_reply(answer, question.echo, question.session)
+        if reply.result != SendResult.SENT:
+            _LOGGER.warning("Could not send the answer to Claude: %s", reply.result)
+            await self.manager.async_send_to_mobile(
+                question=f"Claude {question.session}",
+                answer=CLAUDE_ANSWER_FAILED_TEXT.format(answer=answer),
+                reply_device=PHONE_NAME,
+                confirm=False,
+            )

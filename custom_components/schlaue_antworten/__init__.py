@@ -823,7 +823,12 @@ class SchlaueAntwortenManager:
         )
 
     async def async_send_to_mobile(
-        self, question: str, answer: str, reply_device: str, confirm: bool = True
+        self,
+        question: str,
+        answer: str,
+        reply_device: str,
+        confirm: bool = True,
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Send an answer to the configured smartphone / notify target."""
         notify_target = str(
@@ -850,7 +855,8 @@ class SchlaueAntwortenManager:
             await self.hass.services.async_call(
                 domain,
                 service,
-                {"title": title, "message": message},
+                {"title": title, "message": message}
+                | ({"data": data} if data else {}),
                 blocking=False,
             )
         except Exception as err:

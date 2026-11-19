@@ -99,6 +99,9 @@ CLAUDE_CARRIERS = [
     "schick claude",
     "auftrag an claude",
     "claude bitte",
+    "antworte claude",
+    "antwort an claude",
+    "antwort für claude",
 ]
 # "neue Claude-Sitzung Heizung prüf das Bad": first word is the name
 CLAUDE_NEW_CARRIERS = [

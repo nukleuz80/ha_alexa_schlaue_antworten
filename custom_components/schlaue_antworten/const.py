@@ -204,6 +204,9 @@ CLAUDE_UNKNOWN_ECHO_TEXT = (
     "Küche, oder in welchem Raum du gerade bist. In der Alexa-App sag: Das ist "
     "mein Handy."
 )
+CLAUDE_REPLY_BUTTON = "Antworten"
+CLAUDE_ANSWER_FAILED_TEXT = "Deine Antwort „{answer}“ ist nicht bei Claude angekommen."
+CLAUDE_OPTIONS_HINT = "Antworte über die Knöpfe in der Push-Nachricht."
 CLAUDE_SENT_APP_TEXT = "Okay, ist bei Claude. Die Antwort kommt aufs Handy."
 SKILL_PHONE_SET_TEXT = (
     "Alles klar, ich merke mir: Das ist dein Handy. Antworten von Claude kommen "
