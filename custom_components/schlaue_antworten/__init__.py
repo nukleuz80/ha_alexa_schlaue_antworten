@@ -71,6 +71,7 @@ from .const import (
 )
 from .claude_bridge import ClaudeBridge
 from .copy_view import async_register_copy_view
+from .notify_target import resolve_notify_target
 from .skill import SkillConnector
 
 _LOGGER = logging.getLogger(__name__)
@@ -188,6 +189,8 @@ class SchlaueAntwortenManager:
         self._unsub_last_called: Any = None
         self._last_questions: dict[str, Any] = {}
         self._retry_counts: dict[str, int] = {}
+        # Configured push target last warned about, so the log is not flooded
+        self._missing_notify_target: str | None = None
         self._active_interactive: dict[str, dict[str, Any]] = {}
         self._history: list[dict[str, str]] = []
         self._stats_store: Store[dict[str, Any]] = Store(hass, 1, f"{DOMAIN}_stats")
@@ -845,26 +848,39 @@ class SchlaueAntwortenManager:
         title = f"Schlaue Antworten: {question}"[:100]
         message = answer
 
-        domain = "notify"
-        service = (
-            notify_target.replace("notify.", "")
-            if notify_target.startswith("notify.")
-            else notify_target
-        )
+        target = resolve_notify_target(self.hass, notify_target)
+        if target is None:
+            if self._missing_notify_target != notify_target:
+                self._missing_notify_target = notify_target
+                _LOGGER.warning(
+                    "Push target %s does not exist and no single phone was "
+                    "found; choose the phone in the options under Settings",
+                    notify_target,
+                )
+            return
+        if target != notify_target and self._missing_notify_target != notify_target:
+            self._missing_notify_target = notify_target
+            _LOGGER.warning(
+                "Push target %s does not exist, sending to %s instead; "
+                "choose it in the options to silence this",
+                notify_target,
+                target,
+            )
 
-        _LOGGER.info("Sending push notification to %s: %s", notify_target, title)
+        _LOGGER.info("Sending push notification to %s: %s", target, title)
         try:
             await self.hass.services.async_call(
-                domain,
-                service,
+                "notify",
+                target.removeprefix("notify."),
                 {"title": title, "message": message}
                 | ({"data": data} if data else {}),
                 blocking=False,
             )
         except Exception as err:
             _LOGGER.warning(
-                "Could not send mobile notification to %s: %s", notify_target, err
+                "Could not send mobile notification to %s: %s", target, err
             )
+            return
 
         if not confirm:
             return

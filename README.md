@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.2-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.3-blue.svg" alt="Version"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -164,7 +164,7 @@ Alle Optionen mit Standardwerten: [**Wiki → Einrichtung & Optionen**](https://
 - **Dialog-Log aktivieren:** Schaltet die Protokollierung der letzten Dialoge an/aus.
 - **Smart-Home-Kontext an KI übergeben:** Schaltet die Übergabe von Wetter, Uhrzeit, Echo-Standort und Anwesenheit an die KI an/aus.
 - **Haus-Wiki & Familien-Fakten:** Mehrzeiliges Notizfeld für individuelles Haushaltswissen (z. B. WLAN-Passwort für Gäste, Müllabfuhrtermine, Notfallnummern).
-- **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy. Empfohlen: `notify.mobile_app_<dein_handy>` – nur damit funktionieren die Antwort-Knöpfe bei Claude-Rückfragen.
+- **Ziel-Gerät für Smartphone-Push:** Benachrichtigungsdienst für Antworten ans Handy, als Auswahlliste der vorhandenen Dienste. Fehlt das eingetragene Ziel, geht die Antwort an das einzige Handy mit Companion-App (seit v1.5.3). Empfohlen: `notify.mobile_app_<dein_handy>` – nur damit funktionieren die Antwort-Knöpfe bei Claude-Rückfragen.
 - **Sprachbestätigung beim Senden aufs Smartphone:** Was Alexa sagen soll (Standard: *„Ich habe dir die Antwort aufs Handy geschickt.“*).
 - **Bestätigungsansage bei Automatisierungs-Freigabe ('Ja'):** Text, wenn eine interaktive Automatisierungsfrage mit *„Ja“* beantwortet wird (Standard: *„Wird erledigt.“*).
 - **Ausführlichere Vertiefung anbieten (Follow-up):** Fragt nach jeder Antwort, ob du mehr erfahren möchtest (Standard: *aktiviert*).
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.3** | 19.11.2026 | **Fix:** Push ans Handy scheiterte, wenn das Ziel `notify.notify` war und es diesen Dienst nicht gibt (z. B. ohne Benachrichtigungsgruppe). Jetzt geht die Antwort in dem Fall an das einzige Handy mit Companion-App, und Alexa bestätigt nur noch, was wirklich gesendet wurde. In den *Einstellungen* ist das Ziel eine Auswahlliste der vorhandenen Dienste (Handys zuerst); ein vertippter Dienst wird vor dem Speichern gemeldet. Neue Installationen starten direkt mit dem Handy. |
 | **v1.5.2** | 19.11.2026 | **Fix:** „Translation error: INVALID_TAG“ im Punkt *Eigener Alexa-Skill* – der Kopier-Link steckt jetzt im Platzhalter statt im Übersetzungstext; ein Test verhindert HTML-Tags in Übersetzungen. Doku überarbeitet (Vergleich der Sprachwege, Tipp „falscher Echo“). |
 | **v1.5.1** | 19.11.2026 | Kopier-Link öffnet sich in einem neuen Tab (vorher sprang die App zur Startseite); die Einstellungen bleiben offen. Knopf „Fertig – Tab schließen“. |
 | **v1.5.0** | 19.11.2026 | **Kopier-Knöpfe:** Im Punkt *🎙️ Eigener Alexa-Skill* öffnet ein Link (signiert, 30 Minuten gültig) eine Seite mit Sprachmodell und Skill-Code und je einem 📋-Knopf – kein Markieren mehr. **Fix zu v1.4.0:** Der Freitext-Slot heißt jetzt `freitext` (Alexa: „Slot cannot reference more than one slot type“). **Skill-Code und Sprachmodell beide neu einfügen.** |

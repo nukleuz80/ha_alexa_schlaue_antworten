@@ -74,6 +74,12 @@ from .const import (
     DOMAIN,
     VOICE_PATHS,
 )
+from .notify_target import (
+    default_notify_target,
+    notify_services,
+    resolve_notify_target,
+    target_exists,
+)
 from .copy_view import async_copy_anchor
 from .skill_model import is_valid_invocation
 
@@ -112,7 +118,7 @@ class SchlaueAntwortenConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_FOLLOWUP_PROMPT: DEFAULT_FOLLOWUP_PROMPT,
                     CONF_GOODBYE_TEXT: DEFAULT_GOODBYE_TEXT,
                     CONF_INTERACTIVE_CONFIRM_PROMPT: DEFAULT_INTERACTIVE_CONFIRM_PROMPT,
-                    CONF_NOTIFY_TARGET: DEFAULT_NOTIFY_TARGET,
+                    CONF_NOTIFY_TARGET: default_notify_target(self.hass),
                     CONF_MOBILE_CONFIRMATION: DEFAULT_MOBILE_CONFIRMATION,
                     CONF_RETRY_PROMPT: DEFAULT_RETRY_PROMPT,
                     CONF_ABORT_PROMPT: DEFAULT_ABORT_PROMPT,
@@ -148,14 +154,28 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage configuration and prompts."""
+        errors: dict[str, str] = {}
+        opts: dict[str, Any] = dict(self.config_entry.options)
+        stored_target = str(opts.get(CONF_NOTIFY_TARGET) or DEFAULT_NOTIFY_TARGET)
+        if not target_exists(self.hass, stored_target):
+            # A target that does not exist (often notify.notify) is replaced by
+            # the one push really goes to, so the form shows it
+            opts[CONF_NOTIFY_TARGET] = resolve_notify_target(
+                self.hass, stored_target
+            ) or stored_target
         if user_input is not None:
-            # Options of the other steps (skill, Echos, Claude) live in the same
-            # entry and must survive
-            return self.async_create_entry(
-                title="", data={**self.config_entry.options, **user_input}
-            )
-
-        opts = self.config_entry.options
+            target = str(user_input.get(CONF_NOTIFY_TARGET) or "").strip()
+            if target and target != stored_target and not target_exists(
+                self.hass, target
+            ):
+                errors[CONF_NOTIFY_TARGET] = "notify_target_missing"
+                opts.update(user_input)
+            else:
+                # Options of the other steps (skill, Echos, Claude) live in the
+                # same entry and must survive
+                return self.async_create_entry(
+                    title="", data={**self.config_entry.options, **user_input}
+                )
 
         data_schema = vol.Schema(
             {
@@ -285,7 +305,13 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
                         CONF_NOTIFY_TARGET,
                         DEFAULT_NOTIFY_TARGET,
                     ),
-                ): selector.TextSelector(),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=notify_services(self.hass),
+                        custom_value=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
                 vol.Required(
                     CONF_MOBILE_CONFIRMATION,
                     default=opts.get(
@@ -335,6 +361,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="settings",
             data_schema=data_schema,
+            errors=errors,
         )
 
     async def async_step_skill(

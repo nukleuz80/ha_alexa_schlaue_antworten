@@ -68,7 +68,7 @@
           "followup_prompt": "Follow-up question prompt text (e.g. 'Yes or No?')",
           "goodbye_text": "Farewell text on rejection ('No')",
           "interactive_confirm_prompt": "Confirmation prompt on automation approval ('Yes')",
-          "notify_target": "Target device for mobile push (e.g. notify.notify or phone)",
+          "notify_target": "Target device for mobile push (your phone, notify.mobile_app_…)",
           "mobile_confirmation": "Spoken confirmation when sending to smartphone",
           "late_text": "Announcement when the answer takes too long",
           "retry_prompt": "Prompt when question was not understood",
@@ -128,7 +128,8 @@
       "invalid_invocation": "The invocation name may only contain lower case letters and spaces.",
       "invalid_url": "The address must start with http:// or https://.",
       "token_required": "The bridge accepts no tasks without a token.",
-      "no_local_url": "Home Assistant has no local address. Set it under Settings → System → Network."
+      "no_local_url": "Home Assistant has no local address. Set it under Settings → System → Network.",
+      "notify_target_missing": "This notify service does not exist. Choose your phone from the list (notify.mobile_app_…)."
     },
     "abort": {
       "not_loaded": "Schlaue Antworten is not loaded right now."

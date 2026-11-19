@@ -68,7 +68,7 @@
           "followup_prompt": "Nachfragetext für Vertiefung (z. B. 'Ja oder Nein?')",
           "goodbye_text": "Abschiedstext bei Ablehnung ('Nein')",
           "interactive_confirm_prompt": "Bestätigungsansage bei Automatisierungs-Freigabe ('Ja')",
-          "notify_target": "Ziel-Gerät für Smartphone-Push (z. B. notify.notify oder dein Handy)",
+          "notify_target": "Ziel-Gerät für Smartphone-Push (dein Handy, notify.mobile_app_…)",
           "mobile_confirmation": "Sprachbestätigung beim Senden aufs Smartphone",
           "late_text": "Ansage, wenn die Antwort zu lange dauert",
           "retry_prompt": "Wiederholungsansage bei unverständlicher Frage",
@@ -128,7 +128,8 @@
       "invalid_invocation": "Der Aufrufname darf nur Kleinbuchstaben und Leerzeichen enthalten.",
       "invalid_url": "Die Adresse muss mit http:// oder https:// beginnen.",
       "token_required": "Ohne Token nimmt die Brücke keine Aufträge an.",
-      "no_local_url": "Home Assistant hat keine lokale Adresse. Trage sie unter Einstellungen → System → Netzwerk ein."
+      "no_local_url": "Home Assistant hat keine lokale Adresse. Trage sie unter Einstellungen → System → Netzwerk ein.",
+      "notify_target_missing": "Diesen Benachrichtigungsdienst gibt es nicht. Wähle dein Handy aus der Liste (notify.mobile_app_…)."
     },
     "abort": {
       "not_loaded": "Schlaue Antworten ist gerade nicht geladen."
