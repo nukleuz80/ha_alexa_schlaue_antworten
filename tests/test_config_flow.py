@@ -101,8 +101,14 @@ async def test_skill_step_without_public_url(
 async def test_settings_keep_the_invocation_name(
     hass: HomeAssistant, setup_entry: SetupEntry
 ) -> None:
-    """Saving the settings does not drop the skill's invocation name."""
-    entry = await setup_entry({"invocation_name": "schlauer fuchs"})
+    """Saving the settings drops neither the skill nor the Claude options."""
+    entry = await setup_entry(
+        {
+            "invocation_name": "schlauer fuchs",
+            "claude_url": "http://192.168.1.50:8765",
+            "claude_echos": ["media_player.kueche"],
+        }
+    )
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "settings"}
@@ -110,6 +116,8 @@ async def test_settings_keep_the_invocation_name(
     result = await hass.config_entries.options.async_configure(result["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["invocation_name"] == "schlauer fuchs"
+    assert result["data"]["claude_url"] == "http://192.168.1.50:8765"
+    assert result["data"]["claude_echos"] == ["media_player.kueche"]
 
 
 async def test_echo_assignment_step(

@@ -72,7 +72,6 @@ from .const import (
     DEFAULT_SKILL_KEEP_OPEN,
     DEFAULT_VOICE_PATH,
     DOMAIN,
-    SKILL_OPTION_KEYS,
     VOICE_PATHS,
 )
 from .skill_model import is_valid_invocation
@@ -149,11 +148,11 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage configuration and prompts."""
         if user_input is not None:
-            # Options of the skill step live in the same entry and must survive
-            for key in SKILL_OPTION_KEYS:
-                if key in self.config_entry.options:
-                    user_input[key] = self.config_entry.options[key]
-            return self.async_create_entry(title="", data=user_input)
+            # Options of the other steps (skill, Echos, Claude) live in the same
+            # entry and must survive
+            return self.async_create_entry(
+                title="", data={**self.config_entry.options, **user_input}
+            )
 
         opts = self.config_entry.options
 
