@@ -446,7 +446,11 @@ class ClaudeBridge:
             # Nobody asked this session by voice (or too long ago): keep quiet
             return web.json_response({"spoken": False})
 
-        text = text.strip()[:MAX_ANSWER_LENGTH]
+        # The project rules make Claude end with a statistics line: never speak it
+        text = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith("📊")
+        )
+        text = text.strip()[:MAX_ANSWER_LENGTH] or "Claude ist fertig."
         if pending.echo == PHONE_TARGET:
             # Asked in the Alexa app: the whole answer goes to the phone
             speech = text

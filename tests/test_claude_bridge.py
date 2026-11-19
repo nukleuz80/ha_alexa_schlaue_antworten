@@ -406,7 +406,7 @@ async def test_alexa_app_sends_and_gets_push(
 
     response = await client.post(
         data["reply_url"].removeprefix("http://192.168.1.10:8123"),
-        json={"text": "Alle Fenster sind zu."},
+        json={"text": "Alle Fenster sind zu.\n\n📊 Kontext: ~1 Tokens"},
     )
     assert await response.json() == {"spoken": True}
     await hass.async_block_till_done()
