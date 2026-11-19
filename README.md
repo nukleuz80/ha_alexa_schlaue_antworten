@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.2.1-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -227,6 +227,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.2.1** | 19.11.2026 | **„Claude“ besser erkannt:** Alexa schreibt „Claude“ oft als „Cloud“, „Coth“, „Klod“ o. ä. – alle Claude-Befehle haben jetzt diese Schreibvarianten im Sprachmodell. Neues Sprachmodell einfügen und bauen. |
 | **v1.2.0** | 18.11.2026 | **Claude-Aufträge aus der Alexa-App:** „Alexa, sag Schlaufuchs, das ist mein Handy“ (in der Alexa-App gesagt) merkt sich die App als Handy. Mit der neuen Option *Alexa-App erlauben* (Punkt *🤖 Claude-Brücke*, Standard aus) gehen Sprach- und Texteingaben aus der App an Claude; die Antwort kommt vollständig als Push aufs Handy. Neues Sprachmodell einfügen und bauen. |
 | **v1.1.0** | 18.11.2026 | **Claude-Sitzungen per Sprache:** „Alexa, sag Schlaufuchs, neue Claude-Sitzung Heizung prüf das Bad“ startet eine eigene Claude-Code-Sitzung (in der Claude-App sichtbar) mit erstem Auftrag. Dazu „wechsle zu Claude …“, „welche Claude-Sitzungen laufen“ und „beende Claude …“. Höchstens 3 Sprach-Sitzungen, Ende nach 2 Stunden ohne Auftrag, jede Sitzung meldet ihre Antwort mit ihrem Namen an den Echo, der gefragt hat. Die Brücke schließt Hinweisfenster von Claude vor dem Tippen und prüft, ob ein Auftrag wirklich angekommen ist, sonst tippt sie ihn erneut. Neues Sprachmodell einfügen und bauen; auf dem Claude-Rechner `install.sh` erneut ausführen. |
 | **v1.0.46** | 18.11.2026 | **Claude-Sitzung wird überwacht:** Die Sitzung „alexa“ läuft auf einem eigenen tmux-Socket (`tmux -L alexa attach -t alexa`), und systemd startet sie mit `Restart=always` neu, wenn tmux selbst wegfällt. Bisher startete nur die Schleife im Skript Claude neu, eine beendete tmux-Sitzung blieb weg. Nur `tools/claude_bridge` geändert; `install.sh` erneut ausführen. |

@@ -75,6 +75,21 @@ ROOM_CARRIERS = [
     "ich bin im",
     "ich bin in der",
 ]
+# How Alexa writes down "Claude" (it often hears "cloud" or "coth")
+CLAUDE_SPELLINGS = ["claude", "cloud", "clod", "klod", "kloth", "coth", "clode"]
+
+
+def _with_spellings(samples: list[str]) -> list[str]:
+    """Repeat every sample with each spelling of "Claude", without duplicates."""
+    result: list[str] = []
+    for sample in samples:
+        for spelling in CLAUDE_SPELLINGS:
+            variant = sample.replace("claude", spelling)
+            if variant not in result:
+                result.append(variant)
+    return result
+
+
 # "Claude soll ...": the prompt goes to the Claude bridge, not to the AI answer
 CLAUDE_CARRIERS = [
     "claude soll",
@@ -284,7 +299,8 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
             "name": INTENT_CLAUDE,
             "slots": _question_slot(),
             "samples": [
-                f"{carrier} {{{SLOT_QUESTION}}}" for carrier in CLAUDE_CARRIERS
+                f"{carrier} {{{SLOT_QUESTION}}}"
+                for carrier in _with_spellings(CLAUDE_CARRIERS)
             ],
         }
     )
@@ -298,11 +314,14 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
                 "name": name,
                 "slots": _question_slot(),
                 "samples": [
-                    f"{carrier} {{{SLOT_QUESTION}}}" for carrier in session_carriers
+                    f"{carrier} {{{SLOT_QUESTION}}}"
+                    for carrier in _with_spellings(session_carriers)
                 ],
             }
         )
-    intents.append({"name": INTENT_CLAUDE_LIST, "samples": list(CLAUDE_LIST_SAMPLES)})
+    intents.append(
+        {"name": INTENT_CLAUDE_LIST, "samples": _with_spellings(CLAUDE_LIST_SAMPLES)}
+    )
     intents.append(
         {
             "name": INTENT_START,
