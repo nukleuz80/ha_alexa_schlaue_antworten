@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.0-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -231,6 +231,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.0** | 19.11.2026 | **Kopier-Knöpfe:** Im Punkt *🎙️ Eigener Alexa-Skill* öffnet ein Link (signiert, 30 Minuten gültig) eine Seite mit Sprachmodell und Skill-Code und je einem 📋-Knopf – kein Markieren mehr. **Fix zu v1.4.0:** Der Freitext-Slot heißt jetzt `freitext` (Alexa: „Slot cannot reference more than one slot type“). **Skill-Code und Sprachmodell beide neu einfügen.** |
 | **v1.4.0** | 19.11.2026 | **Claude in zwei Schritten:** „Claude soll“ ohne Auftrag fragt „Was soll ich Claude sagen?“ und schickt den ganzen nächsten Satz an Claude – gegen abgeschnittene Aufträge und das schlecht erkannte Wort „Claude“. Neuer **Freitext-Intent** (eigener Slot-Typ `FREITEXT`) fängt Sätze ohne bekannten Anfang auf; im normalen Dialog gehen sie als Frage an die KI statt ins „nicht verstanden“. Neues Sprachmodell einfügen und bauen. |
 | **v1.3.2** | 19.11.2026 | **Fix:** Speichern der *Einstellungen* löschte die Optionen der Claude-Brücke (URL, Token, Echos, Alexa-App) – jetzt bleiben alle anderen Optionen erhalten. Hinweis: Knöpfe für Claude-Rückfragen brauchen als Push-Ziel die Companion-App (`notify.mobile_app_…`), nicht `notify.notify`. |
 | **v1.3.1** | 19.11.2026 | Rückfragen robuster: Auswahldialoge (AskUserQuestion) in den Alexa-Sitzungen gesperrt (`settings.json`), eine Frage mit 2–3 kurzen Listenpunkten wird ebenfalls zu Knöpfen. Brücke bestätigt Aufträge sofort und tippt im Hintergrund (kein Abbruch mehr direkt nach einem Sitzungs-Neustart). Brücke neu installieren. |

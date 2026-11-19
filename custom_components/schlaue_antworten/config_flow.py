@@ -74,6 +74,7 @@ from .const import (
     DOMAIN,
     VOICE_PATHS,
 )
+from .copy_view import async_copy_link
 from .skill_model import is_valid_invocation
 
 
@@ -397,6 +398,7 @@ class SchlaueAntwortenOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "active": "✅" if skill.is_active else "❌",
                 "linked": "✅" if skill.is_linked else "❌",
+                "copy_link": async_copy_link(self.hass),
                 "last_request": (
                     f"{last['time']}: {last['text']}".replace("{", "[").replace(
                         "}", "]"

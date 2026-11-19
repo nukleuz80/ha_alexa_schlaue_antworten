@@ -70,6 +70,7 @@ from .const import (
     VOICE_PATH_SKILL,
 )
 from .claude_bridge import ClaudeBridge
+from .copy_view import async_register_copy_view
 from .skill import SkillConnector
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,6 +148,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Schlaue Antworten from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    async_register_copy_view(hass)
     manager = SchlaueAntwortenManager(hass, entry)
     await manager.async_setup()
     hass.data[DOMAIN][entry.entry_id] = manager

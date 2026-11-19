@@ -84,7 +84,7 @@
       },
       "skill": {
         "title": "🎙️ Eigener Alexa-Skill",
-        "description": "Webhook aktiv: {active} · Skill gekoppelt: {linked}\nLetzte Frage über den Skill: {last_request}\n\nSo legst du den Skill an: In der Alexa-Entwicklerkonsole einen Custom-Skill mit „Alexa-hosted (Python)“ und Region EU (Irland) erstellen. Unter *Build → JSON Editor* das Sprachmodell einfügen, speichern und *Build* starten. Unter *Code* den Inhalt von `lambda_function.py` durch den Skill-Code ersetzen und *Deploy* drücken. Unter *Test* auf *Development* stellen. Der Webhook ist nur aktiv, wenn der Sprachweg unter *Einstellungen & Prompts* auf „Eigener Skill“ oder „Beide“ steht.\n\n**Der Skill-Code enthält deine geheime Adresse. Gib ihn nicht weiter.**",
+        "description": "**[📋 Sprachmodell und Skill-Code mit Kopier-Knöpfen öffnen]({copy_link})** (Link 30 Minuten gültig)\n\nWebhook aktiv: {active} · Skill gekoppelt: {linked}\nLetzte Frage über den Skill: {last_request}\n\nSo legst du den Skill an: In der Alexa-Entwicklerkonsole einen Custom-Skill mit „Alexa-hosted (Python)“ und Region EU (Irland) erstellen. Unter *Build → JSON Editor* das Sprachmodell einfügen, speichern und *Build* starten. Unter *Code* den Inhalt von `lambda_function.py` durch den Skill-Code ersetzen und *Deploy* drücken. Unter *Test* auf *Development* stellen. Der Webhook ist nur aktiv, wenn der Sprachweg unter *Einstellungen & Prompts* auf „Eigener Skill“ oder „Beide“ steht.\n\n**Der Skill-Code enthält deine geheime Adresse. Gib ihn nicht weiter.**",
         "data": {
           "invocation_name": "Aufrufname (z. B. schlaufuchs)",
           "skill_keep_open": "Dialog offen halten („Noch eine Frage?“)",

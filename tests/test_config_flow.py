@@ -1,6 +1,8 @@
 """Tests for the config and options flow."""
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -62,6 +64,8 @@ async def test_skill_step_shows_code_and_model(
     assert f"https://example.ui.nabu.casa/api/webhook/{secret}" in code
     model = fields["interaction_model"].description["suggested_value"]
     assert '"invocationName": "schlaufuchs"' in model
+    link = result["description_placeholders"]["copy_link"]
+    assert link.startswith("/api/schlaue_antworten/skill_copy?authSig=")
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"invocation_name": "Schlau  Fuchs!"}
@@ -185,3 +189,31 @@ async def test_claude_step_saves_bridge(
     assert entry.options["claude_url"] == "http://192.168.1.50:8765"
     assert entry.options["claude_token"] == "geheim"
     assert entry.options["claude_echos"] == ["media_player.test_echo"]
+
+
+async def test_copy_page_needs_the_signed_link(
+    hass: HomeAssistant, setup_entry: SetupEntry, hass_client_no_auth: Any
+) -> None:
+    """The copy page shows code and model, but only with a valid signature."""
+    from homeassistant.core_config import async_process_ha_core_config
+
+    from custom_components.schlaue_antworten.copy_view import (
+        COPY_URL,
+        async_copy_link,
+    )
+
+    await async_process_ha_core_config(
+        hass, {"external_url": "https://example.ui.nabu.casa"}
+    )
+    entry = await setup_entry()
+    secret = hass.data[DOMAIN][entry.entry_id].skill.webhook_id
+    client = await hass_client_no_auth()
+
+    assert (await client.get(COPY_URL)).status == 401
+    response = await client.get(async_copy_link(hass))
+    assert response.status == 200
+    page = await response.text()
+    assert "Sprachmodell kopieren" in page
+    assert "Skill-Code kopieren" in page
+    assert f"https://example.ui.nabu.casa/api/webhook/{secret}" in page
+    assert "&quot;invocationName&quot;: &quot;schlaufuchs&quot;" in page

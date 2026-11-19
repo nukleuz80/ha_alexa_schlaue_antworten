@@ -20,6 +20,8 @@ INTENT_THIS_PHONE = "MeinHandyIntent"
 # Catches any sentence without a known start, e.g. the task after "Claude soll"
 INTENT_FREE = "FreitextIntent"
 FREE_SLOT_TYPE = "FREITEXT"
+# Alexa allows one type per slot name, so the free text slot has its own name
+SLOT_FREE = "freitext"
 # Varied sample values teach Alexa to take whole sentences as the slot value
 FREE_SAMPLE_VALUES = [
     "prüf die fenster",
@@ -267,9 +269,10 @@ def lambda_handler(event, context):
             print(json.dumps(request["error"]))
         return {"version": "1.0", "response": {}}
     intent = request.get("intent", {})
-    slot = (intent.get("slots") or {}).get("__SLOT__") or {}
+    slots = intent.get("slots") or {}
+    slot = slots.get("__SLOT__") or slots.get("__FREE__") or {}
     return _call_home_assistant(event, "intent", intent.get("name"), slot.get("value") or "")
-'''.replace("__SLOT__", SLOT_QUESTION)
+'''.replace("__SLOT__", SLOT_QUESTION).replace("__FREE__", SLOT_FREE)
 
 
 def build_skill_code(webhook_url: str) -> str:
@@ -322,8 +325,8 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
     intents.append(
         {
             "name": INTENT_FREE,
-            "slots": [{"name": SLOT_QUESTION, "type": FREE_SLOT_TYPE}],
-            "samples": [f"{{{SLOT_QUESTION}}}"],
+            "slots": [{"name": SLOT_FREE, "type": FREE_SLOT_TYPE}],
+            "samples": [f"{{{SLOT_FREE}}}"],
         }
     )
     intents.append({"name": INTENT_PHONE, "samples": list(PHONE_SAMPLES)})

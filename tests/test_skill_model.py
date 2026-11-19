@@ -57,12 +57,17 @@ def test_model_is_valid_for_alexa() -> None:
         )
         for sample in intent["samples"]:
             samples.append(sample)
-            if not search_query and sample == "{frage}":
+            if not search_query and sample == "{freitext}":
                 # A custom slot type may stand alone (the free-text intent)
                 continue
             # An AMAZON.SearchQuery slot needs at least one word in front of it
             assert not sample.startswith("{")
             assert re.fullmatch(r"[a-zäöüß ]+( \{frage\})?", sample), sample
+    # Alexa: one slot name may have only one type in the whole model
+    slot_types: dict[str, str] = {}
+    for intent in model["intents"]:
+        for slot in intent.get("slots", []):
+            assert slot_types.setdefault(slot["name"], slot["type"]) == slot["type"]
     types = {t["name"] for t in model["types"]}
     for intent in model["intents"]:
         for slot in intent.get("slots", []):
