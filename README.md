@@ -16,6 +16,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki"><b>📖 Wiki</b></a> ·
   <a href="#-zwei-wege-zu-alexa">Zwei Wege</a> ·
   <a href="#-schnellstart">Schnellstart</a> ·
   <a href="#️-ablauf-im-alltag">Im Alltag</a> ·
@@ -28,6 +29,9 @@
 ---
 
 **Schlaue Antworten** verbindet deine Amazon-Echo-Lautsprecher mit den KI-Agenten in Home Assistant (z. B. Google Gemini, Anthropic Claude, OpenAI, OpenRouter oder lokale LLMs). Komplett per Oberfläche eingerichtet – ohne YAML.
+
+> [!NOTE]
+> 📖 **Die ausführliche Dokumentation steht im [Wiki](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki):** [Installation](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Installation) · [Einrichtung & Optionen](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Einrichtung-und-Optionen) · [Sprachbefehle](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Sprachbefehle) · [Eigener Alexa-Skill](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Eigener-Alexa-Skill) · [Claude-Brücke](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Claude-Bruecke) · [Fehlerbehebung](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Fehlerbehebung)
 
 > [!TIP]
 > 🚀 **Welche KI-Modelle sind am schnellsten für Alexa?** → [**⚡ KI-Modelle & Speed-Guide**](docs/KI_MODELLE_SPEED_GUIDE.md) mit Latenz-Messungen, Free-Tier-Tipps und den schnellsten Anbietern.
@@ -143,7 +147,11 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 | 🤖 **Claude-Brücke** | Adresse, Token, erlaubte Echos, Alexa-App erlauben |
 | 📜 **Verlauf** | Die letzten Dialoge mit Gerät, Frage, Antwort und Dauer |
 
-**⚙️ Einstellungen & Prompts im Detail:**
+Alle Optionen mit Standardwerten: [**Wiki → Einrichtung & Optionen**](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Einrichtung-und-Optionen)
+
+<details>
+<summary><b>⚙️ Einstellungen & Prompts im Detail (Klick zum Ausklappen)</b></summary>
+
 
 - **Primärer KI-Agent:** Hauptmodell für Antworten (z. B. Google Gemini 2 oder OpenRouter Llama 3.3).
 - **Ausweich-Agent (Fallback):** Modell, das bei 503-Überlastung automatisch einspringt (z. B. Claude Sonnet).
@@ -165,6 +173,9 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 - **Wiederholungsansage bei unverständlicher Frage:** Text für den ersten Fehlversuch (Standard: *„Das habe ich leider nicht verstanden. Bitte wiederhole deine Frage.“*).
 - **Abbruchansage nach zweitem Fehlversuch:** Beendet den Dialog bei wiederholt unverständlicher Eingabe (Standard: *„Ich konnte dich leider wieder nicht verstehen. Versuche es bitte später noch einmal.“*).
 - **KI-Prompts für Kurzantwort & Vertiefung:** Frei anpassbare System-Prompts mit Platzhaltern `{question}` und `{previous_answer}`.
+
+
+</details>
 
 ---
 
@@ -213,7 +224,7 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 Höchstens 3 Sprach-Sitzungen neben der Hauptsitzung (`CLAUDE_ALEXA_MAX_SESSIONS`); nach 2 Stunden ohne Auftrag enden sie von selbst (`CLAUDE_ALEXA_IDLE_SECONDS`). Antworten einer Sprach-Sitzung beginnen mit ihrem Namen. Zum Zuschauen: `tmux -L alexa-x attach -t heizung`. Jede Sitzung verbraucht Claude-Kontingent.
 
-**Einrichtung:**
+**Einrichtung** (Schritt für Schritt im [Wiki → Claude-Brücke](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Claude-Bruecke)):
 - Auf dem Rechner mit Claude Code (tmux und python3 nötig): `tools/claude_bridge/install.sh <IP von Home Assistant>` ausführen. Das legt `~/claude-alexa` an, erzeugt ein Token in `~/.config/claude-alexa/token` und startet zwei systemd-User-Dienste: `claude-alexa-session` (Sitzung „alexa“ in tmux mit Stop-Hook, Arbeitsordner `/mnt/ha_config` oder `CLAUDE_ALEXA_WORKDIR` aus `~/.config/claude-alexa/env`, feste Session-ID) und `claude-alexa-bridge` (HTTP auf Port 8765, nimmt nur Anfragen von Home Assistant an). Ist der Arbeitsordner für Claude Code noch neu, einmal `tmux -L alexa attach -t alexa` und ihn als vertrauenswürdig bestätigen.
 - In Schlaue Antworten unter *🤖 Claude-Brücke*: Adresse (z. B. `http://192.168.1.50:8765`), Token und **erlaubte Echos** eintragen. Nur Echos, die unter *🔊 Echo-Zuordnung* zugeordnet **und** hier erlaubt sind, dürfen Aufträge schicken; der Standard-Echo zählt nicht.
 - Neues Sprachmodell in die Alexa-Entwicklerkonsole einfügen und bauen (neuer `ClaudeIntent`).
