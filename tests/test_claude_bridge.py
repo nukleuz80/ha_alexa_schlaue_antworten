@@ -520,3 +520,55 @@ async def test_question_typed_answer(
     )
     await hass.async_block_till_done()
     assert aioclient_mock.mock_calls[-1][2]["text"] == "[Alexa · Test Echo] nur das Bad"
+
+
+async def test_claude_soll_alone_waits_for_the_task(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """After a bare "Claude soll", the whole next sentence goes to Claude."""
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"session": "alexa"})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+    url = f"/api/webhook/{manager.skill.webhook_id}"
+
+    async def post(intent: str, text: str, session: dict) -> dict:
+        response = await client.post(
+            url,
+            json={
+                "application_id": APP_ID,
+                "action": "intent",
+                "intent": intent,
+                "text": text,
+                "device_id": KITCHEN,
+                "session": session,
+            },
+        )
+        return await response.json()
+
+    first = await post("ClaudeIntent", "", {})
+    assert first["speech"] == "Was soll ich Claude sagen?"
+    assert first["end_session"] is False
+    assert first["session"]["claude_wait"] == 1
+
+    second = await post("FreitextIntent", "prüf alle fenster im haus", first["session"])
+    assert second["speech"].startswith("Okay, ist bei Claude")
+    assert aioclient_mock.mock_calls[-1][2]["text"] == (
+        "[Alexa · Test Echo] prüf alle fenster im haus"
+    )
+
+    # A question word sentence keeps its word; "ja" becomes "Ja"
+    await post("WieIntent", "warm ist es", {"claude_wait": 1})
+    assert aioclient_mock.mock_calls[-1][2]["text"].endswith("] wie warm ist es")
+    await post("AMAZON.YesIntent", "", {"claude_wait": 1})
+    assert aioclient_mock.mock_calls[-1][2]["text"].endswith("] Ja")
+
+    # Nothing understood twice: the dialog ends without sending
+    calls = aioclient_mock.call_count
+    again = await post("AMAZON.FallbackIntent", "", {"claude_wait": 1})
+    assert again["session"]["claude_wait"] == 1
+    end = await post("AMAZON.FallbackIntent", "", again["session"])
+    assert end["end_session"] is True
+    assert aioclient_mock.call_count == calls

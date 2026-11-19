@@ -6,7 +6,7 @@
 <p align="center"><b>KI-Sprachdialog für Amazon Alexa &amp; Home Assistant</b></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.3.2-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="Version"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten"><img src="https://img.shields.io/badge/Vibe%20Coding-100%25%20mit%20Hingabe-ff69b4?logo=sparkles&logoColor=white" alt="Vibe Coding"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom%20Repository-orange.svg" alt="HACS"></a>
@@ -169,6 +169,8 @@ Klicke in **Einstellungen ➔ Geräte & Dienste** bei **Schlaue Antworten** auf 
 
 **Aus der Alexa-App (ab v1.2.0):** Sag einmal in der Alexa-App auf dem Handy *„Alexa, sag Schlaufuchs, das ist mein Handy“* und schalte unter *🤖 Claude-Brücke* **Alexa-App erlauben** ein. Danach funktionieren alle Claude-Befehle auch aus der App, per Sprache oder Texteingabe; Claudes Antwort kommt vollständig als Push aufs Handy statt als Ansage.
 
+**Lange Aufträge in zwei Schritten (ab v1.4.0):** Alexa hört bei der ersten kurzen Pause auf zuzuhören. Sag deshalb nur *„Alexa, frag Schlaufuchs, Claude soll“* – Alexa fragt *„Was soll ich Claude sagen?“*, und dein **ganzer nächster Satz** geht an Claude, ohne dass du „Claude“ noch einmal sagen musst (auch „ja“/„nein“ als Antwort auf eine Rückfrage).
+
 **Rückfragen von Claude (ab v1.3.0):** Braucht Claude eine Entscheidung, kommt die Frage mit **Knöpfen in der Push-Nachricht** (z. B. *Ja* / *Nein*, bis zu drei Vorschläge) und – wenn Platz ist – einem Feld **Antworten** für eigenen Text. Ein Tipp schickt die Antwort in genau die Sitzung, die gefragt hat; Claudes nächste Antwort kommt wieder auf den Echo bzw. aufs Handy. Per Sprache geht es auch: *„Alexa, sag Schlaufuchs, antworte Claude ja.“* Voraussetzung: Push-Ziel ist die Companion-App (`notify.mobile_app_…` oder eine Gruppe daraus).
 
 Höchstens 3 Sprach-Sitzungen neben der Hauptsitzung (`CLAUDE_ALEXA_MAX_SESSIONS`); nach 2 Stunden ohne Auftrag enden sie von selbst (`CLAUDE_ALEXA_IDLE_SECONDS`). Antworten einer Sprach-Sitzung beginnen mit ihrem Namen. Zum Zuschauen: `tmux -L alexa-x attach -t heizung`. Jede Sitzung verbraucht Claude-Kontingent.
@@ -229,6 +231,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.4.0** | 19.11.2026 | **Claude in zwei Schritten:** „Claude soll“ ohne Auftrag fragt „Was soll ich Claude sagen?“ und schickt den ganzen nächsten Satz an Claude – gegen abgeschnittene Aufträge und das schlecht erkannte Wort „Claude“. Neuer **Freitext-Intent** (eigener Slot-Typ `FREITEXT`) fängt Sätze ohne bekannten Anfang auf; im normalen Dialog gehen sie als Frage an die KI statt ins „nicht verstanden“. Neues Sprachmodell einfügen und bauen. |
 | **v1.3.2** | 19.11.2026 | **Fix:** Speichern der *Einstellungen* löschte die Optionen der Claude-Brücke (URL, Token, Echos, Alexa-App) – jetzt bleiben alle anderen Optionen erhalten. Hinweis: Knöpfe für Claude-Rückfragen brauchen als Push-Ziel die Companion-App (`notify.mobile_app_…`), nicht `notify.notify`. |
 | **v1.3.1** | 19.11.2026 | Rückfragen robuster: Auswahldialoge (AskUserQuestion) in den Alexa-Sitzungen gesperrt (`settings.json`), eine Frage mit 2–3 kurzen Listenpunkten wird ebenfalls zu Knöpfen. Brücke bestätigt Aufträge sofort und tippt im Hintergrund (kein Abbruch mehr direkt nach einem Sitzungs-Neustart). Brücke neu installieren. |
 | **v1.3.0** | 19.11.2026 | **Rückfragen per Knopf:** Claude beendet Rückfragen mit `Optionen: Ja \| Nein`; daraus werden Knöpfe (max. 3) plus Freitext-Feld in der Push-Nachricht. Die Antwort geht per `mobile_app_notification_action` in die fragende Sitzung (Brücke: `/prompt` mit `session`). Neue Sprachbefehle „antworte Claude …“ / „Antwort an Claude …“. Brücke (`tools/claude_bridge`) neu installieren, Sprachmodell neu bauen. |

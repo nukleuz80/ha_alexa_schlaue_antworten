@@ -119,6 +119,10 @@ SESSION_QUESTION = "question"
 SESSION_ANSWER = "answer"
 STAGE_FOLLOWUP = "followup"
 SESSION_RETRIES = "retries"
+# Set after "Claude soll" without a task: the next sentence goes to Claude
+SESSION_CLAUDE_WAIT = "claude_wait"
+STOP_INTENTS = ("AMAZON.StopIntent", "AMAZON.CancelIntent")
+YES_NO_WORDS = {"AMAZON.YesIntent": "Ja", "AMAZON.NoIntent": "Nein"}
 SESSION_DETAIL = "detail"
 # A detailed answer computed ahead of "Ja" is kept this long
 PREFETCH_SECONDS = 120.0
@@ -574,6 +578,11 @@ class SkillConnector:
                 self._option(CONF_DIALOG_PROMPT, DEFAULT_DIALOG_PROMPT)
             )
 
+        if session.get(SESSION_CLAUDE_WAIT) and intent not in STOP_INTENTS:
+            return await self._async_claude_followup(
+                action, intent, text, device_id, retries
+            )
+
         if action == ACTION_INTENT:
             if intent == "AMAZON.YesIntent" and (
                 followup := self._followup_from(session)
@@ -619,7 +628,7 @@ class SkillConnector:
         """
         spoken = " ".join(text.split())
         if intent == INTENT_CLAUDE and len(spoken) < 2:
-            return self._ask_again(CLAUDE_EMPTY_TEXT)
+            return self._wait_for_claude_task()
         bridge = self.manager.claude
         echo = self._devices.get(device_id) if device_id else None
         if echo is None and device_id in self._phones:
@@ -640,6 +649,42 @@ class SkillConnector:
         if echo == PHONE_TARGET and speech == CLAUDE_SENT_TEXT:
             speech = CLAUDE_SENT_APP_TEXT
         return self._speech(speech)
+
+    def _wait_for_claude_task(self, retries: int = 0) -> web.Response:
+        """Ask for the task; the whole next sentence then goes to Claude.
+
+        This way a long task is not cut off after "Claude soll", and the
+        often misheard word "Claude" need not be said again.
+        """
+        return self._speech(
+            CLAUDE_EMPTY_TEXT,
+            end_session=False,
+            reprompt=CLAUDE_EMPTY_TEXT,
+            session={SESSION_CLAUDE_WAIT: 1, SESSION_RETRIES: retries},
+        )
+
+    async def _async_claude_followup(
+        self,
+        action: str,
+        intent: str | None,
+        text: str,
+        device_id: str | None,
+        retries: int,
+    ) -> web.Response:
+        """Send the sentence after "Was soll ich Claude sagen?" to Claude."""
+        if action == ACTION_INTENT and intent in CLAUDE_INTENTS:
+            return await self._async_to_claude(intent, device_id, text)
+        task = question_from_intent(intent, text) if action == ACTION_INTENT else text
+        if not task and intent in YES_NO_WORDS:
+            task = YES_NO_WORDS[intent]
+        task = " ".join((task if task is not None else text).split())
+        if len(task) < 2:
+            if retries >= 1:
+                return self._speech(
+                    self._option(CONF_ABORT_PROMPT, DEFAULT_ABORT_PROMPT)
+                )
+            return self._wait_for_claude_task(retries=1)
+        return await self._async_to_claude(INTENT_CLAUDE, device_id, task)
 
     def _not_understood(self, retries: int) -> web.Response:
         """Ask once more to repeat, the second time end the dialog.

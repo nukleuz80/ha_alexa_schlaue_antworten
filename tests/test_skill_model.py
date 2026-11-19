@@ -52,11 +52,21 @@ def test_model_is_valid_for_alexa() -> None:
     for intent in model["intents"]:
         if not intent["name"].startswith("AMAZON."):
             assert re.fullmatch(r"[A-Za-z]+", intent["name"])
+        search_query = any(
+            slot["type"] == "AMAZON.SearchQuery" for slot in intent.get("slots", [])
+        )
         for sample in intent["samples"]:
-            # A free-text slot needs at least one word in front of it
+            samples.append(sample)
+            if not search_query and sample == "{frage}":
+                # A custom slot type may stand alone (the free-text intent)
+                continue
+            # An AMAZON.SearchQuery slot needs at least one word in front of it
             assert not sample.startswith("{")
             assert re.fullmatch(r"[a-zäöüß ]+( \{frage\})?", sample), sample
-            samples.append(sample)
+    types = {t["name"] for t in model["types"]}
+    for intent in model["intents"]:
+        for slot in intent.get("slots", []):
+            assert slot["type"].startswith("AMAZON.") or slot["type"] in types
     assert len(samples) == len(set(samples))
 
 

@@ -17,6 +17,37 @@ INTENT_PHONE = "HandyIntent"
 INTENT_START = "StartIntent"
 INTENT_ROOM = "RaumIntent"
 INTENT_THIS_PHONE = "MeinHandyIntent"
+# Catches any sentence without a known start, e.g. the task after "Claude soll"
+INTENT_FREE = "FreitextIntent"
+FREE_SLOT_TYPE = "FREITEXT"
+# Varied sample values teach Alexa to take whole sentences as the slot value
+FREE_SAMPLE_VALUES = [
+    "prüf die fenster",
+    "schau nach ob alle türen zu sind",
+    "mach das licht im büro aus",
+    "wie warm ist es im wohnzimmer",
+    "erstelle eine automation die abends die rollläden schließt",
+    "ja",
+    "nein",
+    "alle übernehmen",
+    "nur den ersten vorschlag",
+    "repariere das dashboard",
+    "warum ist der sensor nicht erreichbar",
+    "lies mir die letzten fehler im log vor",
+    "schreib eine notiz einkaufen milch und brot",
+    "starte die waschmaschine um acht",
+    "welche geräte verbrauchen gerade viel strom",
+    "ein bild reparieren",
+    "fasse zusammen was heute passiert ist",
+    "erinnere mich morgen an den müll",
+    "heizung im bad auf zweiundzwanzig grad",
+    "mach weiter",
+    "zeig mir den plan",
+    "ändere die farbe der karte auf blau",
+    "kannst du das rückgängig machen",
+    "teste die neue version",
+    "was hast du gerade gemacht",
+]
 INTENT_CLAUDE = "ClaudeIntent"
 INTENT_CLAUDE_NEW = "ClaudeNeuIntent"
 INTENT_CLAUDE_SWITCH = "ClaudeWechselIntent"
@@ -253,7 +284,7 @@ def is_valid_invocation(name: str) -> bool:
 
 def question_from_intent(intent: str | None, value: str) -> str | None:
     """Return the full question for a question intent, or None for other intents."""
-    if intent == INTENT_QUESTION:
+    if intent in (INTENT_QUESTION, INTENT_FREE):
         return value
     if intent in QUESTION_WORD_INTENTS:
         word = QUESTION_WORD_INTENTS[intent][0]
@@ -288,6 +319,13 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
             "samples": [f"{carrier} {{{SLOT_QUESTION}}}" for carrier in carriers],
         }
     )
+    intents.append(
+        {
+            "name": INTENT_FREE,
+            "slots": [{"name": SLOT_QUESTION, "type": FREE_SLOT_TYPE}],
+            "samples": [f"{{{SLOT_QUESTION}}}"],
+        }
+    )
     intents.append({"name": INTENT_PHONE, "samples": list(PHONE_SAMPLES)})
     intents.append({"name": INTENT_THIS_PHONE, "samples": list(THIS_PHONE_SAMPLES)})
     intents.append(
@@ -301,10 +339,12 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
         {
             "name": INTENT_CLAUDE,
             "slots": _question_slot(),
+            # Bare "Claude soll" asks for the task, so it is not cut off
             "samples": [
                 f"{carrier} {{{SLOT_QUESTION}}}"
                 for carrier in _with_spellings(CLAUDE_CARRIERS)
-            ],
+            ]
+            + _with_spellings(CLAUDE_CARRIERS),
         }
     )
     for name, session_carriers in (
@@ -336,7 +376,14 @@ def build_interaction_model(invocation: str) -> dict[str, Any]:
             "languageModel": {
                 "invocationName": invocation,
                 "intents": intents,
-                "types": [],
+                "types": [
+                    {
+                        "name": FREE_SLOT_TYPE,
+                        "values": [
+                            {"name": {"value": value}} for value in FREE_SAMPLE_VALUES
+                        ],
+                    }
+                ],
             }
         }
     }
