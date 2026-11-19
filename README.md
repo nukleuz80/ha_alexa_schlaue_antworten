@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.1-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.2-blue.svg" alt="Version"></a>
   <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -46,6 +46,9 @@
 | **Alexa-App** | 📱 Funktioniert auch in der Alexa-App (Sprache **und** Texteingabe) | – |
 | **Claude Code** | 🤖 Sprachaufträge an Claude Code, Sitzungen per Sprache, Rückfragen per Push-Knopf | – |
 | **Voraussetzung** | Öffentliche HTTPS-Adresse (z. B. Nabu Casa) | Alexa Media Player |
+
+> [!TIP]
+> **Community-Skill antwortet auf dem falschen Echo?** Frag Alexa vorher kurz *„Alexa, wie spät ist es?“* – danach gilt dieser Echo als „zuletzt benutzt“, und die nächste Antwort kommt zuverlässig dort an.
 
 **Kurz:** Der Community-Skill ist der schnellste Einstieg. Wer Alexa täglich nutzt, wechselt zum **eigenen Skill** – er ist schneller, versteht mehr und kann deutlich mehr. Beide Wege lassen sich parallel betreiben (Sprachweg *„Beide“*).
 
@@ -266,6 +269,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.2** | 19.11.2026 | **Fix:** „Translation error: INVALID_TAG“ im Punkt *Eigener Alexa-Skill* – der Kopier-Link steckt jetzt im Platzhalter statt im Übersetzungstext; ein Test verhindert HTML-Tags in Übersetzungen. Doku überarbeitet (Vergleich der Sprachwege, Tipp „falscher Echo“). |
 | **v1.5.1** | 19.11.2026 | Kopier-Link öffnet sich in einem neuen Tab (vorher sprang die App zur Startseite); die Einstellungen bleiben offen. Knopf „Fertig – Tab schließen“. |
 | **v1.5.0** | 19.11.2026 | **Kopier-Knöpfe:** Im Punkt *🎙️ Eigener Alexa-Skill* öffnet ein Link (signiert, 30 Minuten gültig) eine Seite mit Sprachmodell und Skill-Code und je einem 📋-Knopf – kein Markieren mehr. **Fix zu v1.4.0:** Der Freitext-Slot heißt jetzt `freitext` (Alexa: „Slot cannot reference more than one slot type“). **Skill-Code und Sprachmodell beide neu einfügen.** |
 | **v1.4.0** | 19.11.2026 | **Claude in zwei Schritten:** „Claude soll“ ohne Auftrag fragt „Was soll ich Claude sagen?“ und schickt den ganzen nächsten Satz an Claude – gegen abgeschnittene Aufträge und das schlecht erkannte Wort „Claude“. Neuer **Freitext-Intent** (eigener Slot-Typ `FREITEXT`) fängt Sätze ohne bekannten Anfang auf; im normalen Dialog gehen sie als Frage an die KI statt ins „nicht verstanden“. Neues Sprachmodell einfügen und bauen. |

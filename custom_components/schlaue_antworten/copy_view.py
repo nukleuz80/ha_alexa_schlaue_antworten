@@ -93,9 +93,29 @@ def async_register_copy_view(hass: HomeAssistant) -> None:
     hass.data[DATA_VIEW] = True
 
 
+LINK_LABELS = {
+    "de": "📋 Sprachmodell und Skill-Code mit Kopier-Knöpfen öffnen",
+    "en": "📋 Open voice model and skill code with copy buttons",
+}
+
+
 def async_copy_link(hass: HomeAssistant) -> str:
     """Return a signed, expiring link to the page."""
     return async_sign_path(hass, COPY_URL, timedelta(minutes=LINK_MINUTES))
+
+
+def async_copy_anchor(hass: HomeAssistant) -> str:
+    """Return the link as HTML that opens in a new tab.
+
+    It is passed as a placeholder value: in the translation text itself the
+    frontend reads tags as message syntax and fails with INVALID_TAG. Without
+    target the frontend would treat the link as an app page.
+    """
+    label = LINK_LABELS.get(hass.config.language[:2], LINK_LABELS["en"])
+    return (
+        f'<a href="{escape(async_copy_link(hass))}" target="_blank">'
+        f"<b>{escape(label)}</b></a>"
+    )
 
 
 class SkillCopyView(HomeAssistantView):

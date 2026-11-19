@@ -65,7 +65,8 @@ async def test_skill_step_shows_code_and_model(
     model = fields["interaction_model"].description["suggested_value"]
     assert '"invocationName": "schlaufuchs"' in model
     link = result["description_placeholders"]["copy_link"]
-    assert link.startswith("/api/schlaue_antworten/skill_copy?authSig=")
+    assert link.startswith('<a href="/api/schlaue_antworten/skill_copy?authSig=')
+    assert 'target="_blank"' in link
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"invocation_name": "Schlau  Fuchs!"}
@@ -217,3 +218,15 @@ async def test_copy_page_needs_the_signed_link(
     assert "Skill-Code kopieren" in page
     assert f"https://example.ui.nabu.casa/api/webhook/{secret}" in page
     assert "&quot;invocationName&quot;: &quot;schlaufuchs&quot;" in page
+
+
+def test_translations_have_no_tags() -> None:
+    """The frontend parses translations as ICU messages: tags break them."""
+    import json
+    import pathlib
+    import re
+
+    base = pathlib.Path(__file__).parent.parent / "custom_components" / DOMAIN
+    for path in [base / "strings.json", *(base / "translations").glob("*.json")]:
+        text = json.dumps(json.loads(path.read_text()), ensure_ascii=False)
+        assert not re.search(r"<[a-zA-Z/][^>]*>", text), path.name
