@@ -94,6 +94,7 @@ from .skill_model import (
     INTENT_START,
     INTENT_THIS_PHONE,
     build_skill_code,
+    claude_task,
     interaction_model_json,
     question_from_intent,
 )
@@ -613,6 +614,9 @@ class SkillConnector:
         question = " ".join(question.split())[:MAX_TEXT_LENGTH]
         if len(question) < 2:
             return self._not_understood(retries)
+        if self.manager.claude.is_set_up and (task := claude_task(question)):
+            # "Cloud soll nachsehen ..." that Alexa did not place with Claude
+            return await self._async_to_claude(INTENT_CLAUDE, device_id, task)
 
         return await self._async_ask(
             question, self._echo_for(device_id), start_time, retries=retries

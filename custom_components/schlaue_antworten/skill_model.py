@@ -136,6 +136,23 @@ CLAUDE_CARRIERS = [
     "antwort an claude",
     "antwort für claude",
 ]
+
+
+def claude_task(question: str) -> str | None:
+    """Return the task of "Claude soll ..." that Alexa took for a question.
+
+    Alexa sometimes hands the whole sentence to the catch-all intent, and it
+    would otherwise go to the AI answer instead of the Claude bridge.
+    """
+    words = re.sub(r"[^\w\s]", " ", question.casefold()).split()
+    spoken = " ".join(words)
+    for carrier in sorted(_with_spellings(CLAUDE_CARRIERS), key=len, reverse=True):
+        if spoken.startswith(carrier + " "):
+            task = spoken[len(carrier) :].strip()
+            return task if len(task) >= 2 else None
+    return None
+
+
 # "neue Claude-Sitzung Heizung prüf das Bad": first word is the name
 CLAUDE_NEW_CARRIERS = [
     "neue claude sitzung",

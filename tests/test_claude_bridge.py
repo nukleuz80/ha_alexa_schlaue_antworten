@@ -13,7 +13,11 @@ from custom_components.schlaue_antworten.claude_bridge import (
     spoken_part,
 )
 from custom_components.schlaue_antworten.const import DOMAIN
-from custom_components.schlaue_antworten.skill_model import build_interaction_model
+from custom_components.schlaue_antworten.skill_model import (
+    INTENT_QUESTION,
+    build_interaction_model,
+    claude_task,
+)
 
 from .conftest import ECHO, SetupEntry
 
@@ -572,3 +576,40 @@ async def test_claude_soll_alone_waits_for_the_task(
     end = await post("AMAZON.FallbackIntent", "", again["session"])
     assert end["end_session"] is True
     assert aioclient_mock.call_count == calls
+
+
+async def test_claude_task_in_catch_all_goes_to_claude(
+    hass: HomeAssistant,
+    hass_client_no_auth: Any,
+    setup_entry: SetupEntry,
+    aioclient_mock: Any,
+) -> None:
+    """ "Cloud soll ..." that Alexa took for a question still reaches Claude."""
+    aioclient_mock.post(f"{BRIDGE}/prompt", json={"ok": True})
+    manager = await _setup(hass, setup_entry, OPTIONS)
+    client = await hass_client_no_auth()
+
+    response = await client.post(
+        f"/api/webhook/{manager.skill.webhook_id}",
+        json={
+            "application_id": APP_ID,
+            "action": "intent",
+            "intent": INTENT_QUESTION,
+            "text": "cloud soll nachsehen welche türen offen sind",
+            "device_id": KITCHEN,
+        },
+    )
+    assert (await response.json())["speech"].startswith("Okay, ist bei Claude")
+    _method, _url, data, _headers = aioclient_mock.mock_calls[0]
+    assert data["text"] == "[Alexa · Test Echo] nachsehen welche türen offen sind"
+
+
+def test_claude_task_from_question() -> None:
+    """Only a sentence starting with a Claude carrier is a task for Claude."""
+    assert claude_task("Cloud, soll nachsehen, welche Türen offen sind") == (
+        "nachsehen welche türen offen sind"
+    )
+    assert claude_task("frag claude wie warm es ist") == "wie warm es ist"
+    assert claude_task("claude soll") is None
+    assert claude_task("wie wird das wetter") is None
+    assert claude_task("ist es heute cloudy") is None
