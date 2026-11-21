@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.4-blue.svg" alt="Version"></a>
-  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
+  <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
   <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/issues/new"><img src="https://img.shields.io/badge/Ideen%20%26%20W%C3%BCnsche-willkommen-brightgreen.svg" alt="Ideen willkommen"></a>
@@ -100,14 +100,14 @@
 ## 📋 Schnellstart
 
 ### 1. Voraussetzungen
-1. **Alexa Media Player (HACS)** – für Ansagen und die Echo-Erkennung.
+1. **Alexa Media Player** (Marketplace/HACS) – für Ansagen und die Echo-Erkennung.
 2. **Ein KI-Agent in Home Assistant**, zum Beispiel:
    - 💡 **OpenRouter** *(Einstieg)*: kostenlose Modelle wie `meta-llama/llama-3.3-70b-instruct:free` – keine Kreditkarte nötig.
    - 🚀 **Google Generative AI (Gemini 2.5 Flash)**: sehr schnell, kostenloses Kontingent, exzellentes Deutsch.
    - 📖 Mehr dazu im [⚡ KI-Modelle & Speed-Guide](docs/KI_MODELLE_SPEED_GUIDE.md).
 
 ### 2. Integration installieren
-1. **HACS** → nach **Schlaue Antworten** suchen → installieren → Home Assistant neu starten.
+1. **Marketplace** (ab HA 2026.11, vorher **HACS**) → nach **Schlaue Antworten** suchen → installieren → Home Assistant neu starten.
 2. **Einstellungen ➔ Geräte & Dienste ➔ + Integration hinzufügen ➔ Schlaue Antworten**.
 3. Primären KI-Agenten und Standard-Echo wählen.
 
