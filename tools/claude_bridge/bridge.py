@@ -312,7 +312,7 @@ def start_voice_session(name: str, session_id: str, prompt: Prompt | None) -> No
             deliver(name, session_id, prompt)
 
 
-# sessionId -> [transcript offset, custom title, ai title]
+# sessionId -> [transcript offset, custom title, unused]
 _TITLES: dict[str, list] = {}
 
 
@@ -328,7 +328,7 @@ def _alive(pid: int, proc_start: str) -> bool:
 
 
 def _title(session_id: str, cwd: str) -> str:
-    """Return the title the Claude app shows (/rename, else the AI title)."""
+    """Return the title set with /rename, else an empty string."""
     project = RE_PROJECT_CHAR.sub("-", cwd)
     path = CLAUDE_PROJECTS_DIR / project / f"{session_id}.jsonl"
     entry = _TITLES.setdefault(session_id, [0, "", ""])
@@ -342,7 +342,7 @@ def _title(session_id: str, cwd: str) -> str:
                 if not raw.endswith(b"\n"):
                     break  # still being written; read it next time
                 entry[0] += len(raw)
-                if b'"custom-title"' not in raw and b'"ai-title"' not in raw:
+                if b'"custom-title"' not in raw:
                     continue
                 try:
                     line = json.loads(raw)
@@ -350,11 +350,9 @@ def _title(session_id: str, cwd: str) -> str:
                     continue
                 if line.get("type") == "custom-title":
                     entry[1] = str(line.get("customTitle") or "")
-                elif line.get("type") == "ai-title":
-                    entry[2] = str(line.get("aiTitle") or "")
     except OSError:
         pass
-    return entry[1] or entry[2]
+    return entry[1]
 
 
 def app_sessions(state: dict) -> list[dict]:
@@ -381,10 +379,17 @@ def app_sessions(state: dict) -> list[dict]:
         if not app_id or not session_id or not _alive(pid, info.get("procStart", "")):
             continue
         cwd = str(info.get("cwd") or "")
+        # Same order as the Claude app: /rename, Remote Control name, folder
+        title = (
+            _title(session_id, cwd)
+            or names.get(session_id, "")
+            or Path(cwd).name
+            or session_id[:8]
+        )
         result.append(
             {
                 "id": session_id,
-                "title": _title(session_id, cwd) or str(info.get("name") or session_id[:8]),
+                "title": title,
                 "url": APP_SESSION_URL + app_id,
                 "cwd": cwd,
                 "status": str(info.get("status") or "idle"),
