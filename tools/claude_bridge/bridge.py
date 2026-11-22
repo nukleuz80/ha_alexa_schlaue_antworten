@@ -66,6 +66,8 @@ MAX_TEXT = 600
 MAX_CHAT_TEXT = 4000
 MAX_BODY = 32768
 MAX_CHAT_SESSIONS = int(os.environ.get("CLAUDE_ALEXA_MAX_CHAT_SESSIONS", "3"))
+# Seconds a freshly started session may run without its tmux session yet
+START_GRACE = 90
 SOURCE_CHAT = "ha_chat"
 CHAT_PREFIX = "[HA-Chat]"
 RE_EXTRA_VALUE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
@@ -216,7 +218,11 @@ def save_state(state: dict) -> None:
 
 def prune(state: dict) -> None:
     """Forget voice sessions whose tmux session is gone."""
-    for name in list(state["sessions"]):
+    now = time.time()
+    for name, info in list(state["sessions"].items()):
+        # A session that is still being started has no tmux session yet
+        if now - float(info.get("created", 0)) < START_GRACE:
+            continue
         if not running(name):
             del state["sessions"][name]
     if state["active"] != MAIN_SESSION and state["active"] not in state["sessions"]:
@@ -500,7 +506,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._reply(409, {"sessions": session_names(state)})
                 return
             session_id = str(uuid.uuid4())
-            info: dict = {"id": session_id, "last": time.time()}
+            now = time.time()
+            info: dict = {"id": session_id, "last": now, "created": now}
             if chat:
                 info["chat"] = True
             else:
