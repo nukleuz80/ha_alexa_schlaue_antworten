@@ -3,7 +3,9 @@
 
 When Claude has finished a turn that started with a voice prompt
 ("[Alexa · ...] ..."), the answer is posted back to Home Assistant, which
-speaks it on the Echo that asked. Any other turn is left alone.
+speaks it on the Echo that asked. A turn started from the chat panel of
+Home Assistant ("[HA-Chat] ...") goes back to the chat, with the prompt id
+and reply token the bridge noted. Any other turn is left alone.
 The hook never blocks Claude: every problem ends in exit code 0.
 """
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import time
 import urllib.request
@@ -21,6 +24,9 @@ STATE_DIR = Path(
 PENDING_DIR = STATE_DIR / "pending"
 PENDING_SECONDS = 30 * 60
 PREFIX = "[Alexa"
+CHAT_PREFIX = "[HA-Chat]"
+# Long typed prompts are stored as a paste: <pasted_content id="..."> ... text
+RE_PASTE_START = re.compile(r"^\s*<pasted_content[^>]*>\s*")
 
 
 def _text_of(content: object) -> str:
@@ -70,7 +76,23 @@ def main() -> None:
     session_id = str(hook.get("session_id") or "")
     if not session_id or "/" in session_id:
         return
-    pending_file = PENDING_DIR / f"{session_id}.json"
+    if not any(
+        (PENDING_DIR / name).exists()
+        for name in (f"{session_id}.json", f"{session_id}.chat.json")
+    ):
+        return  # nothing from outside waits for an answer
+    prompt, answer = "", ""
+    transcript = hook.get("transcript_path")
+    if transcript and Path(transcript).exists():
+        prompt, answer = last_turn(Path(transcript))
+    prompt = RE_PASTE_START.sub("", prompt)
+    if prompt.startswith(CHAT_PREFIX):
+        pending_file = PENDING_DIR / f"{session_id}.chat.json"
+    elif prompt.startswith(PREFIX):
+        pending_file = PENDING_DIR / f"{session_id}.json"
+    else:
+        # This turn was typed in the app; a prompt from outside may be queued
+        return
     if not pending_file.exists():
         return
     try:
@@ -81,24 +103,18 @@ def main() -> None:
     if time.time() - float(pending.get("time", 0)) > PENDING_SECONDS:
         pending_file.unlink(missing_ok=True)
         return
-
-    prompt, answer = "", ""
-    transcript = hook.get("transcript_path")
-    if transcript and Path(transcript).exists():
-        prompt, answer = last_turn(Path(transcript))
-    if not prompt.startswith(PREFIX):
-        # This turn was typed in the app; the voice prompt may still be queued
-        return
     answer = str(hook.get("last_assistant_message") or "").strip() or answer
     if not answer:
         return
 
     pending_file.unlink(missing_ok=True)
+    body = {"text": answer, "session": pending.get("session") or "alexa"}
+    extra = pending.get("reply_extra")
+    if isinstance(extra, dict):
+        body.update({str(key): str(value) for key, value in extra.items()})
     request = urllib.request.Request(
         pending["reply_url"],
-        data=json.dumps(
-            {"text": answer, "session": pending.get("session") or "alexa"}
-        ).encode(),
+        data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )

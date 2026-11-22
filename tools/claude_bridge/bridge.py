@@ -5,6 +5,12 @@ Home Assistant posts spoken prompts and session commands here:
 
 - POST /prompt    {text, reply_url[, session]}  type into the active (or named) session
 - POST /sessions  {name, text?, reply_url?} start a voice session (and switch)
+
+Prompts with "source": "ha_chat" come from the chat panel of Home Assistant
+(agent_sessions): they get the prefix "[HA-Chat]", may be longer, never
+switch the active voice session, and their answer goes to the address given
+with that prompt, together with "reply_extra" (prompt id, reply token).
+Sessions started for the chat are not ended when idle.
 - POST /switch    {name}                    send following prompts there
 - POST /end       {name}                    end a voice session
 - GET  /sessions                            running sessions and the active one
@@ -19,6 +25,7 @@ Only the standard library is used, so it runs with the system Python.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
@@ -56,7 +63,12 @@ ALLOWED_HOSTS = {
     if host.strip()
 }
 MAX_TEXT = 600
-MAX_BODY = 8192
+MAX_CHAT_TEXT = 4000
+MAX_BODY = 32768
+MAX_CHAT_SESSIONS = int(os.environ.get("CLAUDE_ALEXA_MAX_CHAT_SESSIONS", "3"))
+SOURCE_CHAT = "ha_chat"
+CHAT_PREFIX = "[HA-Chat]"
+RE_EXTRA_VALUE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 ENTER_ATTEMPTS = 4
 READY_SECONDS = 60
 RE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,19}$")
@@ -65,10 +77,25 @@ _LOGGER = logging.getLogger("claude-alexa-bridge")
 _LOCK = threading.Lock()
 
 
-def clean_text(text: str) -> str:
+@dataclass
+class Prompt:
+    """A prompt to type and where its answer goes."""
+
+    text: str
+    reply_url: str
+    chat: bool = False
+    extra: dict[str, str] = field(default_factory=dict)
+
+
+def clean_text(text: str, limit: int = MAX_TEXT) -> str:
     """Return one line of printable text, so tmux types nothing unexpected."""
     printable = "".join(ch if ch.isprintable() else " " for ch in text)
-    return " ".join(printable.split())[:MAX_TEXT]
+    return " ".join(printable.split())[:limit]
+
+
+def pending_file(session_id: str, chat: bool) -> Path:
+    """Return the pending file of a session (chat and voice answers apart)."""
+    return PENDING_DIR / (f"{session_id}.chat.json" if chat else f"{session_id}.json")
 
 
 def tmux(socket: str, *args: str, check: bool = False) -> subprocess.CompletedProcess:
@@ -207,15 +234,21 @@ def claude_id(state: dict, name: str) -> str:
     return state["sessions"][name]["id"]
 
 
-def write_pending(session_id: str, name: str, reply_url: str, text: str) -> None:
+def write_pending(session_id: str, name: str, prompt: Prompt) -> None:
     """Remember where the next answer of a session goes (for stop_hook.py)."""
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
     os.chmod(PENDING_DIR, 0o700)
-    target = PENDING_DIR / f"{session_id}.json"
-    tmp = target.with_suffix(".tmp")
+    target = pending_file(session_id, prompt.chat)
+    tmp = target.with_name(target.name + ".tmp")
     tmp.write_text(
         json.dumps(
-            {"reply_url": reply_url, "session": name, "prompt": text, "time": time.time()}
+            {
+                "reply_url": prompt.reply_url,
+                "session": name,
+                "prompt": prompt.text,
+                "time": time.time(),
+                "reply_extra": prompt.extra,
+            }
         ),
         encoding="utf-8",
     )
@@ -225,29 +258,29 @@ def write_pending(session_id: str, name: str, reply_url: str, text: str) -> None
 _TYPE_LOCK = threading.Lock()
 
 
-def _deliver_logged(name: str, session_id: str, text: str, reply_url: str) -> None:
+def _deliver_logged(name: str, session_id: str, prompt: Prompt) -> None:
     """Type a prompt and log the outcome (runs in its own thread)."""
     with _TYPE_LOCK:  # one prompt at a time, or keystrokes would mix
-        ok = deliver(name, session_id, text, reply_url)
+        ok = deliver(name, session_id, prompt)
     if ok:
-        _LOGGER.info("Prompt typed into session %s (%d chars)", name, len(text))
+        _LOGGER.info("Prompt typed into session %s (%d chars)", name, len(prompt.text))
     else:
         _LOGGER.error("Could not type the prompt into session %s", name)
 
 
-def deliver(name: str, session_id: str, text: str, reply_url: str) -> bool:
+def deliver(name: str, session_id: str, prompt: Prompt) -> bool:
     """Note the reply address and type the prompt; False if tmux failed."""
-    write_pending(session_id, name, reply_url, text)
+    write_pending(session_id, name, prompt)
     try:
-        type_prompt(name, text)
+        type_prompt(name, prompt.text)
     except subprocess.CalledProcessError as err:
         _LOGGER.error("tmux failed for %s: %s", name, err)
-        (PENDING_DIR / f"{session_id}.json").unlink(missing_ok=True)
+        pending_file(session_id, prompt.chat).unlink(missing_ok=True)
         return False
     return True
 
 
-def start_voice_session(name: str, session_id: str, text: str, reply_url: str) -> None:
+def start_voice_session(name: str, session_id: str, prompt: Prompt | None) -> None:
     """Start a voice session and type its first prompt once it is ready."""
     result = tmux(
         VOICE_SOCKET,
@@ -261,8 +294,9 @@ def start_voice_session(name: str, session_id: str, text: str, reply_url: str) -
         _LOGGER.warning("Session %s did not get ready in time", name)
         return
     _LOGGER.info("Voice session %s started", name)
-    if text:
-        deliver(name, session_id, text, reply_url)
+    if prompt is not None:
+        with _TYPE_LOCK:
+            deliver(name, session_id, prompt)
 
 
 def end_voice_session(name: str) -> None:
@@ -277,6 +311,8 @@ def idle_reaper() -> None:
             state = load_state()
             now = time.time()
             for name, info in list(state["sessions"].items()):
+                if info.get("chat"):
+                    continue  # chat sessions stay until they are ended
                 if now - float(info.get("last", now)) > IDLE_SECONDS:
                     _LOGGER.info("Ending idle voice session %s", name)
                     end_voice_session(name)
@@ -327,9 +363,12 @@ class Handler(BaseHTTPRequestHandler):
         return payload if isinstance(payload, dict) else None
 
     @staticmethod
-    def _prompt_of(payload: dict) -> tuple[str, str] | None:
-        """Return text and reply address, or None if they are not valid."""
-        text = clean_text(str(payload.get("text") or ""))
+    def _prompt_of(payload: dict) -> Prompt | None:
+        """Return the prompt, or None if text or reply address are not valid."""
+        chat = payload.get("source") == SOURCE_CHAT
+        text = clean_text(
+            str(payload.get("text") or ""), MAX_CHAT_TEXT if chat else MAX_TEXT
+        )
         reply_url = str(payload.get("reply_url") or "")
         parsed = urlparse(reply_url)
         # The answer only ever goes back to Home Assistant itself
@@ -339,7 +378,19 @@ class Handler(BaseHTTPRequestHandler):
             or parsed.hostname not in ALLOWED_HOSTS
         ):
             return None
-        return text, reply_url
+        extra: dict[str, str] = {}
+        if chat:
+            if not text.startswith(CHAT_PREFIX):
+                text = f"{CHAT_PREFIX} {text}"
+            raw_extra = payload.get("reply_extra")
+            if isinstance(raw_extra, dict):
+                extra = {
+                    str(key): str(value)
+                    for key, value in raw_extra.items()
+                    if key in ("prompt_id", "reply_token")
+                    and RE_EXTRA_VALUE.match(str(value))
+                }
+        return Prompt(text, reply_url, chat, extra)
 
     def do_GET(self) -> None:  # noqa: N802
         if not self._gate():
@@ -351,8 +402,14 @@ class Handler(BaseHTTPRequestHandler):
                 state = load_state()
                 prune(state)
                 save_state(state)
+            chat = sorted(n for n, i in state["sessions"].items() if i.get("chat"))
             self._reply(
-                200, {"sessions": session_names(state), "active": state["active"]}
+                200,
+                {
+                    "sessions": session_names(state),
+                    "active": state["active"],
+                    "chat": chat,
+                },
             )
         else:
             self._reply(404, {"error": "not found"})
@@ -392,6 +449,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._reply(404, {"sessions": session_names(state)})
                     return
                 name = wanted
+            elif prompt.chat:
+                # The chat always names its session; never the voice one by chance
+                self._reply(400, {"error": "session missing"})
+                return
             if name != MAIN_SESSION:
                 state["sessions"][name]["last"] = time.time()
             save_state(state)
@@ -402,7 +463,7 @@ class Handler(BaseHTTPRequestHandler):
         # Alexa waits only a few seconds: confirm now, type in the background
         # (right after a restart the session may need a while to get ready)
         threading.Thread(
-            target=_deliver_logged, args=(name, session_id, *prompt), daemon=True
+            target=_deliver_logged, args=(name, session_id, prompt), daemon=True
         ).start()
         self._reply(200, {"ok": True, "session": name})
 
@@ -411,33 +472,45 @@ class Handler(BaseHTTPRequestHandler):
         if not RE_NAME.match(name) or name == MAIN_SESSION:
             self._reply(400, {"error": "bad name"})
             return
-        prompt = self._prompt_of(payload) if payload.get("text") else ("", "")
-        if prompt is None:
+        chat = payload.get("source") == SOURCE_CHAT
+        prompt = self._prompt_of(payload) if payload.get("text") else None
+        if payload.get("text") and prompt is None:
             self._reply(400, {"error": "bad prompt"})
             return
         with _LOCK:
             state = load_state()
             prune(state)
             if name in state["sessions"]:
-                # Exists already: switch to it and hand over the prompt
-                state["active"] = name
+                # Exists already: hand over the prompt (voice also switches)
+                if not chat:
+                    state["active"] = name
                 state["sessions"][name]["last"] = time.time()
                 save_state(state)
-                if prompt[0]:
-                    deliver(name, state["sessions"][name]["id"], *prompt)
+                session_id = state["sessions"][name]["id"]
+                if prompt is not None:
+                    threading.Thread(
+                        target=_deliver_logged,
+                        args=(name, session_id, prompt),
+                        daemon=True,
+                    ).start()
                 self._reply(200, {"session": name, "existed": True})
                 return
-            if len(state["sessions"]) >= MAX_VOICE_SESSIONS:
+            same_kind = [i for i in state["sessions"].values() if bool(i.get("chat")) == chat]
+            if len(same_kind) >= (MAX_CHAT_SESSIONS if chat else MAX_VOICE_SESSIONS):
                 self._reply(409, {"sessions": session_names(state)})
                 return
             session_id = str(uuid.uuid4())
-            state["sessions"][name] = {"id": session_id, "last": time.time()}
-            state["active"] = name
+            info: dict = {"id": session_id, "last": time.time()}
+            if chat:
+                info["chat"] = True
+            else:
+                state["active"] = name
+            state["sessions"][name] = info
             save_state(state)
         # Starting Claude takes a while; Home Assistant gets its answer now
         threading.Thread(
             target=start_voice_session,
-            args=(name, session_id, *prompt),
+            args=(name, session_id, prompt),
             daemon=True,
         ).start()
         self._reply(200, {"session": name})

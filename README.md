@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.4-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.5-blue.svg" alt="Version"></a>
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.5** | 22.11.2026 | **Claude-Brücke für den Home-Assistant-Chat:** Die Brücke (`tools/claude_bridge`) nimmt jetzt auch Nachrichten aus dem Chat-Panel der Integration *Agent Code Sessions* an (`"source": "ha_chat"`). Sie bekommen das Präfix `[HA-Chat]`, dürfen bis 4000 Zeichen lang sein, wechseln nie die aktive Sprach-Sitzung und haben eigene Chat-Sitzungen (max. 3, ohne Leerlauf-Ende). Der Stop-Hook schickt die Antwort mit Prompt-ID und Antwort-Token an Home Assistant zurück; Alexa- und Chat-Antworten einer Sitzung kommen sich nicht mehr in die Quere. Auch lange, von Claude Code als „eingefügt“ markierte Eingaben werden erkannt. Neu installieren: `tools/claude_bridge/install.sh <HA-IP>`. An Alexa ändert sich nichts. |
 | **v1.5.4** | 20.11.2026 | **Fix:** „Cloud soll nachsehen, welche Türen offen sind“ ging an die KI-Antwort statt an Claude. Alexa ordnet einen Claude-Auftrag manchmal dem Auffang-Befehl zu (vor allem, wenn sie „Claude“ als „cloud“ versteht); dann bekam Gemini den ganzen Satz samt „cloud soll“. Jetzt erkennt Schlaue Antworten solche Sätze auch dort und schickt den Auftrag an die Claude-Brücke, sofern sie eingerichtet ist. Das Sprachmodell muss dafür nicht neu kopiert werden. |
 | **v1.5.3** | 19.11.2026 | **Fix:** Push ans Handy scheiterte, wenn das Ziel `notify.notify` war und es diesen Dienst nicht gibt (z. B. ohne Benachrichtigungsgruppe). Jetzt geht die Antwort in dem Fall an das einzige Handy mit Companion-App, und Alexa bestätigt nur noch, was wirklich gesendet wurde. In den *Einstellungen* ist das Ziel eine Auswahlliste der vorhandenen Dienste (Handys zuerst); ein vertippter Dienst wird vor dem Speichern gemeldet. Neue Installationen starten direkt mit dem Handy. |
 | **v1.5.2** | 19.11.2026 | **Fix:** „Translation error: INVALID_TAG“ im Punkt *Eigener Alexa-Skill* – der Kopier-Link steckt jetzt im Platzhalter statt im Übersetzungstext; ein Test verhindert HTML-Tags in Übersetzungen. Doku überarbeitet (Vergleich der Sprachwege, Tipp „falscher Echo“). |

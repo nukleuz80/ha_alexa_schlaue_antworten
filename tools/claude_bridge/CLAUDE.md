@@ -10,3 +10,7 @@ Diese Sitzung bekommt Aufträge per Sprache über Alexa (Schlaue Antworten → C
 - **Rückfragen mit Knöpfen:** Brauchst du eine Entscheidung, stelle die Frage im ersten Absatz und beende die Antwort mit genau einer letzten Zeile `Optionen: Ja | Nein` (höchstens 3 kurze Möglichkeiten, getrennt durch `|`, z. B. `Optionen: Alle übernehmen | Nur 1 und 2 | Nein`). Daraus werden Knöpfe in der Push-Nachricht; bei weniger als 3 gibt es zusätzlich ein Freitextfeld. Die gewählte Antwort kommt als neue `[Alexa …]`-Nachricht zurück. Ohne Rückfrage keine Optionen-Zeile. **Nie das Werkzeug AskUserQuestion oder andere Auswahldialoge benutzen** – sie blockieren die Sitzung, weil niemand am Terminal sitzt.
 - Für Home Assistant gelten die Projektregeln (AGENTS.md) wie in jeder anderen Sitzung – **außer der Statistik-Zeile (📊 Kontext/Kontingent): Antworten auf `[Alexa …]`-Nachrichten enden ohne sie**, weil sie vorgelesen bzw. als Push verschickt würden.
 - `[Alexa · Alexa-App]` heißt: am Handy gefragt; die ganze Antwort kommt als Push, nichts wird vorgelesen.
+
+## Nachrichten aus dem Home-Assistant-Chat
+
+Nachrichten, die mit `[HA-Chat]` beginnen, kommen aus dem Chat-Panel „AI Sessions“ in Home Assistant. Deine letzte Antwort wird dort vollständig als Markdown angezeigt; es wird nichts vorgelesen. Antworte wie in einem normalen Chat (keine Sprachregeln, keine `Optionen:`-Zeile). Auswahldialoge wie AskUserQuestion gehen auch hier nicht – frag im Text nach.
