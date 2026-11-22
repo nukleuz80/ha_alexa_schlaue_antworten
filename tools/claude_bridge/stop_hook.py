@@ -42,9 +42,10 @@ def _text_of(content: object) -> str:
     return ""
 
 
-def last_turn(transcript: Path) -> tuple[str, str]:
-    """Return the last typed user prompt and Claude's last text after it."""
+def last_turn(transcript: Path) -> tuple[str, str, list[str]]:
+    """Return the last typed prompt, Claude's last text and all its texts."""
     prompt, answer = "", ""
+    parts: list[str] = []
     with transcript.open(encoding="utf-8") as lines:
         for line in lines:
             try:
@@ -59,12 +60,13 @@ def last_turn(transcript: Path) -> tuple[str, str]:
                 text = _text_of(content)
                 # Tool results come as user entries too; they carry no text block
                 if text.strip():
-                    prompt, answer = text.strip(), ""
+                    prompt, answer, parts = text.strip(), "", []
             elif entry.get("type") == "assistant":
                 text = _text_of(content)
                 if text.strip():
                     answer = text.strip()
-    return prompt, answer
+                    parts.append(answer)
+    return prompt, answer, parts
 
 
 def main() -> None:
@@ -82,9 +84,10 @@ def main() -> None:
     ):
         return  # nothing from outside waits for an answer
     prompt, answer = "", ""
+    parts: list[str] = []
     transcript = hook.get("transcript_path")
     if transcript and Path(transcript).exists():
-        prompt, answer = last_turn(Path(transcript))
+        prompt, answer, parts = last_turn(Path(transcript))
     prompt = RE_PASTE_START.sub("", prompt)
     if prompt.startswith(CHAT_PREFIX):
         pending_file = PENDING_DIR / f"{session_id}.chat.json"
@@ -103,7 +106,15 @@ def main() -> None:
     if time.time() - float(pending.get("time", 0)) > PENDING_SECONDS:
         pending_file.unlink(missing_ok=True)
         return
-    answer = str(hook.get("last_assistant_message") or "").strip() or answer
+    last = str(hook.get("last_assistant_message") or "").strip()
+    if prompt.startswith(CHAT_PREFIX) and parts:
+        # The HA chat shows the whole turn, including the texts Claude wrote
+        # between tool calls; Alexa only reads out the final answer
+        if last and last not in parts:
+            parts.append(last)
+        answer = "\n\n".join(parts)
+    else:
+        answer = last or answer
     if not answer:
         return
 
