@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.9-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.10-blue.svg" alt="Version"></a>
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.10** | 22.11.2026 | **Claude-Brücke, Verlauf:** Neuer Endpunkt `GET /history?id=<Session-ID>` liefert die letzten Nachrichten einer Claude-Session direkt aus ihrem Transcript, ohne Werkzeugaufrufe und Systemhinweise. Damit zeigt das AI-Sessions-Panel den ganzen Verlauf, auch was per Alexa oder direkt in der Claude-App gesprochen wurde. |
 | **v1.5.9** | 22.11.2026 | **Claude-Brücke, HA-Chat:** Der Stop-Hook schickt jetzt die ganze Runde an Home Assistant, also auch die Zwischenantworten, die Claude zwischen Werkzeugaufrufen schreibt. Bisher kam nur der letzte Textblock an. Alexa liest weiterhin nur die Schlussantwort vor. |
 | **v1.5.8** | 22.11.2026 | **Claude-Brücke:** Sitzungsnamen unter `app` jetzt genau wie in der Claude-App: zuerst der mit `/rename` vergebene Name, sonst der Remote-Control-Name (bei Sitzungen der Brücke z. B. `alexa`, `ha-chat`), sonst der Ordnername. Der automatisch erzeugte KI-Titel wird nicht mehr verwendet. |
 | **v1.5.7** | 22.11.2026 | **Claude-Brücke:** `GET /sessions` meldet zusätzlich unter `app` alle laufenden Claude-Code-Sitzungen dieses Rechners, die mit der Claude-App verbunden sind (Remote Control), mit dem Titel aus der App und dem Link dorthin. Damit zeigt *Agent Code Sessions* (ab v1.7.2) genau diese Sitzungen. |

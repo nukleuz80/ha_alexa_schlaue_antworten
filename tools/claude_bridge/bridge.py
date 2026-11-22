@@ -37,7 +37,7 @@ import re
 import subprocess
 import threading
 import time
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 import uuid
 
 HOME = Path.home()
@@ -81,6 +81,12 @@ CLAUDE_SESSIONS_DIR = HOME / ".claude/sessions"
 CLAUDE_PROJECTS_DIR = HOME / ".claude/projects"
 APP_SESSION_URL = "https://claude.ai/code/"
 RE_PROJECT_CHAR = re.compile(r"[^A-Za-z0-9]")
+RE_SESSION_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+RE_TAG_BLOCK = re.compile(r"<(system-reminder|local-command-caveat)>.*?</\1>", re.S)
+HISTORY_TAIL_BYTES = 6 * 1024 * 1024
+HISTORY_MAX_TEXT = 6000
+HISTORY_DEFAULT = 60
+HISTORY_MAX = 200
 
 _LOGGER = logging.getLogger("claude-alexa-bridge")
 _LOCK = threading.Lock()
@@ -404,6 +410,76 @@ def app_sessions(state: dict) -> list[dict]:
     return result
 
 
+def _history_text(content: object, role: str) -> str:
+    """Return the readable text of a transcript message, else an empty string."""
+    if isinstance(content, str):
+        parts = [content]
+    elif isinstance(content, list):
+        # Tool calls and tool results are left out; only what was said counts
+        parts = [
+            str(block.get("text") or "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+    else:
+        return ""
+    text = RE_TAG_BLOCK.sub("", "\n\n".join(parts)).strip()
+    if role == "user" and text.startswith("<"):
+        return ""  # slash commands, command output, hook notes
+    if len(text) > HISTORY_MAX_TEXT:
+        text = text[:HISTORY_MAX_TEXT].rstrip() + " …"
+    return text
+
+
+def session_history(session_id: str, limit: int) -> list[dict] | None:
+    """Return the last messages of a Claude session from its transcript.
+
+    None means the transcript was not found. Only the tail of the file is
+    read, so very long sessions stay cheap.
+    """
+    if not RE_SESSION_ID.match(session_id):
+        return None
+    try:
+        path = next(CLAUDE_PROJECTS_DIR.glob(f"*/{session_id}.jsonl"))
+        size = path.stat().st_size
+        with path.open("rb") as transcript:
+            transcript.seek(max(0, size - HISTORY_TAIL_BYTES))
+            raw = transcript.read()
+    except (OSError, StopIteration):
+        return None
+    lines = raw.split(b"\n")
+    if size > HISTORY_TAIL_BYTES:
+        lines = lines[1:]  # the first line is cut
+    messages: list[dict] = []
+    index: dict[str, int] = {}
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        role = entry.get("type")
+        if role not in ("user", "assistant") or entry.get("isMeta"):
+            continue
+        if entry.get("isCompactSummary") or entry.get("isSidechain"):
+            continue
+        message = entry.get("message") or {}
+        text = _history_text(message.get("content"), role)
+        if not text:
+            continue
+        stamp = str(entry.get("timestamp") or "")
+        # An answer is written block by block under one message id
+        msg_id = str(message.get("id") or "") if role == "assistant" else ""
+        if msg_id and msg_id in index:
+            messages[index[msg_id]]["text"] += "\n\n" + text
+            continue
+        if msg_id:
+            index[msg_id] = len(messages)
+        messages.append({"role": role, "text": text, "time": stamp})
+    return messages[-limit:]
+
+
 def end_voice_session(name: str) -> None:
     tmux(VOICE_SOCKET, "kill-session", "-t", f"={name}")
 
@@ -502,6 +578,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/health":
             self._reply(200, {"session": running(MAIN_SESSION)})
+        elif urlparse(self.path).path == "/history":
+            query = parse_qs(urlparse(self.path).query)
+            session_id = (query.get("id") or [""])[0]
+            try:
+                limit = int((query.get("limit") or [HISTORY_DEFAULT])[0])
+            except ValueError:
+                limit = HISTORY_DEFAULT
+            limit = max(1, min(HISTORY_MAX, limit))
+            history = session_history(session_id, limit)
+            if history is None:
+                self._reply(404, {"error": "not found"})
+            else:
+                self._reply(200, {"id": session_id, "messages": history})
         elif self.path == "/sessions":
             with _LOCK:
                 state = load_state()
