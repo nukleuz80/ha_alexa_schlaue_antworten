@@ -13,7 +13,8 @@ with that prompt, together with "reply_extra" (prompt id, reply token).
 Sessions started for the chat are not ended when idle.
 - POST /switch    {name}                    send following prompts there
 - POST /end       {name}                    end a voice session
-- GET  /sessions                            running sessions and the active one
+- GET  /sessions                            running sessions, the active one and
+                                            the sessions the Claude app shows
 - GET  /health
 
 The main session "alexa" runs on tmux socket "alexa" (claude-alexa-session
@@ -74,6 +75,12 @@ RE_EXTRA_VALUE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 ENTER_ATTEMPTS = 4
 READY_SECONDS = 60
 RE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,19}$")
+# Claude Code keeps one file per running session here; a session that is
+# connected to the Claude app (Remote Control) carries a bridgeSessionId
+CLAUDE_SESSIONS_DIR = HOME / ".claude/sessions"
+CLAUDE_PROJECTS_DIR = HOME / ".claude/projects"
+APP_SESSION_URL = "https://claude.ai/code/"
+RE_PROJECT_CHAR = re.compile(r"[^A-Za-z0-9]")
 
 _LOGGER = logging.getLogger("claude-alexa-bridge")
 _LOCK = threading.Lock()
@@ -305,6 +312,93 @@ def start_voice_session(name: str, session_id: str, prompt: Prompt | None) -> No
             deliver(name, session_id, prompt)
 
 
+# sessionId -> [transcript offset, custom title, ai title]
+_TITLES: dict[str, list] = {}
+
+
+def _alive(pid: int, proc_start: str) -> bool:
+    """Return whether the process runs and is the one that wrote the file."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    # Fields after the process name; field 22 is the start time
+    fields = stat.rsplit(")", 1)[-1].split()
+    return not proc_start or (len(fields) > 19 and fields[19] == str(proc_start))
+
+
+def _title(session_id: str, cwd: str) -> str:
+    """Return the title the Claude app shows (/rename, else the AI title)."""
+    project = RE_PROJECT_CHAR.sub("-", cwd)
+    path = CLAUDE_PROJECTS_DIR / project / f"{session_id}.jsonl"
+    entry = _TITLES.setdefault(session_id, [0, "", ""])
+    try:
+        size = path.stat().st_size
+        if size < entry[0]:
+            entry[:] = [0, "", ""]
+        with path.open("rb") as transcript:
+            transcript.seek(entry[0])
+            for raw in transcript:
+                if not raw.endswith(b"\n"):
+                    break  # still being written; read it next time
+                entry[0] += len(raw)
+                if b'"custom-title"' not in raw and b'"ai-title"' not in raw:
+                    continue
+                try:
+                    line = json.loads(raw)
+                except ValueError:
+                    continue
+                if line.get("type") == "custom-title":
+                    entry[1] = str(line.get("customTitle") or "")
+                elif line.get("type") == "ai-title":
+                    entry[2] = str(line.get("aiTitle") or "")
+    except OSError:
+        pass
+    return entry[1] or entry[2]
+
+
+def app_sessions(state: dict) -> list[dict]:
+    """Return the sessions of this machine that the Claude app shows."""
+    names: dict[str, str] = {}
+    for name in session_names(state):
+        try:
+            names[claude_id(state, name)] = name
+        except (OSError, KeyError):
+            continue
+    result: list[dict] = []
+    try:
+        files = sorted(CLAUDE_SESSIONS_DIR.glob("*.json"))
+    except OSError:
+        return result
+    for file in files:
+        try:
+            info = json.loads(file.read_text(encoding="utf-8"))
+            pid = int(info["pid"])
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        app_id = str(info.get("bridgeSessionId") or "")
+        session_id = str(info.get("sessionId") or "")
+        if not app_id or not session_id or not _alive(pid, info.get("procStart", "")):
+            continue
+        cwd = str(info.get("cwd") or "")
+        result.append(
+            {
+                "id": session_id,
+                "title": _title(session_id, cwd) or str(info.get("name") or session_id[:8]),
+                "url": APP_SESSION_URL + app_id,
+                "cwd": cwd,
+                "status": str(info.get("status") or "idle"),
+                "started": float(info.get("startedAt") or 0) / 1000,
+                "updated": float(info.get("updatedAt") or 0) / 1000,
+                "bridge": names.get(session_id, ""),
+            }
+        )
+    for gone in set(_TITLES) - {s["id"] for s in result}:
+        del _TITLES[gone]
+    result.sort(key=lambda s: s["started"])
+    return result
+
+
 def end_voice_session(name: str) -> None:
     tmux(VOICE_SOCKET, "kill-session", "-t", f"={name}")
 
@@ -408,6 +502,7 @@ class Handler(BaseHTTPRequestHandler):
                 state = load_state()
                 prune(state)
                 save_state(state)
+                app = app_sessions(state)
             chat = sorted(n for n, i in state["sessions"].items() if i.get("chat"))
             self._reply(
                 200,
@@ -415,6 +510,7 @@ class Handler(BaseHTTPRequestHandler):
                     "sessions": session_names(state),
                     "active": state["active"],
                     "chat": chat,
+                    "app": app,
                 },
             )
         else:

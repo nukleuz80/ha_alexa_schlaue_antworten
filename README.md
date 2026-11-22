@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.6-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.7-blue.svg" alt="Version"></a>
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.7** | 22.11.2026 | **Claude-Brücke:** `GET /sessions` meldet zusätzlich unter `app` alle laufenden Claude-Code-Sitzungen dieses Rechners, die mit der Claude-App verbunden sind (Remote Control), mit dem Titel aus der App und dem Link dorthin. Damit zeigt *Agent Code Sessions* (ab v1.7.2) genau diese Sitzungen. |
 | **v1.5.6** | 22.11.2026 | **Claude-Brücke:** Eine frisch gestartete Sitzung wird nicht mehr sofort wieder vergessen, wenn Home Assistant direkt nach dem Start die Sitzungsliste abfragt (90 s Schonfrist, bis die tmux-Sitzung läuft). Vorher landete die erste Chat-Nachricht dadurch in einem zweiten Startversuch und kam nie an. Neu installieren: `tools/claude_bridge/install.sh <HA-IP>`. |
 | **v1.5.5** | 22.11.2026 | **Claude-Brücke für den Home-Assistant-Chat:** Die Brücke (`tools/claude_bridge`) nimmt jetzt auch Nachrichten aus dem Chat-Panel der Integration *Agent Code Sessions* an (`"source": "ha_chat"`). Sie bekommen das Präfix `[HA-Chat]`, dürfen bis 4000 Zeichen lang sein, wechseln nie die aktive Sprach-Sitzung und haben eigene Chat-Sitzungen (max. 3, ohne Leerlauf-Ende). Der Stop-Hook schickt die Antwort mit Prompt-ID und Antwort-Token an Home Assistant zurück; Alexa- und Chat-Antworten einer Sitzung kommen sich nicht mehr in die Quere. Auch lange, von Claude Code als „eingefügt“ markierte Eingaben werden erkannt. Neu installieren: `tools/claude_bridge/install.sh <HA-IP>`. An Alexa ändert sich nichts. |
 | **v1.5.4** | 20.11.2026 | **Fix:** „Cloud soll nachsehen, welche Türen offen sind“ ging an die KI-Antwort statt an Claude. Alexa ordnet einen Claude-Auftrag manchmal dem Auffang-Befehl zu (vor allem, wenn sie „Claude“ als „cloud“ versteht); dann bekam Gemini den ganzen Satz samt „cloud soll“. Jetzt erkennt Schlaue Antworten solche Sätze auch dort und schickt den Auftrag an die Claude-Brücke, sofern sie eingerichtet ist. Das Sprachmodell muss dafür nicht neu kopiert werden. |
