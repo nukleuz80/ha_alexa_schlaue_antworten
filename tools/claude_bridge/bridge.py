@@ -401,6 +401,8 @@ def app_sessions(state: dict) -> list[dict]:
                 "status": str(info.get("status") or "idle"),
                 "started": float(info.get("startedAt") or 0) / 1000,
                 "updated": float(info.get("updatedAt") or 0) / 1000,
+                # Changes with every message: lets HA follow the chat live
+                "changed": _transcript_stamp(session_id),
                 "bridge": names.get(session_id, ""),
             }
         )
@@ -408,6 +410,23 @@ def app_sessions(state: dict) -> list[dict]:
         del _TITLES[gone]
     result.sort(key=lambda s: s["started"])
     return result
+
+
+_TRANSCRIPTS: dict[str, Path] = {}
+
+
+def _transcript_stamp(session_id: str) -> float:
+    """Modification time of the session transcript, 0 if there is none."""
+    path = _TRANSCRIPTS.get(session_id)
+    if path is None or not path.exists():
+        path = next(CLAUDE_PROJECTS_DIR.glob(f"*/{session_id}.jsonl"), None)
+        if path is None:
+            return 0.0
+        _TRANSCRIPTS[session_id] = path
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
 
 
 def _history_text(content: object, role: str) -> str:
