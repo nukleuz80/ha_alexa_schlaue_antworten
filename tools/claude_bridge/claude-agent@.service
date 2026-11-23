@@ -1,0 +1,16 @@
+[Unit]
+Description=Claude Code Agent "%i" in tmux (feste Session für das Panel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Own tmux socket per agent, so systemd notices when it ends.
+# Attach with: tmux -L agent-%i attach -t %i
+Type=forking
+ExecStart=/usr/bin/tmux -L agent-%i new-session -d -s %i -x 220 -y 50 %h/claude-alexa/run_agent.sh %i
+ExecStop=/usr/bin/tmux -L agent-%i kill-server
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

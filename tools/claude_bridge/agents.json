@@ -1,0 +1,8 @@
+{
+  "agents": [
+    {"name": "brainstorm", "title": "Brainstorm"},
+    {"name": "schlaue-antworten", "title": "Schlaue Antworten"},
+    {"name": "sessions", "title": "AI Sessions"},
+    {"name": "analyse", "title": "Analyse & Fragen", "model": "sonnet", "settings": "settings_readonly.json"}
+  ]
+}

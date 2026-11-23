@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.11-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.12-blue.svg" alt="Version"></a>
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -225,7 +225,7 @@ Alle Optionen mit Standardwerten: [**Wiki → Einrichtung & Optionen**](https://
 Höchstens 3 Sprach-Sitzungen neben der Hauptsitzung (`CLAUDE_ALEXA_MAX_SESSIONS`); nach 2 Stunden ohne Auftrag enden sie von selbst (`CLAUDE_ALEXA_IDLE_SECONDS`). Antworten einer Sprach-Sitzung beginnen mit ihrem Namen. Zum Zuschauen: `tmux -L alexa-x attach -t heizung`. Jede Sitzung verbraucht Claude-Kontingent.
 
 **Einrichtung** (Schritt für Schritt im [Wiki → Claude-Brücke](https://github.com/nukleuz80/ha_alexa_schlaue_antworten/wiki/Claude-Bruecke)):
-- Auf dem Rechner mit Claude Code (tmux und python3 nötig): `tools/claude_bridge/install.sh <IP von Home Assistant>` ausführen. Das legt `~/claude-alexa` an, erzeugt ein Token in `~/.config/claude-alexa/token` und startet zwei systemd-User-Dienste: `claude-alexa-session` (Sitzung „alexa“ in tmux mit Stop-Hook, Arbeitsordner `/mnt/ha_config` oder `CLAUDE_ALEXA_WORKDIR` aus `~/.config/claude-alexa/env`, feste Session-ID) und `claude-alexa-bridge` (HTTP auf Port 8765, nimmt nur Anfragen von Home Assistant an). Ist der Arbeitsordner für Claude Code noch neu, einmal `tmux -L alexa attach -t alexa` und ihn als vertrauenswürdig bestätigen.
+- Auf dem Rechner mit Claude Code (tmux und python3 nötig): `tools/claude_bridge/install.sh <IP von Home Assistant>` ausführen. Das legt `~/claude-alexa` an, erzeugt ein Token in `~/.config/claude-alexa/token` und startet zwei systemd-User-Dienste: `claude-alexa-session` (Sitzung „alexa“ in tmux mit Stop-Hook, Arbeitsordner `/mnt/ha_config` oder `CLAUDE_ALEXA_WORKDIR` aus `~/.config/claude-alexa/env`, feste Session-ID) und `claude-alexa-bridge` (HTTP auf Port 8765, nimmt nur Anfragen von Home Assistant an). Ab v1.5.12 startet es außerdem je einen Dienst `claude-agent@<name>` für jeden festen Agenten aus `~/claude-alexa/agents.json`. Ist der Arbeitsordner für Claude Code noch neu, einmal `tmux -L alexa attach -t alexa` und ihn als vertrauenswürdig bestätigen.
 - In Schlaue Antworten unter *🤖 Claude-Brücke*: Adresse (z. B. `http://192.168.1.50:8765`), Token und **erlaubte Echos** eintragen. Nur Echos, die unter *🔊 Echo-Zuordnung* zugeordnet **und** hier erlaubt sind, dürfen Aufträge schicken; der Standard-Echo zählt nicht.
 - Neues Sprachmodell in die Alexa-Entwicklerkonsole einfügen und bauen (neuer `ClaudeIntent`).
 - Der Schalter **„Claude-Brücke“** schaltet die Weitergabe jederzeit ab. Höchstens 6 Aufträge in 10 Minuten.
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.12** | 23.11.2026 | **Claude-Brücke, feste Agenten:** Neben „alexa“ laufen jetzt dauerhaft eigene Claude-Sessions für einzelne Aufgaben (z. B. `brainstorm`, `schlaue-antworten`, `sessions`, `analyse`), festgelegt in `~/claude-alexa/agents.json`. Jede läuft als systemd-Dienst `claude-agent@<name>` in eigenem tmux, setzt nach Neustarts dieselbe Unterhaltung fort, ist in der Claude-App sichtbar und hat eine eigene Rolle (`agents/<name>.md`), optional ein eigenes Modell und eigene Rechte (z. B. nur lesen). Die Brücke meldet sie unter `fixed` und als chatbare Sessions an Home Assistant; sie zählen nicht zur Grenze von 3 Chat-Sessions und werden nie beendet. Neu installieren: `tools/claude_bridge/install.sh <HA-IP>`. |
 | **v1.5.11** | 23.11.2026 | **Claude-Brücke, Live-Verlauf:** `GET /sessions` liefert pro Claude-Session zusätzlich `changed` (Änderungszeit des Transcripts). Damit lädt das AI-Sessions-Panel den Verlauf nach jeder Nachricht neu und zeigt live dasselbe wie die Claude-App. |
 | **v1.5.10** | 22.11.2026 | **Claude-Brücke, Verlauf:** Neuer Endpunkt `GET /history?id=<Session-ID>` liefert die letzten Nachrichten einer Claude-Session direkt aus ihrem Transcript, ohne Werkzeugaufrufe und Systemhinweise. Damit zeigt das AI-Sessions-Panel den ganzen Verlauf, auch was per Alexa oder direkt in der Claude-App gesprochen wurde. |
 | **v1.5.9** | 22.11.2026 | **Claude-Brücke, HA-Chat:** Der Stop-Hook schickt jetzt die ganze Runde an Home Assistant, also auch die Zwischenantworten, die Claude zwischen Werkzeugaufrufen schreibt. Bisher kam nur der letzte Textblock an. Alexa liest weiterhin nur die Schlussantwort vor. |

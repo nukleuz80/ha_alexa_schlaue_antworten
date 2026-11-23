@@ -17,6 +17,11 @@ Sessions started for the chat are not ended when idle.
                                             the sessions the Claude app shows
 - GET  /health
 
+Fixed agents (agents.json, e.g. "brainstorm", "analyse") run all the time,
+each in its own tmux socket "agent-<name>" (claude-agent@<name>.service).
+They count as chat sessions for Home Assistant, are never ended by the
+bridge and do not count against the chat session limit.
+
 The main session "alexa" runs on tmux socket "alexa" (claude-alexa-session
 .service). Voice sessions run on socket "alexa-x", one tmux session each, and
 end after some idle time. The Stop hook of each session (stop_hook.py) posts
@@ -49,6 +54,11 @@ PENDING_DIR = STATE_DIR / "pending"
 SESSIONS_FILE = STATE_DIR / "sessions.json"
 MAIN_ID_FILE = STATE_DIR / "session_id"
 VOICE_SCRIPT = HOME / "claude-alexa/run_voice_session.sh"
+AGENTS_FILE = Path(
+    os.environ.get("CLAUDE_ALEXA_AGENTS", HOME / "claude-alexa/agents.json")
+)
+AGENT_STATE_DIR = STATE_DIR / "agents"
+AGENT_SOCKET_PREFIX = "agent-"
 MAIN_SESSION = os.environ.get("CLAUDE_ALEXA_TMUX", "alexa")
 MAIN_SOCKET = os.environ.get("CLAUDE_ALEXA_TMUX_SOCKET", "alexa")
 VOICE_SOCKET = os.environ.get("CLAUDE_ALEXA_VOICE_SOCKET", "alexa-x")
@@ -120,9 +130,33 @@ def tmux(socket: str, *args: str, check: bool = False) -> subprocess.CompletedPr
     )
 
 
+def fixed_agents() -> list[str]:
+    """Return the names of the fixed agents, in the order of agents.json."""
+    try:
+        raw = json.loads(AGENTS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    agents = raw.get("agents") if isinstance(raw, dict) else None
+    if not isinstance(agents, list):
+        return []
+    names = [
+        str(agent.get("name") or "")
+        for agent in agents
+        if isinstance(agent, dict)
+    ]
+    return [
+        name for name in dict.fromkeys(names)
+        if RE_NAME.match(name) and name != MAIN_SESSION
+    ]
+
+
 def socket_of(name: str) -> str:
     """Return the tmux socket a session runs on."""
-    return MAIN_SOCKET if name == MAIN_SESSION else VOICE_SOCKET
+    if name == MAIN_SESSION:
+        return MAIN_SOCKET
+    if name in fixed_agents():
+        return AGENT_SOCKET_PREFIX + name
+    return VOICE_SOCKET
 
 
 def running(name: str) -> bool:
@@ -238,18 +272,27 @@ def prune(state: dict) -> None:
             continue
         if not running(name):
             del state["sessions"][name]
-    if state["active"] != MAIN_SESSION and state["active"] not in state["sessions"]:
+    if not known(state, state["active"]):
         state["active"] = MAIN_SESSION
 
 
 def session_names(state: dict) -> list[str]:
-    return [MAIN_SESSION, *sorted(state["sessions"])]
+    fixed = fixed_agents()
+    others = sorted(n for n in state["sessions"] if n not in fixed)
+    return [MAIN_SESSION, *fixed, *others]
+
+
+def known(state: dict, name: str) -> bool:
+    """Return whether prompts may go to this session."""
+    return name == MAIN_SESSION or name in state["sessions"] or name in fixed_agents()
 
 
 def claude_id(state: dict, name: str) -> str:
     """Return the Claude session id of a session."""
     if name == MAIN_SESSION:
         return MAIN_ID_FILE.read_text(encoding="utf-8").strip()
+    if name in fixed_agents():
+        return (AGENT_STATE_DIR / f"{name}.id").read_text(encoding="utf-8").strip()
     return state["sessions"][name]["id"]
 
 
@@ -616,13 +659,21 @@ class Handler(BaseHTTPRequestHandler):
                 prune(state)
                 save_state(state)
                 app = app_sessions(state)
-            chat = sorted(n for n, i in state["sessions"].items() if i.get("chat"))
+            fixed = fixed_agents()
+            chat = [
+                *fixed,
+                *sorted(
+                    n for n, i in state["sessions"].items()
+                    if i.get("chat") and n not in fixed
+                ),
+            ]
             self._reply(
                 200,
                 {
                     "sessions": session_names(state),
                     "active": state["active"],
                     "chat": chat,
+                    "fixed": fixed,
                     "app": app,
                 },
             )
@@ -660,7 +711,7 @@ class Handler(BaseHTTPRequestHandler):
             wanted = str(payload.get("session") or "")
             if wanted:
                 # An answer to a question goes to the session that asked
-                if wanted != MAIN_SESSION and wanted not in state["sessions"]:
+                if not known(state, wanted):
                     self._reply(404, {"sessions": session_names(state)})
                     return
                 name = wanted
@@ -668,10 +719,16 @@ class Handler(BaseHTTPRequestHandler):
                 # The chat always names its session; never the voice one by chance
                 self._reply(400, {"error": "session missing"})
                 return
-            if name != MAIN_SESSION:
+            if name in state["sessions"]:
                 state["sessions"][name]["last"] = time.time()
             save_state(state)
-            session_id = claude_id(state, name)
+            try:
+                session_id = claude_id(state, name)
+            except OSError:
+                session_id = ""
+        if not session_id:
+            self._reply(503, {"error": "claude session not running"})
+            return
         if not running(name):
             self._reply(503, {"error": "claude session not running"})
             return
@@ -692,6 +749,23 @@ class Handler(BaseHTTPRequestHandler):
         if payload.get("text") and prompt is None:
             self._reply(400, {"error": "bad prompt"})
             return
+        if name in fixed_agents():
+            # A fixed agent always exists; it only takes the prompt
+            if prompt is not None:
+                try:
+                    session_id = claude_id(load_state(), name)
+                except OSError:
+                    session_id = ""
+                if not session_id or not running(name):
+                    self._reply(503, {"error": "claude session not running"})
+                    return
+                threading.Thread(
+                    target=_deliver_logged,
+                    args=(name, session_id, prompt),
+                    daemon=True,
+                ).start()
+            self._reply(200, {"session": name, "existed": True})
+            return
         with _LOCK:
             state = load_state()
             prune(state)
@@ -710,7 +784,10 @@ class Handler(BaseHTTPRequestHandler):
                     ).start()
                 self._reply(200, {"session": name, "existed": True})
                 return
-            same_kind = [i for i in state["sessions"].values() if bool(i.get("chat")) == chat]
+            same_kind = [
+                i for n, i in state["sessions"].items()
+                if bool(i.get("chat")) == chat and n not in fixed_agents()
+            ]
             if len(same_kind) >= (MAX_CHAT_SESSIONS if chat else MAX_VOICE_SESSIONS):
                 self._reply(409, {"sessions": session_names(state)})
                 return
@@ -736,7 +813,7 @@ class Handler(BaseHTTPRequestHandler):
         with _LOCK:
             state = load_state()
             prune(state)
-            if name != MAIN_SESSION and name not in state["sessions"]:
+            if not known(state, name):
                 self._reply(404, {"sessions": session_names(state)})
                 return
             state["active"] = name
@@ -748,6 +825,9 @@ class Handler(BaseHTTPRequestHandler):
         with _LOCK:
             state = load_state()
             prune(state)
+            if name in fixed_agents():
+                self._reply(409, {"error": "fixed agent"})
+                return
             if name == MAIN_SESSION or name not in state["sessions"]:
                 self._reply(404, {"sessions": session_names(state)})
                 return
