@@ -14,8 +14,16 @@ Sessions started for the chat are not ended when idle.
 - POST /switch    {name}                    send following prompts there
 - POST /end       {name}                    end a voice session
 - GET  /sessions                            running sessions, the active one and
-                                            the sessions the Claude app shows
+                                            the sessions the Claude app shows,
+                                            plus open permission requests
 - GET  /health
+
+Permission requests (approvals): the PermissionRequest hook of a session
+(permission_hook.py) posts the tool call to POST /approval and waits with
+GET /approval?id=…&wait=… for the answer. Home Assistant sees the open
+requests in GET /sessions and answers with POST /approval/decide
+{id, behavior: allow|deny[, message]}. Without an answer in time the hook
+gives up and Claude Code shows its normal permission prompt.
 
 Fixed agents (agents.json, e.g. "brainstorm", "analyse") run all the time,
 each in its own tmux socket "agent-<name>" (claude-agent@<name>.service).
@@ -100,6 +108,117 @@ HISTORY_MAX = 200
 
 _LOGGER = logging.getLogger("claude-alexa-bridge")
 _LOCK = threading.Lock()
+
+# Open permission requests: id -> request (kept in memory only)
+APPROVAL_TTL = 15 * 60
+APPROVAL_MAX = 20
+APPROVAL_WAIT_MAX = 30
+RE_APPROVAL_ID = re.compile(r"^[0-9a-f]{32}$")
+_APPROVALS: dict[str, dict] = {}
+_APPROVAL_COND = threading.Condition()
+
+
+def _summary(tool: str, tool_input: object) -> str:
+    """Short, readable text of what a tool call wants to do."""
+    if not isinstance(tool_input, dict):
+        return ""
+    for key in ("command", "file_path", "url", "pattern", "path", "prompt"):
+        value = tool_input.get(key)
+        if value:
+            return clean_text(str(value), 300)
+    try:
+        return clean_text(json.dumps(tool_input, ensure_ascii=False), 300)
+    except (TypeError, ValueError):
+        return ""
+
+
+def approvals_prune(now: float | None = None) -> None:
+    """Drop requests that are answered and fetched, or too old (lock held)."""
+    now = now or time.time()
+    for key, item in list(_APPROVALS.items()):
+        if now - item["created"] > APPROVAL_TTL or item.get("fetched"):
+            del _APPROVALS[key]
+
+
+def approval_add(payload: dict) -> str | None:
+    """Store a new permission request; return its id."""
+    session_id = str(payload.get("session_id") or "")
+    tool = clean_text(str(payload.get("tool_name") or ""), 80)
+    if not RE_SESSION_ID.match(session_id) or not tool:
+        return None
+    with _APPROVAL_COND:
+        approvals_prune()
+        if len(_APPROVALS) >= APPROVAL_MAX:
+            return None
+        key = uuid.uuid4().hex
+        _APPROVALS[key] = {
+            "id": key,
+            "session_id": session_id,
+            "tool": tool,
+            "summary": _summary(tool, payload.get("tool_input")),
+            "cwd": clean_text(str(payload.get("cwd") or ""), 200),
+            "created": time.time(),
+            "decision": None,
+        }
+    return key
+
+
+def approval_decide(key: str, behavior: str, message: str = "") -> bool:
+    """Answer an open request; False if it is unknown or answered."""
+    if behavior not in ("allow", "deny"):
+        return False
+    with _APPROVAL_COND:
+        item = _APPROVALS.get(key)
+        if item is None or item["decision"] is not None:
+            return False
+        item["decision"] = {"behavior": behavior, "message": clean_text(message, 300)}
+        _APPROVAL_COND.notify_all()
+    return True
+
+
+def approval_wait(key: str, wait: float) -> dict | None:
+    """Wait up to wait seconds for the answer; KeyError if unknown."""
+    deadline = time.time() + max(0.0, min(wait, APPROVAL_WAIT_MAX))
+    with _APPROVAL_COND:
+        while True:
+            item = _APPROVALS[key]
+            if item["decision"] is not None:
+                item["fetched"] = True
+                return item["decision"]
+            left = deadline - time.time()
+            if left <= 0:
+                return None
+            _APPROVAL_COND.wait(left)
+
+
+def approval_cancel(key: str) -> None:
+    """The hook gave up: forget the request."""
+    with _APPROVAL_COND:
+        _APPROVALS.pop(key, None)
+
+
+def approvals_open(state: dict) -> list[dict]:
+    """Unanswered requests, with the bridge name of their session."""
+    names: dict[str, str] = {}
+    for name in session_names(state):
+        try:
+            names[claude_id(state, name)] = name
+        except (OSError, KeyError):
+            continue
+    with _APPROVAL_COND:
+        approvals_prune()
+        return [
+            {
+                "id": i["id"],
+                "session_id": i["session_id"],
+                "session": names.get(i["session_id"], ""),
+                "tool": i["tool"],
+                "summary": i["summary"],
+                "created": i["created"],
+            }
+            for i in _APPROVALS.values()
+            if i["decision"] is None
+        ]
 
 
 @dataclass
@@ -659,6 +778,7 @@ class Handler(BaseHTTPRequestHandler):
                 prune(state)
                 save_state(state)
                 app = app_sessions(state)
+                approvals = approvals_open(state)
             fixed = fixed_agents()
             chat = [
                 *fixed,
@@ -675,8 +795,25 @@ class Handler(BaseHTTPRequestHandler):
                     "chat": chat,
                     "fixed": fixed,
                     "app": app,
+                    "approvals": approvals,
                 },
             )
+        elif urlparse(self.path).path == "/approval":
+            query = parse_qs(urlparse(self.path).query)
+            key = (query.get("id") or [""])[0]
+            try:
+                wait = float((query.get("wait") or ["0"])[0])
+            except ValueError:
+                wait = 0.0
+            if not RE_APPROVAL_ID.match(key):
+                self._reply(400, {"error": "bad id"})
+                return
+            try:
+                decision = approval_wait(key, wait)
+            except KeyError:
+                self._reply(404, {"error": "not found"})
+                return
+            self._reply(200, {"decision": decision})
         else:
             self._reply(404, {"error": "not found"})
 
@@ -688,6 +825,9 @@ class Handler(BaseHTTPRequestHandler):
             "/sessions": self._new_session,
             "/switch": self._switch,
             "/end": self._end,
+            "/approval": self._approval,
+            "/approval/decide": self._approval_decide,
+            "/approval/cancel": self._approval_cancel,
         }
         handler = handlers.get(self.path)
         if handler is None:
@@ -838,6 +978,24 @@ class Handler(BaseHTTPRequestHandler):
             save_state(state)
         _LOGGER.info("Voice session %s ended", name)
         self._reply(200, {"ok": True, "active": state["active"]})
+
+    def _approval(self, payload: dict) -> None:
+        key = approval_add(payload)
+        if key is None:
+            self._reply(400, {"error": "bad request"})
+            return
+        self._reply(200, {"id": key})
+
+    def _approval_decide(self, payload: dict) -> None:
+        key = str(payload.get("id") or "")
+        ok = approval_decide(
+            key, str(payload.get("behavior") or ""), str(payload.get("message") or "")
+        )
+        self._reply(200 if ok else 404, {"ok": ok})
+
+    def _approval_cancel(self, payload: dict) -> None:
+        approval_cancel(str(payload.get("id") or ""))
+        self._reply(200, {"ok": True})
 
     def log_message(self, fmt: str, *args: object) -> None:
         _LOGGER.debug("%s %s", self.client_address[0], fmt % args)

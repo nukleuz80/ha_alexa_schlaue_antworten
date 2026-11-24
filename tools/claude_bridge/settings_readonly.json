@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/claude-alexa/permission_hook.py\"",
+            "timeout": 180
+          }
+        ]
+      }
     ]
   },
   "permissions": {
