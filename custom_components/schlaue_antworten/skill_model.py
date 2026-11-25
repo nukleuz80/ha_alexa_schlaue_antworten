@@ -217,6 +217,7 @@ RE_INVOCATION = re.compile(r"^[a-zäöüß]+( [a-zäöüß]+)*$")
 
 SKILL_CODE_TEMPLATE = '''"""Schlaue Antworten Alexa skill. Keep this code private, it contains your secret address."""
 import json
+import threading
 import urllib.error
 import urllib.request
 
@@ -225,6 +226,9 @@ WEBHOOK_URL = "__WEBHOOK_URL__"
 TIMEOUT_SECONDS = 6.5
 UNREACHABLE = "Home Assistant ist gerade nicht erreichbar. Versuch es bitte gleich noch einmal."
 INACTIVE = "Der eigene Skill ist in Schlaue Antworten gerade nicht eingeschaltet."
+# Said while Home Assistant still thinks; an empty text turns it off
+PROGRESS_TEXT = "Moment."
+PROGRESS_AFTER_SECONDS = 1.0
 
 
 def _response(text, end_session=True, reprompt=None, session=None):
@@ -242,6 +246,46 @@ def _response(text, end_session=True, reprompt=None, session=None):
     if session:
         answer["sessionAttributes"] = session
     return answer
+
+
+def _send_progress(event):
+    """Let Alexa say PROGRESS_TEXT now, before the real answer is ready."""
+    system = event["context"]["System"]
+    endpoint = system.get("apiEndpoint")
+    token = system.get("apiAccessToken")
+    if not (PROGRESS_TEXT and endpoint and token):
+        return
+    body = {
+        "header": {"requestId": event["request"]["requestId"]},
+        "directive": {"type": "VoicePlayer.Speak", "speech": PROGRESS_TEXT},
+    }
+    request = urllib.request.Request(
+        endpoint + "/v1/directives",
+        data=json.dumps(body).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token,
+        },
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(request, timeout=1.0).close()
+    except (urllib.error.URLError, TimeoutError, ValueError) as err:
+        print("Progressive response failed: " + str(err))
+
+
+def _call_with_progress(event, *args):
+    """Call Home Assistant; say PROGRESS_TEXT if the answer takes a while."""
+    result = {}
+    worker = threading.Thread(
+        target=lambda: result.update(answer=_call_home_assistant(event, *args))
+    )
+    worker.start()
+    worker.join(PROGRESS_AFTER_SECONDS)
+    if worker.is_alive():
+        _send_progress(event)
+        worker.join()
+    return result.get("answer") or _response(UNREACHABLE)
 
 
 def _call_home_assistant(event, action, intent=None, text=""):
@@ -288,7 +332,9 @@ def lambda_handler(event, context):
     intent = request.get("intent", {})
     slots = intent.get("slots") or {}
     slot = slots.get("__SLOT__") or slots.get("__FREE__") or {}
-    return _call_home_assistant(event, "intent", intent.get("name"), slot.get("value") or "")
+    return _call_with_progress(
+        event, "intent", intent.get("name"), slot.get("value") or ""
+    )
 '''.replace("__SLOT__", SLOT_QUESTION).replace("__FREE__", SLOT_FREE)
 
 

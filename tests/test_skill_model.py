@@ -4,6 +4,8 @@ from __future__ import annotations
 import ast
 import json
 import re
+import time
+from typing import Any
 
 from custom_components.schlaue_antworten.skill_model import (
     BUILT_IN_INTENTS,
@@ -114,3 +116,79 @@ def test_invocation_sentences_in_open_dialog() -> None:
     intents = {intent["name"]: intent for intent in _model()["intents"]}
     assert "frag schlaufuchs {frage}" in intents[INTENT_QUESTION]["samples"]
     assert "öffne schlaufuchs" in intents["StartIntent"]["samples"]
+
+
+def _skill_namespace() -> dict[str, Any]:
+    """Load the generated skill code like Lambda does."""
+    namespace: dict[str, Any] = {}
+    exec(build_skill_code("https://example/api/webhook/abc"), namespace)  # noqa: S102
+    return namespace
+
+
+def _intent_event() -> dict[str, Any]:
+    return {
+        "context": {
+            "System": {
+                "application": {"applicationId": "app"},
+                "device": {"deviceId": "dev"},
+                "apiEndpoint": "https://api.amazonalexa.example",
+                "apiAccessToken": "tok",
+            }
+        },
+        "request": {
+            "type": "IntentRequest",
+            "requestId": "req-1",
+            "intent": {"name": INTENT_QUESTION, "slots": {}},
+        },
+    }
+
+
+def test_progress_text_only_when_slow() -> None:
+    """A slow answer gets "Moment." first, a fast one does not."""
+    namespace = _skill_namespace()
+    namespace["PROGRESS_AFTER_SECONDS"] = 0.05
+    sent: list[dict[str, Any]] = []
+    namespace["_send_progress"] = lambda event: sent.append(event)
+    delay = {"seconds": 0.0}
+
+    def fake_call(event: dict[str, Any], *args: Any) -> dict[str, Any]:
+        time.sleep(delay["seconds"])
+        return namespace["_response"]("Antwort")
+
+    namespace["_call_home_assistant"] = fake_call
+
+    answer = namespace["lambda_handler"](_intent_event(), None)
+    assert answer["response"]["outputSpeech"]["text"] == "Antwort"
+    assert not sent
+
+    delay["seconds"] = 0.2
+    answer = namespace["lambda_handler"](_intent_event(), None)
+    assert answer["response"]["outputSpeech"]["text"] == "Antwort"
+    assert len(sent) == 1
+
+
+def test_progress_directive(monkeypatch: Any) -> None:
+    """The progress text goes to the Alexa directives API with the request id."""
+    namespace = _skill_namespace()
+    calls: list[Any] = []
+
+    class _Reply:
+        def close(self) -> None:
+            pass
+
+    def fake_urlopen(request: Any, timeout: float) -> _Reply:
+        calls.append((request.full_url, json.loads(request.data), request.headers))
+        return _Reply()
+
+    monkeypatch.setattr(namespace["urllib"].request, "urlopen", fake_urlopen)
+    namespace["_send_progress"](_intent_event())
+    url, body, headers = calls[0]
+    assert url == "https://api.amazonalexa.example/v1/directives"
+    assert body["header"]["requestId"] == "req-1"
+    assert body["directive"] == {"type": "VoicePlayer.Speak", "speech": "Moment."}
+    assert headers["Authorization"] == "Bearer tok"
+
+    # An empty text turns it off
+    namespace["PROGRESS_TEXT"] = ""
+    namespace["_send_progress"](_intent_event())
+    assert len(calls) == 1
