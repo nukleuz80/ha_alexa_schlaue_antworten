@@ -37,6 +37,7 @@ from .const import (
     DEFAULT_PROMPT_SHORT,
     DEFAULT_SHORT_ANSWERS,
     LEGACY_PROMPTS_DETAILED,
+    LEGACY_PROMPTS_SHORT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +67,26 @@ OVERLOADED_TEXT = (
 
 WEEKDAYS_DE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
 MONTHS_DE = ("", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
+
+# Words that show a question needs the weather or who is at home. Everything
+# else gets only time and room, which keeps the prompt short and fast.
+WEATHER_WORDS = (
+    "wetter", "regen", "regnet", "schnee", "schneit", "sonne", "sonnig", "wind",
+    "sturm", "gewitter", "nebel", "temperatur", "grad", "warm", "kalt", "frost",
+    "draußen", "draussen", "jacke", "schirm", "anziehen", "grill", "wäsche",
+    "fahrrad", "spazieren", "garten",
+)
+PRESENCE_WORDS = (
+    "zu hause", "zuhause", "daheim", "wer ist", "wer sind", "jemand", "niemand",
+    "anwesend", "unterwegs", "allein",
+)
+
+
+def _mentions(question: str, words: tuple[str, ...]) -> bool:
+    """Return True if the question contains one of the words."""
+    lower = question.casefold()
+    return any(word in lower for word in words)
+
 
 WEATHER_TRANSLATIONS = {
     "clear-night": "klar",
@@ -163,13 +184,18 @@ class AnswerEngine:
                 )
         elif opts.get(CONF_SHORT_ANSWERS, DEFAULT_SHORT_ANSWERS):
             template = opts.get(CONF_PROMPT_SHORT, DEFAULT_PROMPT_SHORT)
+            if template in LEGACY_PROMPTS_SHORT:
+                template = DEFAULT_PROMPT_SHORT
             prompt, found = _fill(template, "question", question)
             if not found:
                 prompt = f"{template.strip()}: {question}"
         else:
             prompt = question
 
-        context_str = self.ha_context_summary(device)
+        # A follow-up may need what the short answer left out, so it gets all
+        context_str = self.ha_context_summary(
+            device, None if is_followup else question
+        )
         if context_str:
             prompt = f"{prompt} {context_str}"
         return prompt
@@ -355,8 +381,12 @@ class AnswerEngine:
 
         return "KI"
 
-    def ha_context_summary(self, device: str) -> str:
-        """Build a compact, single-line Smart Home context block for the prompt."""
+    def ha_context_summary(self, device: str, question: str | None = None) -> str:
+        """Build a compact, single-line Smart Home context block for the prompt.
+
+        Time, room and house facts always come along. Weather and presence only
+        when the question asks for them, or always if no question is given.
+        """
         opts = self.entry.options
         if not opts.get(CONF_ENABLE_HA_CONTEXT, DEFAULT_ENABLE_HA_CONTEXT):
             return ""
@@ -389,7 +419,7 @@ class AnswerEngine:
             if weather_states:
                 weather_entity = weather_states[0].entity_id
 
-        if weather_entity:
+        if weather_entity and (question is None or _mentions(question, WEATHER_WORDS)):
             w = self.hass.states.get(weather_entity)
             if w and w.state not in ("unavailable", "unknown"):
                 cond_de = WEATHER_TRANSLATIONS.get(w.state.lower(), w.state)
@@ -401,7 +431,7 @@ class AnswerEngine:
 
         # 4. Presence (who is home)
         person_states = self.hass.states.async_all("person")
-        if person_states:
+        if person_states and (question is None or _mentions(question, PRESENCE_WORDS)):
             home_persons = [
                 str(p.attributes.get("friendly_name") or p.entity_id.replace("person.", "").title())
                 for p in person_states

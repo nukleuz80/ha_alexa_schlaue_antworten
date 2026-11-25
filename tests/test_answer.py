@@ -8,7 +8,11 @@ from custom_components.schlaue_antworten.answer import (
     is_error_reply,
     is_unclear_reply,
 )
-from custom_components.schlaue_antworten.const import DOMAIN
+from custom_components.schlaue_antworten.const import (
+    DEFAULT_PROMPT_SHORT,
+    DOMAIN,
+    LEGACY_PROMPTS_SHORT,
+)
 
 from .conftest import ECHO, FakeAgents, SetupEntry
 from .test_init import FALLBACK, OPTIONS, PRIMARY
@@ -101,9 +105,57 @@ async def test_context_in_prompt(hass: HomeAssistant, setup_entry: SetupEntry) -
     )
     hass.states.async_set("weather.home", "sunny", {"temperature": 12})
     hass.states.async_set("person.jan", "home", {"friendly_name": "Jan"})
-    prompt = hass.data[DOMAIN][entry.entry_id].answers.build_prompt("Wetter?", ECHO)
-    assert prompt.startswith("Wetter? [Smart-Home-Kontext: Zeitpunkt: ")
+    engine = hass.data[DOMAIN][entry.entry_id].answers
+    prompt = engine.build_prompt("Wetter? Wer ist zu Hause?", ECHO)
+    assert prompt.startswith(
+        "Wetter? Wer ist zu Hause? [Smart-Home-Kontext: Zeitpunkt: "
+    )
     assert "Standort: Test Echo" in prompt
     assert "Wetter: sonnig, 12°C" in prompt
     assert "Zu Hause: Jan" in prompt
     assert "Haus-Fakten: Gast-WLAN: blume | Müll: Dienstag" in prompt
+
+
+async def test_context_only_when_needed(
+    hass: HomeAssistant, setup_entry: SetupEntry
+) -> None:
+    """Weather and presence come along only when the question needs them."""
+    entry = await setup_entry(
+        {**OPTIONS, "short_answers": False, "enable_ha_context": True}
+    )
+    hass.states.async_set("weather.home", "sunny", {"temperature": 12})
+    hass.states.async_set("person.jan", "home", {"friendly_name": "Jan"})
+    engine = hass.data[DOMAIN][entry.entry_id].answers
+
+    prompt = engine.build_prompt("Wer war Goethe?", ECHO)
+    assert "Zeitpunkt: " in prompt
+    assert "Standort: Test Echo" in prompt
+    assert "Wetter:" not in prompt
+    assert "Zu Hause:" not in prompt
+
+    prompt = engine.build_prompt("Brauche ich heute eine Jacke?", ECHO)
+    assert "Wetter: sonnig, 12°C" in prompt
+    assert "Zu Hause:" not in prompt
+
+    prompt = engine.build_prompt("Ist jemand daheim?", ECHO)
+    assert "Zu Hause: Jan" in prompt
+    assert "Wetter:" not in prompt
+
+    # A follow-up gets the whole context
+    prompt = engine.build_prompt("Wer war Goethe?", ECHO, True, "Ein Dichter.")
+    assert "Wetter: sonnig, 12°C" in prompt
+    assert "Zu Hause: Jan" in prompt
+
+
+async def test_legacy_short_prompt_gets_new_default(
+    hass: HomeAssistant, setup_entry: SetupEntry
+) -> None:
+    """An entry that still holds an old default short prompt uses the new one."""
+    entry = await setup_entry(
+        {**OPTIONS, "short_answers": True, "prompt_short": LEGACY_PROMPTS_SHORT[1]}
+    )
+    prompt = hass.data[DOMAIN][entry.entry_id].answers.build_prompt("Wie hoch?", ECHO)
+    assert prompt.startswith(
+        DEFAULT_PROMPT_SHORT.replace("{question}", "Wie hoch?")[:40]
+    )
+    assert "Wie hoch?" in prompt

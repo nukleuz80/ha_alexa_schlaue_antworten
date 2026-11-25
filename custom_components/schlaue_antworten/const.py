@@ -104,10 +104,21 @@ FILLER_PHRASES = {
 }
 
 DEFAULT_PROMPT_SHORT = (
+    "Antworte auf Deutsch in höchstens zwei kurzen Sätzen (unter 120 Zeichen) "
+    "für Sprachausgabe, ohne Aufzählungen oder Sonderzeichen. "
+    "Rechne Aufgaben direkt aus. Frage: {question}. "
+    "Ist die Eingabe nur unverständliches Gemurmel, antworte nur: [UNVERSTAENDLICH]"
+)
+# Earlier short defaults; an entry that still holds one of them gets the current one
+LEGACY_PROMPTS_SHORT = (
     "Antworte extrem kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch (maximal 120 Zeichen) "
     "für direkte Sprachausgabe (ohne Aufzählungen, Formatierungen oder Sonderzeichen). "
     "Berechne Rechenaufgaben direkt. Frage: {question}. "
-    "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]"
+    "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]",
+    "Antworte extrem kurz und prägnant in maximal 1 bis 2 Sätzen auf Deutsch "
+    "für direkte Sprachausgabe (ohne Aufzählungen, Formatierungen oder Sonderzeichen). "
+    "Berechne Rechenaufgaben direkt. Frage: {question}. "
+    "Nur wenn die Eingabe reines unvollständiges Gemurmel ist, antworte ausschließlich mit: [UNVERSTAENDLICH]",
 )
 DEFAULT_PROMPT_DETAILED = (
     "Ergänze die bisherige Antwort zur Fragestellung '{question}' um die wichtigsten weiteren Informationen "

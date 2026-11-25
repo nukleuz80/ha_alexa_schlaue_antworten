@@ -7,7 +7,7 @@
 <i>Frag deinen Echo alles – Gemini, Claude, OpenAI oder ein lokales LLM antwortet. Und auf Wunsch arbeitet Claude Code für dich.</i></p>
 
 <p align="center">
-  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.13-blue.svg" alt="Version"></a>
+  <a href="https://github.com/nukleuz80/ha_alexa_schlaue_antworten/releases"><img src="https://img.shields.io/badge/version-1.5.14-blue.svg" alt="Version"></a>
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/Marketplace%20(HACS)-Default-41BDF5.svg" alt="Marketplace Default"></a>
   <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg" alt="Home Assistant"></a>
   <a href="#-mit-ki-entwickelt"><img src="https://img.shields.io/badge/entwickelt%20mit-KI--Unterst%C3%BCtzung-ff69b4?logo=sparkles&logoColor=white" alt="Mit KI-Unterstützung entwickelt"></a>
@@ -79,7 +79,7 @@
 **🧠 KI & Zuverlässigkeit**
 - 🤖 **Jeder KI-Agent aus Home Assistant:** Gemini, Claude, OpenAI, OpenRouter, lokale LLMs.
 - 🛡️ **Ausweich-Agent im Wettlauf:** Antwortet der primäre Agent nicht schnell genug (Standard 2,5 s), startet der zweite parallel – die erste gute Antwort gewinnt.
-- 🏠 **Smart-Home-Kontext:** Wetter, Uhrzeit, Raum und Anwesenheit fließen auf Wunsch in die Antwort ein.
+- 🏠 **Smart-Home-Kontext:** Uhrzeit und Raum fließen auf Wunsch in jede Antwort ein, Wetter und Anwesenheit nur, wenn die Frage danach klingt (hält den Prompt kurz und schnell).
 - 📖 **Haus-Wiki:** eigene Notizen (Gäste-WLAN, Müllabfuhr, Notfallnummern), die die KI kennt.
 - 🔄 **Schleifenschutz:** fragt bei Unverständlichem einmal nach und beendet dann leise.
 
@@ -280,6 +280,7 @@ action:
 
 | Version | Datum | Highlights |
 | :--- | :--- | :--- |
+| **v1.5.14** | 25.11.2026 | **Schnellere Kurzantworten (Plan 4.3):** Wetter und Anwesenheit gehen nur noch an die KI, wenn die Frage sie braucht (z. B. „Jacke“, „Regen“, „wer ist zu Hause“). Uhrzeit, Raum und Haus-Fakten kommen immer mit, Vertiefungen bekommen weiter den ganzen Kontext. Kürzerer Standard-Prompt für Kurzantworten; wer noch einen alten Standard-Prompt gespeichert hat, bekommt automatisch den neuen. |
 | **v1.5.13** | 24.11.2026 | **Claude-Brücke, Freigaben per Handy:** Neuer PermissionRequest-Hook (`permission_hook.py`) in allen Brücken-Sessions. Will Claude etwas tun, das eine Freigabe braucht, meldet die Brücke die Anfrage (`POST /approval`, offen in `GET /sessions` unter `approvals`); AI Sessions (ab v1.19.0) schickt sie als Push mit „Erlauben“ (Entsperren nötig) / „Ablehnen“ und antwortet über `POST /approval/decide`. Ohne Antwort in 120 s (`CLAUDE_ALEXA_APPROVAL_WAIT`) erscheint die normale Rückfrage in Terminal/Claude-App. Wirkt nach einem Neustart der Sessions. |
 | **v1.5.12** | 23.11.2026 | **Claude-Brücke, feste Agenten:** Neben „alexa“ laufen jetzt dauerhaft eigene Claude-Sessions für einzelne Aufgaben (z. B. `brainstorm`, `schlaue-antworten`, `sessions`, `analyse`), festgelegt in `~/claude-alexa/agents.json`. Jede läuft als systemd-Dienst `claude-agent@<name>` in eigenem tmux, setzt nach Neustarts dieselbe Unterhaltung fort, ist in der Claude-App sichtbar und hat eine eigene Rolle (`agents/<name>.md`), optional ein eigenes Modell und eigene Rechte (z. B. nur lesen). Die Brücke meldet sie unter `fixed` und als chatbare Sessions an Home Assistant; sie zählen nicht zur Grenze von 3 Chat-Sessions und werden nie beendet. Neu installieren: `tools/claude_bridge/install.sh <HA-IP>`. |
 | **v1.5.11** | 23.11.2026 | **Claude-Brücke, Live-Verlauf:** `GET /sessions` liefert pro Claude-Session zusätzlich `changed` (Änderungszeit des Transcripts). Damit lädt das AI-Sessions-Panel den Verlauf nach jeder Nachricht neu und zeigt live dasselbe wie die Claude-App. |
