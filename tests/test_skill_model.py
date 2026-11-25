@@ -192,3 +192,23 @@ def test_progress_directive(monkeypatch: Any) -> None:
     namespace["PROGRESS_TEXT"] = ""
     namespace["_send_progress"](_intent_event())
     assert len(calls) == 1
+
+
+def test_card_only_on_a_screen() -> None:
+    """The APL card goes only to Echos that support APL."""
+    namespace = _skill_namespace()
+    card = {"title": "Frage", "text": "Antwort", "footer": "Beantwortet von KI"}
+    event = _intent_event()
+    assert namespace["_card_directive"](event, card) is None
+
+    event["context"]["System"]["device"]["supportedInterfaces"] = {
+        "Alexa.Presentation.APL": {"runtime": {"maxVersion": "2023.3"}}
+    }
+    directive = namespace["_card_directive"](event, card)
+    assert directive["type"] == "Alexa.Presentation.APL.RenderDocument"
+    assert directive["datasources"] == {"card": card}
+    assert namespace["_card_directive"](event, None) is None
+    json.dumps(directive)  # Alexa gets it as JSON
+
+    answer = namespace["_response"]("Antwort", directive=directive)
+    assert answer["response"]["directives"] == [directive]

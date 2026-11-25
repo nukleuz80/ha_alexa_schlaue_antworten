@@ -231,7 +231,49 @@ PROGRESS_TEXT = "Moment."
 PROGRESS_AFTER_SECONDS = 1.0
 
 
-def _response(text, end_session=True, reprompt=None, session=None):
+# Screen card for Echos with a display (Echo Show)
+CARD_DOCUMENT = {
+    "type": "APL",
+    "version": "2023.3",
+    "theme": "dark",
+    "mainTemplate": {
+        "parameters": ["payload"],
+        "items": [{
+            "type": "Container",
+            "width": "100vw",
+            "height": "100vh",
+            "paddingLeft": "6vw",
+            "paddingRight": "6vw",
+            "paddingTop": "6vh",
+            "paddingBottom": "4vh",
+            "items": [
+                {"type": "Text", "text": "${payload.card.title}", "fontSize": "24dp",
+                 "color": "#9AA0A6", "maxLines": 2},
+                {"type": "ScrollView", "grow": 1, "shrink": 1, "paddingTop": "2vh",
+                 "item": {"type": "Text", "text": "${payload.card.text}",
+                          "fontSize": "32dp"}},
+                {"type": "Text", "text": "${payload.card.footer}", "fontSize": "20dp",
+                 "color": "#9AA0A6", "paddingTop": "2vh"},
+            ],
+        }],
+    },
+}
+
+
+def _card_directive(event, card):
+    """Return the APL directive for the card, if this Echo has a screen."""
+    device = event["context"]["System"].get("device", {})
+    if not card or "Alexa.Presentation.APL" not in device.get("supportedInterfaces", {}):
+        return None
+    return {
+        "type": "Alexa.Presentation.APL.RenderDocument",
+        "token": "schlaufuchs",
+        "document": CARD_DOCUMENT,
+        "datasources": {"card": card},
+    }
+
+
+def _response(text, end_session=True, reprompt=None, session=None, directive=None):
     answer = {
         "version": "1.0",
         "response": {
@@ -239,6 +281,8 @@ def _response(text, end_session=True, reprompt=None, session=None):
             "shouldEndSession": end_session,
         },
     }
+    if directive:
+        answer["response"]["directives"] = [directive]
     if reprompt and not end_session:
         answer["response"]["reprompt"] = {
             "outputSpeech": {"type": "PlainText", "text": reprompt}
@@ -318,6 +362,7 @@ def _call_home_assistant(event, action, intent=None, text=""):
         data.get("end_session", True),
         data.get("reprompt"),
         data.get("session"),
+        _card_directive(event, data.get("card")),
     )
 
 

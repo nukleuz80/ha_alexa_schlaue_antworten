@@ -135,6 +135,7 @@ INTENTS_SILENT_OK = ("AMAZON.NavigateHomeIntent",)
 
 MAX_TEXT_LENGTH = 500
 MAX_SPEECH_LENGTH = 7900
+MAX_CARD_TITLE_LENGTH = 120
 # The skill code gives Home Assistant 6.5 seconds, Amazon waits about 8
 SKILL_BUDGET_SECONDS = 6.0
 SAVE_DELAY_SECONDS = 30.0
@@ -479,8 +480,12 @@ class SkillConnector:
         end_session: bool = True,
         reprompt: str | None = None,
         session: dict[str, Any] | None = None,
+        card: dict[str, str] | None = None,
     ) -> web.Response:
-        """Return the reply the skill code turns into Alexa speech."""
+        """Return the reply the skill code turns into Alexa speech.
+
+        A card is shown on Echos with a screen (skill code from v1.5.16).
+        """
         reply: dict[str, Any] = {
             "speech": text[:MAX_SPEECH_LENGTH],
             "end_session": end_session,
@@ -489,6 +494,8 @@ class SkillConnector:
             reply["reprompt"] = reprompt[:MAX_SPEECH_LENGTH]
         if session:
             reply["session"] = session
+        if card:
+            reply["card"] = card
         return web.json_response(reply)
 
     def _ask_again(self, text: str) -> web.Response:
@@ -759,15 +766,25 @@ class SkillConnector:
             self.entry.options.get(CONF_SKILL_KEEP_OPEN, DEFAULT_SKILL_KEEP_OPEN)
         )
 
-    def _answer(self, text: str) -> web.Response:
+    def _answer(self, text: str, card: dict[str, str] | None = None) -> web.Response:
         """Say an answer and, if wanted, offer the next question."""
         if not self.keeps_dialog_open:
-            return self._speech(text)
+            return self._speech(text, card=card)
         return self._speech(
             f"{text} {SKILL_ANOTHER_TEXT}",
             end_session=False,
             reprompt=SKILL_ANOTHER_TEXT,
+            card=card,
         )
+
+    def _card(self, question: str, result: AnswerResult) -> dict[str, str]:
+        """Return the screen card: question, answer and the model that answered."""
+        agent = self.manager.answers.agent_display_name(result.agent or "")
+        return {
+            "title": question[:MAX_CARD_TITLE_LENGTH],
+            "text": result.text[:MAX_SPEECH_LENGTH],
+            "footer": f"Beantwortet von {agent}",
+        }
 
     def _retry_prompt(self) -> str:
         """Return the text that asks to repeat the question."""
@@ -890,14 +907,17 @@ class SkillConnector:
             path=PATH_SKILL,
         )
         self._last_answers[device] = (question, result.text, time.monotonic())
+        card = self._card(question, result)
         if not is_followup and any(
             phrase in question.lower() for phrase in MOBILE_QUESTION_PHRASES
         ):
             # "... und schick es mir aufs Handy": answer and send, no offer of more
             await self._async_push(question, result.text, device)
-            return self._answer(f"{result.speech} {self._mobile_confirmation()}")
+            return self._answer(
+                f"{result.speech} {self._mobile_confirmation()}", card
+            )
         if is_followup or not self.offers_detail:
-            return self._answer(result.speech)
+            return self._answer(result.speech, card)
         prompt = self._option(CONF_FOLLOWUP_PROMPT, DEFAULT_FOLLOWUP_PROMPT)
         return self._speech(
             f"{result.speech} {prompt}",
@@ -909,4 +929,5 @@ class SkillConnector:
                 SESSION_ANSWER: result.speech,
                 SESSION_DETAIL: self._prefetch_detail(question, result.speech, device),
             },
+            card=card,
         )

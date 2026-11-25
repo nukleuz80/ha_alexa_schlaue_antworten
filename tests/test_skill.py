@@ -40,6 +40,12 @@ def _ask(text: str, application_id: str = APP_ID, **extra: Any) -> dict[str, Any
     return {"application_id": application_id, "action": "ask", "text": text, **extra}
 
 
+def _without_card(reply: dict[str, Any]) -> dict[str, Any]:
+    """Drop the screen card, which test_answer_comes_back_in_the_reply checks."""
+    reply.pop("card", None)
+    return reply
+
+
 async def test_answer_comes_back_in_the_reply(
     hass: HomeAssistant,
     hass_client_no_auth: Any,
@@ -59,10 +65,15 @@ async def test_answer_comes_back_in_the_reply(
         json=_ask("Wie weit ist der Mond?", device_id="amzn1.device.x"),
     )
     assert response.status == 200
-    assert await response.json() == {
+    reply = await response.json()
+    card = reply.pop("card")
+    assert reply == {
         "speech": "Der Mond ist 384.400 km entfernt.",
         "end_session": True,
     }
+    assert card["title"] == "Wie weit ist der Mond?"
+    assert card["text"] == "Der Mond ist 384.400 km entfernt."
+    assert card["footer"].startswith("Beantwortet von ")
     assert spoken == []
     assert manager.skill.is_linked
     assert manager.stats["last_path"] == "skill"
@@ -177,7 +188,9 @@ async def test_overloaded_answer(
     url = f"/api/webhook/{hass.data[DOMAIN][entry.entry_id].skill.webhook_id}"
     client = await hass_client_no_auth()
     response = await client.post(url, json=_ask("Wie weit ist der Mond?"))
-    assert "überlastet" in (await response.json())["speech"]
+    reply = await response.json()
+    assert "überlastet" in reply["speech"]
+    assert "card" not in reply
 
 
 async def test_reset_replaces_the_secret(
@@ -247,7 +260,7 @@ async def test_skill_actions(
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
         assert response.status == 200
-        return await response.json()
+        return _without_card(await response.json())
 
     launch = await post(action="launch")
     assert launch["end_session"] is False and launch["reprompt"]
@@ -283,7 +296,7 @@ async def test_dialog_stays_open(
 
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
-        return await response.json()
+        return _without_card(await response.json())
 
     assert (await post(action="launch"))["end_session"] is False
     for word, rest in (("WerIntent", "war goethe"), ("WasIntent", "ist ein quark")):
@@ -319,7 +332,7 @@ async def test_detail_on_yes(
 
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
-        return await response.json()
+        return _without_card(await response.json())
 
     agents.answers[PRIMARY] = lambda prompt: (
         "Der Mond kreist in etwa 384.400 Kilometern um uns."
@@ -373,7 +386,7 @@ async def test_no_cancels_the_detail(
 
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
-        return await response.json()
+        return _without_card(await response.json())
 
     short = await post(action="intent", intent="WieIntent", text="weit ist der mond")
     agents.delays[PRIMARY] = 5
@@ -466,7 +479,7 @@ async def test_no_endless_fallback(
             url,
             json={"application_id": APP_ID, "action": "intent", **payload},
         )
-        return await response.json()
+        return _without_card(await response.json())
 
     first = await post(intent="AMAZON.FallbackIntent")
     assert first["end_session"] is False
@@ -498,7 +511,7 @@ async def test_start_intent_and_invocation_question(
             url,
             json={"application_id": APP_ID, "action": "intent", **payload},
         )
-        return await response.json()
+        return _without_card(await response.json())
 
     start = await post(intent="StartIntent", session={"retries": 1})
     assert start["speech"].endswith("Was möchtest du wissen?")
@@ -528,7 +541,7 @@ async def test_send_to_phone(
 
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
-        return await response.json()
+        return _without_card(await response.json())
 
     confirmation = "Ich habe dir die Antwort aufs Handy geschickt."
     # Nothing asked yet: nothing to send
@@ -593,7 +606,7 @@ async def test_assign_room_by_voice(
 
     async def post(**payload: Any) -> dict[str, Any]:
         response = await client.post(url, json={"application_id": APP_ID, **payload})
-        return await response.json()
+        return _without_card(await response.json())
 
     kitchen = "amzn1.ask.device.KITCHEN123456"
     unknown = await post(
